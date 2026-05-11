@@ -17,7 +17,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use warp_insight_contracts::exporter::{ExporterOutput, ExporterSource};
-use warp_insight_shared::fs::{read_json, write_json_atomic};
+use warp_insight_shared::fs::{read_json, write_json_compact_atomic};
 use warp_insight_shared::time::now_rfc3339;
 
 use crate::discovery::cache as discovery_cache;
@@ -119,7 +119,7 @@ fn export_probe(
     if let Some(parent) = out_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    write_json_atomic(&out_path, &output)?;
+    write_json_compact_atomic(&out_path, &output)?;
     Ok(ExportResult::Written)
 }
 
@@ -263,7 +263,7 @@ pub fn export_metrics(state_dir: &Path, source: &ExporterSource) -> io::Result<(
             if let Some(parent) = out_path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            write_json_atomic(&out_path, &output)
+            write_json_compact_atomic(&out_path, &output)
         }
         Err(err) => {
             eprintln!("exporter: metrics skipped (no runtime snapshot): {err}");
