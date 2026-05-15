@@ -126,7 +126,7 @@ fn daemon_run_once_processes_configured_file_input() {
             .join("metrics_runtime_snapshot.json"),
     )
     .expect("read metrics runtime snapshot");
-    let _metrics_samples_exporter = state_dir.join("export").join("metrics.json");
+    let _metrics_samples_exporter = state_dir.join("export").join("metrics.jsonl");
 
     assert_eq!(
         snapshot.state,

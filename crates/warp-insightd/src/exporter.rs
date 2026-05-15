@@ -1,23 +1,25 @@
-//! Exporter: reads internal pipeline state and writes unified envelope-wrapped output.
+//! Exporter: reads internal pipeline state and writes JSONL outputs optimized
+//! for downstream WarpParse rules.
 //!
 //! Discovery output is split by probe kind (host / process / container) so that
 //! consumers can track each probe's revision independently and file sizes stay
 //! proportional to each probe's data volume.
 //!
-//! Process output is further split by classification (identified / named /
-//! unidentified) based on has_exe / has_identity predicates.  Kernel threads
-//! (PID < 100) are filtered before classification.  The filter is exporter-
-//! only and does not affect the internal discovery cache.
+//! Each JSONL line is self-contained:
+//! - discovery rows carry snapshot metadata plus one resource
+//! - metrics rows carry collection metadata plus one metric sample
 //!
-//! Process files use JSON Lines format (.jsonl): first line is the envelope
-//! header, subsequent lines are one compact resource each.
+//! Process output is further split by classification (identified / named /
+//! unidentified) based on has_exe / has_identity predicates. Kernel threads
+//! (PID < 100) are filtered before classification. The filter is exporter-only
+//! and does not affect the internal discovery cache.
 
 use std::io;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use warp_insight_contracts::exporter::{ExporterOutput, ExporterSource};
-use warp_insight_shared::fs::{read_json, write_json_compact_atomic};
+use warp_insight_contracts::exporter::ExporterSource;
+use warp_insight_shared::fs::{read_json, write_bytes_atomic};
 use warp_insight_shared::time::now_rfc3339;
 
 use crate::discovery::cache as discovery_cache;
@@ -45,12 +47,14 @@ fn has_exe(r: &serde_json::Value) -> bool {
         .and_then(|v| v.as_str())
         .is_some_and(|s| !s.is_empty())
 }
+
 fn has_identity(r: &serde_json::Value) -> bool {
     r.get("attributes")
         .and_then(|a| a.get("process.identity"))
         .and_then(|v| v.as_str())
         .is_some_and(|s| !s.is_empty())
 }
+
 fn is_kernel_thread(r: &serde_json::Value) -> bool {
     r.get("attributes")
         .and_then(|a| a.get("process.pid"))
@@ -65,7 +69,120 @@ enum ExportResult {
     Skipped,
 }
 
-/// Writes one per-probe discovery snapshot file. Used for host and container.
+fn filter_by_kind(arr: &serde_json::Value, kind: &str) -> Vec<serde_json::Value> {
+    arr.as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter(|item| item.get("kind").and_then(|v| v.as_str()) == Some(kind))
+                .cloned()
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn snapshot_fields(meta: Option<&serde_json::Value>) -> (String, u64, String) {
+    (
+        meta.and_then(|m| m.get("snapshot_id"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+            .to_string(),
+        meta.and_then(|m| m.get("revision"))
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0),
+        meta.and_then(|m| m.get("generated_at"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+    )
+}
+
+fn matching_target(targets: &[serde_json::Value], resource_id: &str) -> Option<serde_json::Value> {
+    targets
+        .iter()
+        .find(|target| {
+            target
+                .get("resource_ref")
+                .and_then(|value| value.as_str())
+                == Some(resource_id)
+        })
+        .cloned()
+}
+
+fn write_jsonl(path: &Path, rows: &[serde_json::Value]) -> io::Result<()> {
+    let mut buf = String::new();
+    for (idx, row) in rows.iter().enumerate() {
+        if idx > 0 {
+            buf.push('\n');
+        }
+        let line = serde_json::to_string(row).map_err(io::Error::other)?;
+        buf.push_str(&line);
+    }
+    write_bytes_atomic(path, buf.as_bytes())
+}
+
+fn build_disc_row(
+    source: &ExporterSource,
+    probe: &str,
+    classification: Option<&str>,
+    output_id: &str,
+    seq: u64,
+    generated_at: &str,
+    snapshot_id: &str,
+    snapshot_revision: u64,
+    snapshot_generated_at: &str,
+    resource: serde_json::Value,
+    target: Option<serde_json::Value>,
+) -> serde_json::Value {
+    let mut row = serde_json::Map::new();
+    row.insert(
+        "api_version".to_string(),
+        serde_json::Value::String("warp-insight/v1".to_string()),
+    );
+    row.insert(
+        "kind".to_string(),
+        serde_json::Value::String("disc_resource".to_string()),
+    );
+    row.insert(
+        "output_id".to_string(),
+        serde_json::Value::String(output_id.to_string()),
+    );
+    row.insert("seq".to_string(), serde_json::Value::Number(seq.into()));
+    row.insert(
+        "generated_at".to_string(),
+        serde_json::Value::String(generated_at.to_string()),
+    );
+    row.insert(
+        "source".to_string(),
+        serde_json::to_value(source.clone().with_probe(probe)).expect("serialize source"),
+    );
+    row.insert(
+        "snapshot_id".to_string(),
+        serde_json::Value::String(snapshot_id.to_string()),
+    );
+    row.insert(
+        "snapshot_revision".to_string(),
+        serde_json::Value::Number(snapshot_revision.into()),
+    );
+    row.insert(
+        "snapshot_generated_at".to_string(),
+        serde_json::Value::String(snapshot_generated_at.to_string()),
+    );
+    if let Some(classification) = classification {
+        row.insert(
+            "classification".to_string(),
+            serde_json::Value::String(classification.to_string()),
+        );
+    }
+    row.insert("resource".to_string(), resource);
+    if let Some(target) = target {
+        row.insert("target".to_string(), target);
+    }
+    serde_json::Value::Object(row)
+}
+
+/// Writes one per-probe discovery snapshot file (JSONL format).
+/// Used for host and container.
 fn export_probe(
     state_dir: &Path,
     source: &ExporterSource,
@@ -74,56 +191,46 @@ fn export_probe(
     targets: &serde_json::Value,
     meta: Option<&serde_json::Value>,
 ) -> io::Result<ExportResult> {
-    let filter = |arr: &serde_json::Value| -> Vec<serde_json::Value> {
-        arr.as_array()
-            .map(|items| {
-                items
-                    .iter()
-                    .filter(|item| item.get("kind").and_then(|v| v.as_str()) == Some(probe))
-                    .cloned()
-                    .collect()
-            })
-            .unwrap_or_default()
-    };
-
-    let probe_resources = filter(resources);
+    let probe_resources = filter_by_kind(resources, probe);
     if probe_resources.is_empty() {
         return Ok(ExportResult::Skipped);
     }
-    let probe_targets = filter(targets);
-
+    let probe_targets = filter_by_kind(targets, probe);
+    let (snapshot_id, snapshot_revision, snapshot_generated_at) = snapshot_fields(meta);
     let seq = EXPORT_SEQ.fetch_add(1, Ordering::Relaxed);
     let output_id = format!("{probe}_{seq}");
-    let snapshot = serde_json::json!({
-        "id": meta.and_then(|m| m.get("snapshot_id")).and_then(|v| v.as_str()).unwrap_or("unknown"),
-        "revision": meta.and_then(|m| m.get("revision")).and_then(|v| v.as_u64()).unwrap_or(0),
-        "generated_at": meta.and_then(|m| m.get("generated_at")).and_then(|v| v.as_str()).unwrap_or(""),
-    });
+    let generated_at = now_rfc3339();
 
-    let payload = serde_json::json!({
-        "snapshot": snapshot,
-        "resources": probe_resources,
-        "targets": probe_targets,
-    });
+    let rows: Vec<_> = probe_resources
+        .into_iter()
+        .map(|resource| {
+            let resource_id = resource
+                .get("resource_id")
+                .and_then(|value| value.as_str())
+                .unwrap_or("")
+                .to_string();
+            build_disc_row(
+                source,
+                probe,
+                None,
+                &output_id,
+                seq,
+                &generated_at,
+                &snapshot_id,
+                snapshot_revision,
+                &snapshot_generated_at,
+                resource,
+                matching_target(&probe_targets, &resource_id),
+            )
+        })
+        .collect();
 
-    let output = ExporterOutput::new(
-        "disc_snap",
-        output_id,
-        seq,
-        now_rfc3339(),
-        source.clone().with_probe(probe),
-        payload,
-    );
-
-    let out_path = state_dir.join("export").join(format!("{probe}.json"));
-    if let Some(parent) = out_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    write_json_compact_atomic(&out_path, &output)?;
+    let out_path = state_dir.join("export").join(format!("{probe}.jsonl"));
+    write_jsonl(&out_path, &rows)?;
     Ok(ExportResult::Written)
 }
 
-/// Reads discovery cache and writes one envelope-wrapped file per probe kind.
+/// Reads discovery cache and writes one file per probe kind.
 pub fn export_disc_snap(state_dir: &Path, source: &ExporterSource) -> io::Result<()> {
     let paths = discovery_cache::DiscoveryCachePaths::under_state_dir(state_dir);
 
@@ -141,30 +248,32 @@ pub fn export_disc_snap(state_dir: &Path, source: &ExporterSource) -> io::Result
 
     for probe in DISCOVERY_PROBES {
         if *probe == "process" {
-            if let Err(err) = export_process_classified(state_dir, source, &resources, &targets, meta.as_ref()) {
+            if let Err(err) =
+                export_process_classified(state_dir, source, &resources, &targets, meta.as_ref())
+            {
                 eprintln!("exporter: process_classified error: {err}");
             }
-        } else {
-            if let Err(err) = export_probe(state_dir, source, probe, &resources, &targets, meta.as_ref()) {
-                eprintln!("exporter: {probe} export error: {err}");
-            }
+        } else if let Err(err) =
+            export_probe(state_dir, source, probe, &resources, &targets, meta.as_ref())
+        {
+            eprintln!("exporter: {probe} export error: {err}");
         }
     }
     Ok(())
 }
 
-/// Classifies process resources, writes one JSON Lines file per set.
-/// First line is the envelope header; subsequent lines are one resource each.
+/// Classifies process resources and writes one JSONL file per set.
 fn export_process_classified(
     state_dir: &Path,
     source: &ExporterSource,
     resources: &serde_json::Value,
-    _targets: &serde_json::Value,
+    targets: &serde_json::Value,
     meta: Option<&serde_json::Value>,
 ) -> io::Result<()> {
     let mut identified = Vec::new();
     let mut named = Vec::new();
     let mut unidentified = Vec::new();
+    let process_targets = filter_by_kind(targets, "process");
 
     if let Some(items) = resources.as_array() {
         for item in items {
@@ -182,11 +291,12 @@ fn export_process_classified(
         }
     }
 
-    let sets: &[(&str, Vec<serde_json::Value>)] = &[
+    let sets: [(&str, Vec<serde_json::Value>); 3] = [
         ("identified", identified),
         ("named", named),
         ("unidentified", unidentified),
     ];
+    let (snapshot_id, snapshot_revision, snapshot_generated_at) = snapshot_fields(meta);
 
     for (set_name, proc_resources) in sets {
         if proc_resources.is_empty() {
@@ -194,47 +304,38 @@ fn export_process_classified(
         }
         let seq = EXPORT_SEQ.fetch_add(1, Ordering::Relaxed);
         let output_id = format!("process_{set_name}_{seq}");
-        let snapshot = serde_json::json!({
-            "id": meta.and_then(|m| m.get("snapshot_id")).and_then(|v| v.as_str()).unwrap_or("unknown"),
-            "revision": meta.and_then(|m| m.get("revision")).and_then(|v| v.as_u64()).unwrap_or(0),
-            "generated_at": meta.and_then(|m| m.get("generated_at")).and_then(|v| v.as_str()).unwrap_or(""),
-        });
-
-        // Header line: envelope + snapshot metadata, no resources array
-        let header = serde_json::json!({
-            "api_version": "warp-insight/v1",
-            "kind": "disc_snap",
-            "output_id": output_id,
-            "seq": seq,
-            "generated_at": now_rfc3339(),
-            "source": {
-                "agent_id": source.agent_id,
-                "instance_id": source.instance_id,
-                "probe": set_name,
-            },
-            "payload": {
-                "snapshot": snapshot,
-            },
-        });
+        let generated_at = now_rfc3339();
+        let rows: Vec<_> = proc_resources
+            .into_iter()
+            .map(|resource| {
+                let resource_id = resource
+                    .get("resource_id")
+                    .and_then(|value| value.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                build_disc_row(
+                    source,
+                    "process",
+                    Some(set_name),
+                    &output_id,
+                    seq,
+                    &generated_at,
+                    &snapshot_id,
+                    snapshot_revision,
+                    &snapshot_generated_at,
+                    resource,
+                    matching_target(&process_targets, &resource_id),
+                )
+            })
+            .collect();
 
         let out_path = state_dir.join("export").join(format!("process-{set_name}.jsonl"));
-        if let Some(parent) = out_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let mut buf = serde_json::to_string(&header).map_err(io::Error::other)?;
-        buf.push('\n');
-        for resource in proc_resources {
-            let line = serde_json::to_string(resource).map_err(io::Error::other)?;
-            buf.push_str(&line);
-            buf.push('\n');
-        }
-        std::fs::write(&out_path, buf.as_bytes())?;
+        write_jsonl(&out_path, &rows)?;
     }
     Ok(())
 }
 
-/// Reads current metrics runtime snapshot, builds grouped samples, and writes
-/// envelope-wrapped metrics output.
+/// Reads current metrics runtime snapshot and writes one sample per JSONL line.
 pub fn export_metrics(state_dir: &Path, source: &ExporterSource) -> io::Result<()> {
     let runtime_path = metrics_runtime::path_for(state_dir);
 
@@ -243,27 +344,34 @@ pub fn export_metrics(state_dir: &Path, source: &ExporterSource) -> io::Result<(
             let samples_snapshot = samples::build_samples_snapshot(&snapshot);
             let seq = EXPORT_SEQ.fetch_add(1, Ordering::Relaxed);
             let output_id = format!("metrics_{seq}");
+            let generated_at = now_rfc3339();
+            let mut rows = Vec::new();
 
-            let payload = serde_json::json!({
-                "batch_seq": samples_snapshot.batch_seq,
-                "collected_at": samples_snapshot.collected_at,
-                "groups": samples_snapshot.groups,
-            });
-
-            let output = ExporterOutput::new(
-                "metrics",
-                output_id,
-                seq,
-                now_rfc3339(),
-                source.clone(),
-                payload,
-            );
-
-            let out_path = state_dir.join("export").join("metrics.json");
-            if let Some(parent) = out_path.parent() {
-                std::fs::create_dir_all(parent)?;
+            for group in &samples_snapshot.groups {
+                for sample in &group.samples {
+                    rows.push(serde_json::json!({
+                        "api_version": "warp-insight/v1",
+                        "kind": "metrics_sample",
+                        "output_id": output_id,
+                        "seq": seq,
+                        "generated_at": generated_at,
+                        "source": source,
+                        "batch_seq": samples_snapshot.batch_seq,
+                        "collected_at": samples_snapshot.collected_at,
+                        "collection_kind": group.kind,
+                        "target_ref": group.target_ref,
+                        "resource_ref": group.resource_ref,
+                        "name": sample.name,
+                        "type": sample.value_type,
+                        "unit": sample.unit,
+                        "value": sample.value,
+                        "status": sample.status,
+                    }));
+                }
             }
-            write_json_compact_atomic(&out_path, &output)
+
+            let out_path = state_dir.join("export").join("metrics.jsonl");
+            write_jsonl(&out_path, &rows)
         }
         Err(err) => {
             eprintln!("exporter: metrics skipped (no runtime snapshot): {err}");
@@ -285,10 +393,10 @@ pub fn export_all(state_dir: &Path, source: &ExporterSource) {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::io::BufRead;
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use warp_insight_contracts::exporter::ExporterOutput;
     use warp_insight_shared::fs::read_json;
 
     use super::*;
@@ -304,116 +412,131 @@ mod tests {
         dir
     }
 
-    fn write_cache(
-        state_dir: &Path,
-        resources: serde_json::Value,
-        targets: serde_json::Value,
-    ) {
+    fn write_cache(state_dir: &Path, resources: serde_json::Value, targets: serde_json::Value) {
         let paths = discovery_cache::DiscoveryCachePaths::under_state_dir(state_dir);
         fs::create_dir_all(&paths.root).expect("create discovery dir");
         let meta = serde_json::json!({
-            "schema_version": "v1", "snapshot_id": "snap-1", "revision": 1,
-            "generated_at": "2026-04-19T00:00:00Z", "origins": [],
+            "schema_version": "v1",
+            "snapshot_id": "snap-1",
+            "revision": 1,
+            "generated_at": "2026-04-19T00:00:00Z",
+            "origins": [],
         });
-        fs::write(&paths.resources, serde_json::to_vec_pretty(&resources).unwrap()).expect("write resources");
-        fs::write(&paths.targets, serde_json::to_vec_pretty(&targets).unwrap()).expect("write targets");
+        fs::write(&paths.resources, serde_json::to_vec_pretty(&resources).unwrap())
+            .expect("write resources");
+        fs::write(&paths.targets, serde_json::to_vec_pretty(&targets).unwrap())
+            .expect("write targets");
         fs::write(&paths.meta, serde_json::to_vec_pretty(&meta).unwrap()).expect("write meta");
     }
 
-    fn read_export(state_dir: &Path, name: &str) -> ExporterOutput<serde_json::Value> {
-        read_json(&state_dir.join("export").join(name)).expect("read export")
-    }
-
-    fn count_jsonl(path: &Path) -> io::Result<usize> {
-        let content = std::fs::read_to_string(path)?;
-        Ok(content.lines().filter(|l| !l.trim().is_empty()).count())
+    fn read_jsonl(path: &Path) -> Vec<serde_json::Value> {
+        std::io::BufReader::new(fs::File::open(path).expect("open jsonl"))
+            .lines()
+            .map(|line| serde_json::from_str(&line.expect("line")).expect("json line"))
+            .collect()
     }
 
     #[test]
     fn export_host_writes_host_resources_only() {
         let state_dir = temp_dir("host-only");
-        write_cache(&state_dir,
+        write_cache(
+            &state_dir,
             serde_json::json!([
                 {"resource_id":"h1","kind":"host","attributes":{"a":"1"},"discovered_at":"","last_seen_at":"","health":"healthy","source":"host"},
-                {"resource_id":"p1","kind":"process","attributes":{"b":"2"},"discovered_at":"","last_seen_at":"","health":"healthy","source":"process"},
+                {"resource_id":"p1","kind":"process","attributes":{"b":"2"},"discovered_at":"","last_seen_at":"","health":"healthy","source":"process"}
             ]),
             serde_json::json!([
-                {"target_id":"h1:host","kind":"host","resource_ref":"h1","execution_hints":{},"state":"active"},
+                {"target_id":"h1:host","kind":"host","resource_ref":"h1","execution_hints":{},"state":"active"}
             ]),
         );
         let source = ExporterSource::new("a", "i");
         export_disc_snap(&state_dir, &source).expect("export");
 
-        let host = read_export(&state_dir, "host.json");
-        assert_eq!(host.payload["resources"].as_array().unwrap().len(), 1);
-        assert_eq!(host.payload["resources"][0]["resource_id"], "h1");
-        assert_eq!(host.source.probe.as_deref(), Some("host"));
+        let host_rows = read_jsonl(&state_dir.join("export").join("host.jsonl"));
+        assert_eq!(host_rows.len(), 1);
+        assert_eq!(host_rows[0]["kind"], "disc_resource");
+        assert_eq!(host_rows[0]["source"]["probe"], "host");
+        assert_eq!(host_rows[0]["snapshot_id"], "snap-1");
+        assert_eq!(host_rows[0]["snapshot_revision"], 1);
+        assert_eq!(host_rows[0]["resource"]["resource_id"], "h1");
+        assert_eq!(host_rows[0]["target"]["target_id"], "h1:host");
 
-        // process-unidentified.jsonl (process has no exe/identity)
         let path = state_dir.join("export").join("process-unidentified.jsonl");
         assert!(path.exists());
-        let lines = count_jsonl(&path).expect("count lines");
-        assert!(lines >= 2); // header + 1 resource
-        assert_eq!(lines, 2);
+        let proc_rows = read_jsonl(&path);
+        assert_eq!(proc_rows.len(), 1);
+        assert_eq!(proc_rows[0]["classification"], "unidentified");
 
-        // container.json should NOT exist (no container data)
-        assert!(!state_dir.join("export").join("container.json").exists());
+        assert!(!state_dir.join("export").join("container.jsonl").exists());
     }
 
     #[test]
     fn process_classification_produces_three_sets() {
         let state_dir = temp_dir("proc-class");
-        write_cache(&state_dir,
+        write_cache(
+            &state_dir,
             serde_json::json!([
                 {"resource_id":"p1","kind":"process","attributes":{"process.pid":"100","process.executable.name":"nginx","process.identity":"abc"},"discovered_at":"","last_seen_at":"","health":"healthy","source":"process"},
                 {"resource_id":"p2","kind":"process","attributes":{"process.pid":"200","process.executable.name":"bash"},"discovered_at":"","last_seen_at":"","health":"healthy","source":"process"},
                 {"resource_id":"p3","kind":"process","attributes":{"process.pid":"300"},"discovered_at":"","last_seen_at":"","health":"healthy","source":"process"},
-                {"resource_id":"h1","kind":"host","attributes":{"host.name":"demo"},"discovered_at":"","last_seen_at":"","health":"healthy","source":"host"},
+                {"resource_id":"h1","kind":"host","attributes":{"host.name":"demo"},"discovered_at":"","last_seen_at":"","health":"healthy","source":"host"}
             ]),
-            serde_json::json!([]),
+            serde_json::json!([
+                {"target_id":"p1:process","kind":"process","resource_ref":"p1","execution_hints":{},"state":"active"},
+                {"target_id":"p2:process","kind":"process","resource_ref":"p2","execution_hints":{},"state":"active"},
+                {"target_id":"p3:process","kind":"process","resource_ref":"p3","execution_hints":{},"state":"active"}
+            ]),
         );
         let source = ExporterSource::new("a", "b");
         export_disc_snap(&state_dir, &source).expect("export");
 
         let dir = state_dir.join("export");
-        for name in &["process-identified.jsonl", "process-named.jsonl", "process-unidentified.jsonl"] {
-            assert!(dir.join(name).exists(), "{name} should exist");
+        for (name, classification) in &[
+            ("process-identified.jsonl", "identified"),
+            ("process-named.jsonl", "named"),
+            ("process-unidentified.jsonl", "unidentified"),
+        ] {
+            let rows = read_jsonl(&dir.join(name));
+            assert_eq!(rows.len(), 1, "{name} should have 1 resource row");
+            assert_eq!(rows[0]["source"]["probe"], "process");
+            assert_eq!(rows[0]["classification"], *classification);
         }
         assert!(!dir.join("process.json").exists());
 
-        // Each file has header + 1 resource = 2 lines
-        for name in &["process-identified.jsonl", "process-named.jsonl", "process-unidentified.jsonl"] {
-            let lines = count_jsonl(&dir.join(name)).expect("count");
-            assert_eq!(lines, 2, "{name} should have header + 1 resource");
-        }
-
-        // host.json unchanged
-        let host: ExporterOutput<serde_json::Value> = read_json(&dir.join("host.json")).expect("host");
-        assert_eq!(host.payload["resources"].as_array().unwrap().len(), 1);
+        let host_rows = read_jsonl(&dir.join("host.jsonl"));
+        assert_eq!(host_rows.len(), 1);
+        assert_eq!(host_rows[0]["resource"]["resource_id"], "h1");
     }
 
     #[test]
     fn export_disc_snap_sets_probe_on_source() {
         let state_dir = temp_dir("probe");
-        write_cache(&state_dir,
-            serde_json::json!([{"resource_id":"h1","kind":"host","attributes":{},"discovered_at":"","last_seen_at":"","health":"healthy","source":"host"}]),
-            serde_json::json!([{"target_id":"h1:host","kind":"host","resource_ref":"h1","execution_hints":{},"state":"active"}]),
+        write_cache(
+            &state_dir,
+            serde_json::json!([
+                {"resource_id":"h1","kind":"host","attributes":{},"discovered_at":"","last_seen_at":"","health":"healthy","source":"host"}
+            ]),
+            serde_json::json!([
+                {"target_id":"h1:host","kind":"host","resource_ref":"h1","execution_hints":{},"state":"active"}
+            ]),
         );
         let source = ExporterSource::new("a", "i");
         export_disc_snap(&state_dir, &source).expect("export");
 
-        let host = read_export(&state_dir, "host.json");
-        assert_eq!(host.kind, "disc_snap");
-        assert_eq!(host.source.probe, Some("host".to_string()));
+        let host_rows = read_jsonl(&state_dir.join("export").join("host.jsonl"));
+        assert_eq!(host_rows[0]["kind"], "disc_resource");
+        assert_eq!(host_rows[0]["source"]["probe"], "host");
     }
 
     #[test]
-    fn export_metrics_writes_envelope_with_correct_kind() {
+    fn export_metrics_writes_flattened_samples() {
         let state_dir = temp_dir("metrics");
         fs::create_dir_all(state_dir.join("telemetry")).expect("create telemetry dir");
 
+        use crate::telemetry::metrics::runtime::{
+            MetricsCollectionOutcome, MetricsCollectionTargetSample,
+        };
         use warp_insight_contracts::discovery::StringKeyValue;
-        use crate::telemetry::metrics::runtime::{MetricsCollectionOutcome, MetricsCollectionTargetSample};
 
         let outcome = MetricsCollectionOutcome {
             collection_kind: "host_metrics".to_string(),
@@ -447,11 +570,14 @@ mod tests {
         let source = ExporterSource::new("test-agent", "test-instance");
         export_metrics(&state_dir, &source).expect("export metrics");
 
-        let output = read_export(&state_dir, "metrics.json");
-        assert_eq!(output.api_version, "warp-insight/v1");
-        assert_eq!(output.kind, "metrics");
-        assert_eq!(output.payload["groups"][0]["samples"][0]["name"], "system.uptime");
-        assert_eq!(output.payload["groups"][0]["samples"][0]["value"], 42.0);
+        let rows = read_jsonl(&state_dir.join("export").join("metrics.jsonl"));
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["kind"], "metrics_sample");
+        assert_eq!(rows[0]["collected_at"], "2026-04-19T00:00:00Z");
+        assert_eq!(rows[0]["target_ref"], "host-1:host");
+        assert_eq!(rows[0]["name"], "system.uptime");
+        assert_eq!(rows[0]["value"], 42.0);
+        assert_eq!(rows[0]["source"]["agent_id"], "test-agent");
     }
 
     #[test]
@@ -467,36 +593,54 @@ mod tests {
         const BASE: u64 = 10000;
         EXPORT_SEQ.store(BASE, Ordering::Relaxed);
         let state_dir = temp_dir("seq");
-        write_cache(&state_dir,
-            serde_json::json!([{"resource_id":"h1","kind":"host","attributes":{},"discovered_at":"","last_seen_at":"","health":"healthy","source":"host"}]),
-            serde_json::json!([{"target_id":"h1:host","kind":"host","resource_ref":"h1","execution_hints":{},"state":"active"}]),
+        write_cache(
+            &state_dir,
+            serde_json::json!([
+                {"resource_id":"h1","kind":"host","attributes":{},"discovered_at":"","last_seen_at":"","health":"healthy","source":"host"}
+            ]),
+            serde_json::json!([
+                {"target_id":"h1:host","kind":"host","resource_ref":"h1","execution_hints":{},"state":"active"}
+            ]),
         );
         let source = ExporterSource::new("a", "i");
 
         export_disc_snap(&state_dir, &source).expect("first");
-        let first = read_export(&state_dir, "host.json");
+        let first = read_jsonl(&state_dir.join("export").join("host.jsonl"));
         export_disc_snap(&state_dir, &source).expect("second");
-        let second = read_export(&state_dir, "host.json");
+        let second = read_jsonl(&state_dir.join("export").join("host.jsonl"));
 
-        assert!(second.seq > first.seq, "seq must increase");
-        assert!(first.seq >= BASE);
+        assert!(
+            second[0]["seq"].as_u64().unwrap() > first[0]["seq"].as_u64().unwrap(),
+            "seq must increase"
+        );
+        assert!(first[0]["seq"].as_u64().unwrap() >= BASE);
     }
 
     #[test]
     fn strips_origin_idx_from_export_not_cache() {
         let state_dir = temp_dir("strip");
-        write_cache(&state_dir,
-            serde_json::json!([{"resource_id":"h1","kind":"host","origin_idx":5,"attributes":{},"discovered_at":"","last_seen_at":"","health":"healthy","source":"host"}]),
-            serde_json::json!([{"target_id":"h1:host","kind":"host","origin_idx":5,"resource_ref":"h1","execution_hints":{},"state":"active"}]),
+        write_cache(
+            &state_dir,
+            serde_json::json!([
+                {"resource_id":"h1","kind":"host","origin_idx":5,"attributes":{},"discovered_at":"","last_seen_at":"","health":"healthy","source":"host"}
+            ]),
+            serde_json::json!([
+                {"target_id":"h1:host","kind":"host","origin_idx":5,"resource_ref":"h1","execution_hints":{},"state":"active"}
+            ]),
         );
         let source = ExporterSource::new("a", "b");
         export_disc_snap(&state_dir, &source).expect("export");
 
-        let cached: serde_json::Value = read_json(&discovery_cache::DiscoveryCachePaths::under_state_dir(&state_dir).resources).expect("cache");
+        let cached: serde_json::Value =
+            read_json(&discovery_cache::DiscoveryCachePaths::under_state_dir(&state_dir).resources)
+                .expect("cache");
         assert!(cached[0].get("origin_idx").is_some(), "cache keeps origin_idx");
 
-        let output = read_export(&state_dir, "host.json");
-        assert!(output.payload["resources"][0].get("origin_idx").is_none(), "export strips origin_idx");
+        let rows = read_jsonl(&state_dir.join("export").join("host.jsonl"));
+        assert!(
+            rows[0]["resource"].get("origin_idx").is_none(),
+            "export strips origin_idx"
+        );
     }
 
     #[test]
@@ -507,23 +651,28 @@ mod tests {
 
         let resources = serde_json::json!([
             {"resource_id":"h1","kind":"host","attributes":{},"discovered_at":"","last_seen_at":"","health":"healthy","source":"host"},
-            {"resource_id":"p1","kind":"process","attributes":{},"discovered_at":"","last_seen_at":"","health":"healthy","source":"process"},
+            {"resource_id":"p1","kind":"process","attributes":{},"discovered_at":"","last_seen_at":"","health":"healthy","source":"process"}
         ]);
-        let meta = serde_json::json!({"schema_version": "v1", "snapshot_id": "s", "revision": 1, "generated_at": "", "origins": []});
+        let meta = serde_json::json!({
+            "schema_version": "v1",
+            "snapshot_id": "s",
+            "revision": 1,
+            "generated_at": "",
+            "origins": []
+        });
         fs::write(&paths.resources, resources.to_string()).expect("write");
         fs::write(&paths.meta, meta.to_string()).expect("write");
         fs::write(&paths.targets, "[]").expect("write");
 
         export_disc_snap(&state_dir, &ExporterSource::new("a", "b")).expect("export");
 
-        let host: ExporterOutput<serde_json::Value> = read_json(&state_dir.join("export").join("host.json")).expect("host");
-        assert_eq!(host.payload["resources"].as_array().unwrap().len(), 1);
-        assert_eq!(host.payload["resources"][0]["resource_id"], "h1");
-        assert_eq!(host.source.probe.as_deref(), Some("host"));
+        let host_rows = read_jsonl(&state_dir.join("export").join("host.jsonl"));
+        assert_eq!(host_rows.len(), 1);
+        assert_eq!(host_rows[0]["source"]["probe"], "host");
+        assert_eq!(host_rows[0]["resource"]["resource_id"], "h1");
 
-        let proc_path = state_dir.join("export").join("process-unidentified.jsonl");
-        assert!(proc_path.exists());
-        let lines = count_jsonl(&proc_path).expect("count");
-        assert!(lines >= 2);
+        let proc_rows = read_jsonl(&state_dir.join("export").join("process-unidentified.jsonl"));
+        assert_eq!(proc_rows.len(), 1);
+        assert_eq!(proc_rows[0]["classification"], "unidentified");
     }
 }
