@@ -10,6 +10,7 @@ use tokio::task::JoinHandle;
 use warp_insight_contracts::action_result::{
     ActionOutputs, ActionResultContract, FinalStatus, StepActionRecord, StepStatus,
 };
+use warp_insight_contracts::state_exec::ExecProgressState;
 use warp_insight_shared::fs::write_json_atomic;
 use warp_insight_shared::paths::WORKDIR_STATE_FILE;
 use warp_insight_shared::time::now_rfc3339;
@@ -24,17 +25,6 @@ pub(super) enum ExitClassification {
     Completed(ExitStatus),
     CompletedAfterTimeout(ExitStatus),
     TimedOut,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(super) struct ExecRuntimeContext {
-    pub execution_id: String,
-    pub spawned_at: String,
-    pub deadline_at: Option<String>,
-    pub agent_id: String,
-    pub node_id: String,
-    pub workdir: String,
 }
 
 pub(super) fn write_timed_out_result(
@@ -225,15 +215,17 @@ pub(super) fn write_exec_state(
     detail: &str,
 ) -> io::Result<()> {
     let state_path = workdir.join(WORKDIR_STATE_FILE);
-    let value = serde_json::json!({
-        "execution_id": execution_id,
-        "action_id": action_id,
-        "state": state,
-        "updated_at": now_rfc3339(),
-        "step_id": serde_json::Value::Null,
-        "attempt": serde_json::Value::Null,
-        "reason_code": reason_code,
-        "detail": detail,
-    });
-    write_json_atomic(&state_path, &value)
+    write_json_atomic(
+        &state_path,
+        &ExecProgressState {
+            execution_id: execution_id.to_string(),
+            action_id: action_id.to_string(),
+            state: state.to_string(),
+            updated_at: now_rfc3339(),
+            step_id: None,
+            attempt: None,
+            reason_code,
+            detail: Some(detail.to_string()),
+        },
+    )
 }

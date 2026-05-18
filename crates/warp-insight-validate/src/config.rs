@@ -41,6 +41,8 @@ pub fn validate_config(contract: &AgentConfigContract) -> Result<(), ValidationE
         return Err(ValidationError::new("invalid_stderr_limit"));
     }
     if !contract.discovery.host_enabled
+        && !contract.discovery.network_enabled
+        && !contract.discovery.endpoint_enabled
         && !contract.discovery.process_enabled
         && !contract.discovery.container_enabled
     {

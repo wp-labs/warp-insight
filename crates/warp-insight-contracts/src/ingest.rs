@@ -387,9 +387,7 @@ mod tests {
     use crate::API_VERSION_V1;
     use std::collections::BTreeMap;
 
-    use crate::discovery::{
-        DiscoveredResource, DiscoveryOrigin, DiscoverySnapshotContract,
-    };
+    use crate::discovery::{DiscoveredResource, DiscoveryOrigin, DiscoverySnapshotContract};
 
     fn sample_snapshot() -> DiscoverySnapshotContract {
         let mut snapshot = DiscoverySnapshotContract::new(

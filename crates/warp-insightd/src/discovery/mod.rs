@@ -2,8 +2,10 @@
 
 pub mod cache;
 pub mod container;
+pub mod endpoint;
 pub mod host;
 pub mod k8s;
+pub mod network;
 pub mod process;
 pub mod runtime;
 

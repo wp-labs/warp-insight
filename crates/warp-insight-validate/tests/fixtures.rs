@@ -367,6 +367,8 @@ fn config_with_all_discovery_probes_disabled_is_rejected() {
     );
     fixture.discovery = DiscoverySection {
         host_enabled: false,
+        network_enabled: false,
+        endpoint_enabled: false,
         process_enabled: false,
         container_enabled: false,
     };

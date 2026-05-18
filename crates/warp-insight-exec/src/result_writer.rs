@@ -3,16 +3,17 @@
 use std::io;
 
 use warp_insight_contracts::action_result::ActionResultContract;
+use warp_insight_contracts::state_exec::ExecProgressState;
 use warp_insight_shared::time::now_rfc3339;
 
-use crate::workdir::{ExecProgressState, ExecutionWorkdir};
+use crate::workdir::ExecutionWorkdir;
 
 pub fn write(workdir: &ExecutionWorkdir, result: &ActionResultContract) -> io::Result<()> {
     workdir.write_result(result)?;
     workdir.write_state(&ExecProgressState {
         execution_id: result.execution_id.clone(),
         action_id: result.action_id.clone(),
-        state: map_final_state(result).to_string(),
+        state: result.final_status.as_state_name().to_string(),
         updated_at: now_rfc3339(),
         step_id: None,
         attempt: None,
@@ -20,14 +21,4 @@ pub fn write(workdir: &ExecutionWorkdir, result: &ActionResultContract) -> io::R
         detail: Some("final result persisted".to_string()),
     })?;
     Ok(())
-}
-
-fn map_final_state(result: &ActionResultContract) -> &'static str {
-    match result.final_status {
-        warp_insight_contracts::action_result::FinalStatus::Succeeded => "succeeded",
-        warp_insight_contracts::action_result::FinalStatus::Failed => "failed",
-        warp_insight_contracts::action_result::FinalStatus::Cancelled => "cancelled",
-        warp_insight_contracts::action_result::FinalStatus::TimedOut => "timed_out",
-        warp_insight_contracts::action_result::FinalStatus::Rejected => "rejected",
-    }
 }

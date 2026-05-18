@@ -19,9 +19,11 @@ kind = "file"
 path = "log/warp-parse-records.ndjson"
 
 [discovery]
-# 默认保留 host + process discovery，便于本地 metrics / action target 建模。
+# 默认保留 host + network + endpoint + process discovery，便于本地 metrics / action target 建模。
 # container 属于更高基数发现，只有启用对应场景时再显式打开。
 host_enabled = true
+network_enabled = true
+endpoint_enabled = true
 process_enabled = true
 container_enabled = false
 

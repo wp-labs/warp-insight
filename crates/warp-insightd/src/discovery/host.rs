@@ -4,9 +4,7 @@ use std::fs;
 
 use std::collections::BTreeMap;
 
-use warp_insight_contracts::discovery::{
-    DiscoveredResource, DiscoveredTarget, DiscoveryOrigin, StringKeyValue,
-};
+use warp_insight_contracts::discovery::{DiscoveredResource, DiscoveredTarget, DiscoveryOrigin};
 use warp_insight_shared::time::now_rfc3339;
 
 use super::{DiscoveryProbe, DiscoveryProbeError, DiscoverySourceKind, ProbeOutput};
@@ -61,9 +59,7 @@ impl DiscoveryProbe for HostDiscoveryProbe {
                 kind: "host".to_string(),
                 origin_idx: 0,
                 resource_ref: host_id,
-                execution_hints: BTreeMap::from([
-                    ("host.name".to_string(), host_name.clone()),
-                ]),
+                execution_hints: BTreeMap::from([("host.name".to_string(), host_name.clone())]),
                 state: "active".to_string(),
             }],
         })

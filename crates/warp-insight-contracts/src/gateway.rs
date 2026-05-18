@@ -58,6 +58,27 @@ pub struct ActionPlanAck {
 }
 
 impl ActionPlanAck {
+    pub fn builder(
+        dispatch_id: String,
+        action_id: String,
+        ack_status: AckStatus,
+    ) -> ActionPlanAckBuilder {
+        ActionPlanAckBuilder {
+            dispatch_id,
+            action_id,
+            plan_digest: String::new(),
+            agent_id: String::new(),
+            instance_id: String::new(),
+            execution_id: None,
+            ack_status,
+            reason_code: None,
+            reason_message: None,
+            queue_position: None,
+            received_at: String::new(),
+            acknowledged_at: String::new(),
+        }
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         dispatch_id: String,
@@ -70,21 +91,95 @@ impl ActionPlanAck {
         received_at: String,
         acknowledged_at: String,
     ) -> Self {
-        Self {
+        Self::builder(dispatch_id, action_id, ack_status)
+            .plan_digest(plan_digest)
+            .agent_id(agent_id)
+            .instance_id(instance_id)
+            .execution_id(execution_id)
+            .received_at(received_at)
+            .acknowledged_at(acknowledged_at)
+            .build()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ActionPlanAckBuilder {
+    dispatch_id: String,
+    action_id: String,
+    plan_digest: String,
+    agent_id: String,
+    instance_id: String,
+    execution_id: Option<String>,
+    ack_status: AckStatus,
+    reason_code: Option<String>,
+    reason_message: Option<String>,
+    queue_position: Option<u64>,
+    received_at: String,
+    acknowledged_at: String,
+}
+
+impl ActionPlanAckBuilder {
+    pub fn plan_digest(mut self, plan_digest: String) -> Self {
+        self.plan_digest = plan_digest;
+        self
+    }
+
+    pub fn agent_id(mut self, agent_id: String) -> Self {
+        self.agent_id = agent_id;
+        self
+    }
+
+    pub fn instance_id(mut self, instance_id: String) -> Self {
+        self.instance_id = instance_id;
+        self
+    }
+
+    pub fn execution_id(mut self, execution_id: Option<String>) -> Self {
+        self.execution_id = execution_id;
+        self
+    }
+
+    pub fn reason_code(mut self, reason_code: Option<String>) -> Self {
+        self.reason_code = reason_code;
+        self
+    }
+
+    pub fn reason_message(mut self, reason_message: Option<String>) -> Self {
+        self.reason_message = reason_message;
+        self
+    }
+
+    pub fn queue_position(mut self, queue_position: Option<u64>) -> Self {
+        self.queue_position = queue_position;
+        self
+    }
+
+    pub fn received_at(mut self, received_at: String) -> Self {
+        self.received_at = received_at;
+        self
+    }
+
+    pub fn acknowledged_at(mut self, acknowledged_at: String) -> Self {
+        self.acknowledged_at = acknowledged_at;
+        self
+    }
+
+    pub fn build(self) -> ActionPlanAck {
+        ActionPlanAck {
             api_version: API_VERSION_V1.to_string(),
             kind: ACTION_PLAN_ACK_KIND.to_string(),
-            dispatch_id,
-            action_id,
-            plan_digest,
-            agent_id,
-            instance_id,
-            execution_id,
-            ack_status,
-            reason_code: None,
-            reason_message: None,
-            queue_position: None,
-            received_at,
-            acknowledged_at,
+            dispatch_id: self.dispatch_id,
+            action_id: self.action_id,
+            plan_digest: self.plan_digest,
+            agent_id: self.agent_id,
+            instance_id: self.instance_id,
+            execution_id: self.execution_id,
+            ack_status: self.ack_status,
+            reason_code: self.reason_code,
+            reason_message: self.reason_message,
+            queue_position: self.queue_position,
+            received_at: self.received_at,
+            acknowledged_at: self.acknowledged_at,
         }
     }
 }

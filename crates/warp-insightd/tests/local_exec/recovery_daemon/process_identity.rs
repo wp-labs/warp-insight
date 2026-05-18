@@ -29,23 +29,24 @@ fn recovery_skips_execution_when_pid_is_still_alive() {
     let workdir = run_dir.join("actions").join(&submitted.execution_id);
     let running_path = running::path_for(&state_dir, &submitted.execution_id);
     let reporting_path = reporting::path_for(&state_dir, &submitted.execution_id);
-    let running_state = running::RunningExecutionState::new(
+    let running_state = running::RunningExecutionState::builder(
         submitted.execution_id.clone(),
         "act_001".to_string(),
-        submitted.plan_digest.clone(),
-        "req_001".to_string(),
         "running".to_string(),
         workdir.display().to_string(),
-        Some(std::process::id()),
-        None,
-        rfc3339_before_now(1),
-        Some(rfc3339_after_now(60)),
-        Some("step_collect".to_string()),
-        Some(1),
-        None,
-        None,
-        rfc3339_before_now(1),
-    );
+    )
+    .plan_digest(submitted.plan_digest.clone())
+    .request_id("req_001".to_string())
+    .started_at(rfc3339_before_now(1))
+    .updated_at(rfc3339_before_now(1))
+    .pid(Some(std::process::id()))
+    .process_identity(None)
+    .deadline_at(Some(rfc3339_after_now(60)))
+    .current_step_id(Some("step_collect".to_string()))
+    .attempt(Some(1))
+    .cancel_requested_at(None)
+    .kill_requested_at(None)
+    .build();
     write_json_atomic(&running_path, &running_state).expect("write running state");
 
     daemon::recover_incomplete_executions(&state_dir, "instance-001").expect("recover");
@@ -73,23 +74,24 @@ fn recovery_does_not_treat_pid_reuse_as_live_when_process_identity_mismatches() 
     let workdir = run_dir.join("actions").join(&submitted.execution_id);
     let running_path = running::path_for(&state_dir, &submitted.execution_id);
     let reporting_path = reporting::path_for(&state_dir, &submitted.execution_id);
-    let running_state = running::RunningExecutionState::new(
+    let running_state = running::RunningExecutionState::builder(
         submitted.execution_id.clone(),
         "act_001".to_string(),
-        submitted.plan_digest.clone(),
-        "req_001".to_string(),
         "running".to_string(),
         workdir.display().to_string(),
-        Some(std::process::id()),
-        Some("stale-process-identity".to_string()),
-        rfc3339_before_now(30),
-        Some(rfc3339_before_now(5)),
-        Some("step_collect".to_string()),
-        Some(1),
-        None,
-        None,
-        rfc3339_before_now(5),
-    );
+    )
+    .plan_digest(submitted.plan_digest.clone())
+    .request_id("req_001".to_string())
+    .started_at(rfc3339_before_now(30))
+    .updated_at(rfc3339_before_now(5))
+    .pid(Some(std::process::id()))
+    .process_identity(Some("stale-process-identity".to_string()))
+    .deadline_at(Some(rfc3339_before_now(5)))
+    .current_step_id(Some("step_collect".to_string()))
+    .attempt(Some(1))
+    .cancel_requested_at(None)
+    .kill_requested_at(None)
+    .build();
     write_json_atomic(&running_path, &running_state).expect("write running state");
 
     daemon::recover_incomplete_executions(&state_dir, "instance-001").expect("recover");
@@ -116,23 +118,24 @@ fn daemon_run_once_does_not_block_on_mismatched_process_identity() {
 
     let workdir = run_dir.join("actions").join(&submitted.execution_id);
     let running_path = running::path_for(&state_dir, &submitted.execution_id);
-    let running_state = running::RunningExecutionState::new(
+    let running_state = running::RunningExecutionState::builder(
         submitted.execution_id.clone(),
         "act_001".to_string(),
-        submitted.plan_digest.clone(),
-        "req_001".to_string(),
         "running".to_string(),
         workdir.display().to_string(),
-        Some(std::process::id()),
-        Some("stale-process-identity".to_string()),
-        rfc3339_before_now(1),
-        Some(rfc3339_after_now(60)),
-        Some("step_collect".to_string()),
-        Some(1),
-        None,
-        None,
-        rfc3339_before_now(1),
-    );
+    )
+    .plan_digest(submitted.plan_digest.clone())
+    .request_id("req_001".to_string())
+    .started_at(rfc3339_before_now(1))
+    .updated_at(rfc3339_before_now(1))
+    .pid(Some(std::process::id()))
+    .process_identity(Some("stale-process-identity".to_string()))
+    .deadline_at(Some(rfc3339_after_now(60)))
+    .current_step_id(Some("step_collect".to_string()))
+    .attempt(Some(1))
+    .cancel_requested_at(None)
+    .kill_requested_at(None)
+    .build();
     write_json_atomic(&running_path, &running_state).expect("write running state");
 
     let config = super::super::common::standalone_config(&root);

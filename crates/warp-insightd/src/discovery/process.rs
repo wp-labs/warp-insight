@@ -8,9 +8,7 @@ use std::process::Command;
 
 use std::collections::BTreeMap;
 
-use warp_insight_contracts::discovery::{
-    DiscoveredResource, DiscoveredTarget, DiscoveryOrigin, StringKeyValue,
-};
+use warp_insight_contracts::discovery::{DiscoveredResource, DiscoveredTarget, DiscoveryOrigin};
 use warp_insight_shared::time::now_rfc3339;
 
 use crate::process_control::process_identity;
@@ -63,7 +61,10 @@ impl DiscoveryProbe for ProcessDiscoveryProbe {
                 execution_hints.insert("process.identity".to_string(), identity.clone());
             }
             if process.identity.is_none() {
-                execution_hints.insert("discovery.identity_strength".to_string(), "weak".to_string());
+                execution_hints.insert(
+                    "discovery.identity_strength".to_string(),
+                    "weak".to_string(),
+                );
             }
             if process.identity_unavailable {
                 execution_hints.insert(

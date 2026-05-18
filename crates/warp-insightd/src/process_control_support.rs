@@ -99,6 +99,8 @@ pub(super) fn process_exists(pid: u32) -> io::Result<bool> {
         return Ok(false);
     }
 
+    // SAFETY: `kill(pid, 0)` only asks the kernel to check process existence and
+    // permission. It does not dereference pointers or access Rust-managed memory.
     let rc = unsafe { libc::kill(pid as i32, 0) };
     if rc == 0 {
         return Ok(true);
@@ -123,6 +125,8 @@ fn send_signal(pid: u32, signal: i32) -> io::Result<()> {
         return Ok(());
     }
 
+    // SAFETY: `pid` is an OS process identifier from child state or persisted
+    // runtime state. Sending a signal has no Rust memory-safety implications.
     let rc = unsafe { libc::kill(pid as i32, signal) };
     if rc == 0 {
         return Ok(());

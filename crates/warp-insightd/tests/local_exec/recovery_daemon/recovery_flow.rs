@@ -29,23 +29,24 @@ fn recovery_turns_incomplete_running_state_into_reporting() {
 
     let workdir = run_dir.join("actions").join(&submitted.execution_id);
     let running_path = running::path_for(&state_dir, &submitted.execution_id);
-    let running_state = running::RunningExecutionState::new(
+    let running_state = running::RunningExecutionState::builder(
         submitted.execution_id.clone(),
         "act_001".to_string(),
-        submitted.plan_digest.clone(),
-        "req_001".to_string(),
         "running".to_string(),
         workdir.display().to_string(),
-        Some(4242),
-        None,
-        "2026-04-12T10:00:00Z".to_string(),
-        Some("2026-04-12T10:05:00Z".to_string()),
-        Some("step_collect".to_string()),
-        Some(1),
-        None,
-        None,
-        "2026-04-12T10:00:01Z".to_string(),
-    );
+    )
+    .plan_digest(submitted.plan_digest.clone())
+    .request_id("req_001".to_string())
+    .started_at("2026-04-12T10:00:00Z".to_string())
+    .updated_at("2026-04-12T10:00:01Z".to_string())
+    .pid(Some(4242))
+    .process_identity(None)
+    .deadline_at(Some("2026-04-12T10:05:00Z".to_string()))
+    .current_step_id(Some("step_collect".to_string()))
+    .attempt(Some(1))
+    .cancel_requested_at(None)
+    .kill_requested_at(None)
+    .build();
     write_json_atomic(&running_path, &running_state).expect("write running state");
 
     daemon::recover_incomplete_executions(&state_dir, "instance-001").expect("recover");
@@ -171,23 +172,24 @@ fn recovery_quarantines_execution_when_report_preparation_fails() {
 
     let workdir = run_dir.join("actions").join(&submitted.execution_id);
     let running_path = running::path_for(&state_dir, &submitted.execution_id);
-    let running_state = running::RunningExecutionState::new(
+    let running_state = running::RunningExecutionState::builder(
         submitted.execution_id.clone(),
         "act_001".to_string(),
-        submitted.plan_digest.clone(),
-        "req_001".to_string(),
         "running".to_string(),
         workdir.display().to_string(),
-        Some(4242),
-        None,
-        "2026-04-12T10:00:00Z".to_string(),
-        Some("2026-04-12T10:05:00Z".to_string()),
-        Some("step_collect".to_string()),
-        Some(1),
-        None,
-        None,
-        "2026-04-12T10:00:01Z".to_string(),
-    );
+    )
+    .plan_digest(submitted.plan_digest.clone())
+    .request_id("req_001".to_string())
+    .started_at("2026-04-12T10:00:00Z".to_string())
+    .updated_at("2026-04-12T10:00:01Z".to_string())
+    .pid(Some(4242))
+    .process_identity(None)
+    .deadline_at(Some("2026-04-12T10:05:00Z".to_string()))
+    .current_step_id(Some("step_collect".to_string()))
+    .attempt(Some(1))
+    .cancel_requested_at(None)
+    .kill_requested_at(None)
+    .build();
     write_json_atomic(&running_path, &running_state).expect("write running state");
 
     let reporting_path = reporting::path_for(&state_dir, &submitted.execution_id);
@@ -235,23 +237,24 @@ fn recovery_keeps_expired_execution_blocked_when_process_cannot_be_terminated() 
     let workdir = run_dir.join("actions").join(&submitted.execution_id);
     let running_path = running::path_for(&state_dir, &submitted.execution_id);
     let reporting_path = reporting::path_for(&state_dir, &submitted.execution_id);
-    let running_state = running::RunningExecutionState::new(
+    let running_state = running::RunningExecutionState::builder(
         submitted.execution_id.clone(),
         "act_001".to_string(),
-        submitted.plan_digest.clone(),
-        "req_001".to_string(),
         "running".to_string(),
         workdir.display().to_string(),
-        Some(1),
-        None,
-        rfc3339_before_now(30),
-        Some(rfc3339_before_now(5)),
-        Some("step_collect".to_string()),
-        Some(1),
-        None,
-        None,
-        rfc3339_before_now(5),
-    );
+    )
+    .plan_digest(submitted.plan_digest.clone())
+    .request_id("req_001".to_string())
+    .started_at(rfc3339_before_now(30))
+    .updated_at(rfc3339_before_now(5))
+    .pid(Some(1))
+    .process_identity(None)
+    .deadline_at(Some(rfc3339_before_now(5)))
+    .current_step_id(Some("step_collect".to_string()))
+    .attempt(Some(1))
+    .cancel_requested_at(None)
+    .kill_requested_at(None)
+    .build();
     write_json_atomic(&running_path, &running_state).expect("write running state");
 
     daemon::recover_incomplete_executions(&state_dir, "instance-001").expect("recover");
@@ -282,23 +285,24 @@ fn recovery_continues_past_corrupt_running_state() {
     .expect("submit local plan");
     let workdir = run_dir.join("actions").join(&submitted.execution_id);
     let running_path = running::path_for(&state_dir, &submitted.execution_id);
-    let running_state = running::RunningExecutionState::new(
+    let running_state = running::RunningExecutionState::builder(
         submitted.execution_id.clone(),
         "act_001".to_string(),
-        submitted.plan_digest.clone(),
-        "req_001".to_string(),
         "running".to_string(),
         workdir.display().to_string(),
-        Some(4242),
-        None,
-        "2026-04-12T10:00:00Z".to_string(),
-        Some("2026-04-12T10:05:00Z".to_string()),
-        Some("step_collect".to_string()),
-        Some(1),
-        None,
-        None,
-        "2026-04-12T10:00:01Z".to_string(),
-    );
+    )
+    .plan_digest(submitted.plan_digest.clone())
+    .request_id("req_001".to_string())
+    .started_at("2026-04-12T10:00:00Z".to_string())
+    .updated_at("2026-04-12T10:00:01Z".to_string())
+    .pid(Some(4242))
+    .process_identity(None)
+    .deadline_at(Some("2026-04-12T10:05:00Z".to_string()))
+    .current_step_id(Some("step_collect".to_string()))
+    .attempt(Some(1))
+    .cancel_requested_at(None)
+    .kill_requested_at(None)
+    .build();
     write_json_atomic(&running_path, &running_state).expect("write valid running state");
 
     daemon::recover_incomplete_executions(&state_dir, "instance-001").expect("recover");
@@ -332,23 +336,24 @@ fn recovery_quarantines_running_execution_when_plan_is_missing() {
 
     let workdir = run_dir.join("actions").join(&submitted.execution_id);
     let running_path = running::path_for(&state_dir, &submitted.execution_id);
-    let running_state = running::RunningExecutionState::new(
+    let running_state = running::RunningExecutionState::builder(
         submitted.execution_id.clone(),
         "act_001".to_string(),
-        submitted.plan_digest.clone(),
-        "req_001".to_string(),
         "running".to_string(),
         workdir.display().to_string(),
-        Some(4242),
-        None,
-        "2026-04-12T10:00:00Z".to_string(),
-        Some("2026-04-12T10:05:00Z".to_string()),
-        Some("step_collect".to_string()),
-        Some(1),
-        None,
-        None,
-        "2026-04-12T10:00:01Z".to_string(),
-    );
+    )
+    .plan_digest(submitted.plan_digest.clone())
+    .request_id("req_001".to_string())
+    .started_at("2026-04-12T10:00:00Z".to_string())
+    .updated_at("2026-04-12T10:00:01Z".to_string())
+    .pid(Some(4242))
+    .process_identity(None)
+    .deadline_at(Some("2026-04-12T10:05:00Z".to_string()))
+    .current_step_id(Some("step_collect".to_string()))
+    .attempt(Some(1))
+    .cancel_requested_at(None)
+    .kill_requested_at(None)
+    .build();
     write_json_atomic(&running_path, &running_state).expect("write running state");
     fs::remove_file(workdir.join("plan.json")).expect("remove plan");
 
@@ -391,23 +396,24 @@ fn drain_does_not_rerun_expired_execution_when_process_cannot_be_terminated() {
 
     let workdir = run_dir.join("actions").join(&submitted.execution_id);
     let running_path = running::path_for(&state_dir, &submitted.execution_id);
-    let running_state = running::RunningExecutionState::new(
+    let running_state = running::RunningExecutionState::builder(
         submitted.execution_id.clone(),
         "act_001".to_string(),
-        submitted.plan_digest.clone(),
-        "req_001".to_string(),
         "running".to_string(),
         workdir.display().to_string(),
-        Some(1),
-        None,
-        rfc3339_before_now(30),
-        Some(rfc3339_before_now(5)),
-        Some("step_collect".to_string()),
-        Some(1),
-        None,
-        None,
-        rfc3339_before_now(5),
-    );
+    )
+    .plan_digest(submitted.plan_digest.clone())
+    .request_id("req_001".to_string())
+    .started_at(rfc3339_before_now(30))
+    .updated_at(rfc3339_before_now(5))
+    .pid(Some(1))
+    .process_identity(None)
+    .deadline_at(Some(rfc3339_before_now(5)))
+    .current_step_id(Some("step_collect".to_string()))
+    .attempt(Some(1))
+    .cancel_requested_at(None)
+    .kill_requested_at(None)
+    .build();
     write_json_atomic(&running_path, &running_state).expect("write running state");
 
     let rerun_flag = root.join("rerun.flag");

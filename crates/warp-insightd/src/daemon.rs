@@ -10,7 +10,9 @@ use warp_insight_shared::time::now_rfc3339;
 
 use crate::discovery::DiscoveryProbe;
 use crate::discovery::container::ContainerDiscoveryProbe;
+use crate::discovery::endpoint::EndpointDiscoveryProbe;
 use crate::discovery::host::HostDiscoveryProbe;
+use crate::discovery::network::NetworkDiscoveryProbe;
 use crate::discovery::process::ProcessDiscoveryProbe;
 use crate::discovery::runtime::{DiscoveryRefreshResult, DiscoveryRuntime};
 use warp_insight_contracts::exporter::ExporterSource;
@@ -259,6 +261,12 @@ fn discovery_probes(config: &AgentConfigContract) -> Vec<Box<dyn DiscoveryProbe 
     let mut probes: Vec<Box<dyn DiscoveryProbe + Send + Sync>> = Vec::new();
     if config.discovery.host_enabled {
         probes.push(Box::new(HostDiscoveryProbe));
+    }
+    if config.discovery.network_enabled {
+        probes.push(Box::new(NetworkDiscoveryProbe));
+    }
+    if config.discovery.endpoint_enabled {
+        probes.push(Box::new(EndpointDiscoveryProbe));
     }
     if config.discovery.process_enabled {
         probes.push(Box::new(ProcessDiscoveryProbe));

@@ -57,6 +57,18 @@ pub enum FinalStatus {
     Rejected,
 }
 
+impl FinalStatus {
+    pub fn as_state_name(self) -> &'static str {
+        match self {
+            Self::Succeeded => "succeeded",
+            Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
+            Self::TimedOut => "timed_out",
+            Self::Rejected => "rejected",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StepActionRecord {

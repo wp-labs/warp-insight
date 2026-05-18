@@ -2,14 +2,10 @@
 //!
 //! Step 3: grouped by collection_kind + target, with plain value format and status.
 
-use std::io;
-use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
-pub use warp_insight_shared::fs::write_json_atomic;
 
 use super::runtime::{MetricsCollectionOutcome, MetricsRuntimeSnapshot};
 
@@ -67,10 +63,9 @@ fn build_outcome_groups(outcome: &MetricsCollectionOutcome, groups: &mut Vec<Met
         let mut samples = Vec::new();
 
         for fact in &target.runtime_facts {
-            let Some((metric_name, unit, value_type)) = map_runtime_fact_to_metric(
-                &outcome.collection_kind,
-                fact.key.as_str(),
-            ) else {
+            let Some((metric_name, unit, value_type)) =
+                map_runtime_fact_to_metric(&outcome.collection_kind, fact.key.as_str())
+            else {
                 continue;
             };
             samples.push(MetricsSampleRecord {
@@ -110,14 +105,6 @@ fn sample_value(value_type: &str, raw: &str) -> Value {
             .unwrap_or_else(|| Value::String(raw.to_string())),
         _ => Value::String(raw.to_string()),
     }
-}
-
-pub fn path_for(state_dir: &Path) -> std::path::PathBuf {
-    state_dir.join("telemetry").join("metrics_samples.json")
-}
-
-pub fn store(path: &Path, snapshot: &MetricsSamplesSnapshot) -> io::Result<()> {
-    write_json_atomic(path, snapshot)
 }
 
 fn map_runtime_fact_to_metric(
@@ -171,30 +158,12 @@ fn map_runtime_fact_to_metric(
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-    use std::path::PathBuf;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
     use warp_insight_contracts::discovery::StringKeyValue;
-    use warp_insight_shared::fs::read_json;
 
-    use super::{
-        MetricsSamplesSnapshot, build_samples_snapshot, path_for, store,
-    };
+    use super::build_samples_snapshot;
     use crate::telemetry::metrics::runtime::{
         MetricsCollectionOutcome, MetricsCollectionTargetSample, MetricsRuntimeSnapshot,
     };
-
-    fn temp_dir(name: &str) -> PathBuf {
-        let suffix = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("duration")
-            .as_nanos();
-        let dir =
-            std::env::temp_dir().join(format!("warp-insight-metrics-samples-{name}-{suffix}"));
-        fs::create_dir_all(&dir).expect("create temp dir");
-        dir
-    }
 
     #[test]
     fn build_samples_snapshot_groups_by_collection_kind_and_target() {
@@ -236,42 +205,22 @@ mod tests {
         assert_eq!(group.resource_ref, Some("host-1".to_string()));
         assert_eq!(group.samples.len(), 2);
 
-        let load_sample = group.samples.iter().find(|s| s.name == "system.load_average.1m").expect("load sample");
+        let load_sample = group
+            .samples
+            .iter()
+            .find(|s| s.name == "system.load_average.1m")
+            .expect("load sample");
         assert_eq!(load_sample.value, serde_json::json!(0.25));
         assert_eq!(load_sample.value_type, "gauge_f64");
         assert!(load_sample.status.is_none());
 
-        let uptime_sample = group.samples.iter().find(|s| s.name == "system.uptime").expect("uptime sample");
+        let uptime_sample = group
+            .samples
+            .iter()
+            .find(|s| s.name == "system.uptime")
+            .expect("uptime sample");
         assert_eq!(uptime_sample.value, serde_json::json!(3600.0));
         assert_eq!(uptime_sample.unit, "s");
-    }
-
-    #[test]
-    fn store_samples_snapshot_round_trip() {
-        let state_dir = temp_dir("store");
-        let snapshot = MetricsSamplesSnapshot {
-            batch_seq: 1,
-            collected_at: "2026-04-19T00:00:00Z".to_string(),
-            groups: vec![super::MetricsSampleGroup {
-                kind: "host_metrics".to_string(),
-                target_ref: "host-1:host".to_string(),
-                resource_ref: Some("host-1".to_string()),
-                samples: vec![super::MetricsSampleRecord {
-                    name: "system.uptime".to_string(),
-                    value: serde_json::json!(42.0),
-                    value_type: "gauge_f64".to_string(),
-                    unit: "s".to_string(),
-                    status: None,
-                }],
-            }],
-        };
-        let samples_path = path_for(&state_dir);
-
-        store(&samples_path, &snapshot).expect("store samples snapshot");
-        let loaded: MetricsSamplesSnapshot =
-            read_json(&samples_path).expect("load samples snapshot");
-
-        assert_eq!(loaded, snapshot);
     }
 
     #[test]
@@ -309,13 +258,25 @@ mod tests {
         let snapshot = build_samples_snapshot(&runtime);
         let group = &snapshot.groups[0];
 
-        let f64_sample = group.samples.iter().find(|s| s.name == "system.load_average.1m").expect("f64 sample");
+        let f64_sample = group
+            .samples
+            .iter()
+            .find(|s| s.name == "system.load_average.1m")
+            .expect("f64 sample");
         assert!(f64_sample.value.is_f64());
 
-        let i64_sample = group.samples.iter().find(|s| s.name == "system.memory.total").expect("i64 sample");
+        let i64_sample = group
+            .samples
+            .iter()
+            .find(|s| s.name == "system.memory.total")
+            .expect("i64 sample");
         assert!(i64_sample.value.is_number());
 
-        let avail = group.samples.iter().find(|s| s.name == "system.memory.available").expect("i64 sample");
+        let avail = group
+            .samples
+            .iter()
+            .find(|s| s.name == "system.memory.available")
+            .expect("i64 sample");
         assert!(avail.value.is_number());
     }
 }

@@ -4,20 +4,14 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use warp_insight_contracts::action_result::{ActionResultContract, FinalStatus};
+use warp_insight_contracts::action_result::ActionResultContract;
 use warp_insight_shared::paths::REPORT_ENVELOPE_SUFFIX;
 
 use crate::state_store::execution_queue::{self, ExecutionQueueItem};
 use crate::state_store::{history, reporting, running};
 
 pub fn final_state_name(result: &ActionResultContract) -> &'static str {
-    match result.final_status {
-        FinalStatus::Succeeded => "succeeded",
-        FinalStatus::Failed => "failed",
-        FinalStatus::Cancelled => "cancelled",
-        FinalStatus::TimedOut => "timed_out",
-        FinalStatus::Rejected => "rejected",
-    }
+    result.final_status.as_state_name()
 }
 
 pub fn find_duplicate_execution(

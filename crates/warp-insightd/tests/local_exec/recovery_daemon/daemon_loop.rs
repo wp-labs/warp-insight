@@ -98,23 +98,24 @@ fn daemon_run_once_does_not_rerun_live_execution_from_queue() {
 
     let workdir = run_dir.join("actions").join(&submitted.execution_id);
     let running_path = running::path_for(&state_dir, &submitted.execution_id);
-    let running_state = running::RunningExecutionState::new(
+    let running_state = running::RunningExecutionState::builder(
         submitted.execution_id.clone(),
         "act_001".to_string(),
-        submitted.plan_digest.clone(),
-        "req_001".to_string(),
         "running".to_string(),
         workdir.display().to_string(),
-        Some(std::process::id()),
-        None,
-        rfc3339_before_now(1),
-        Some(rfc3339_after_now(60)),
-        Some("step_collect".to_string()),
-        Some(1),
-        None,
-        None,
-        rfc3339_before_now(1),
-    );
+    )
+    .plan_digest(submitted.plan_digest.clone())
+    .request_id("req_001".to_string())
+    .started_at(rfc3339_before_now(1))
+    .updated_at(rfc3339_before_now(1))
+    .pid(Some(std::process::id()))
+    .process_identity(None)
+    .deadline_at(Some(rfc3339_after_now(60)))
+    .current_step_id(Some("step_collect".to_string()))
+    .attempt(Some(1))
+    .cancel_requested_at(None)
+    .kill_requested_at(None)
+    .build();
     write_json_atomic(&running_path, &running_state).expect("write running state");
 
     let rerun_flag = root.join("rerun.flag");
@@ -156,23 +157,24 @@ fn daemon_run_once_reports_active_when_execution_is_running() {
 
     let workdir = run_dir.join("actions").join(&submitted.execution_id);
     let running_path = running::path_for(&state_dir, &submitted.execution_id);
-    let running_state = running::RunningExecutionState::new(
+    let running_state = running::RunningExecutionState::builder(
         submitted.execution_id.clone(),
         "act_001".to_string(),
-        submitted.plan_digest.clone(),
-        "req_001".to_string(),
         "running".to_string(),
         workdir.display().to_string(),
-        Some(std::process::id()),
-        None,
-        rfc3339_before_now(1),
-        Some(rfc3339_after_now(60)),
-        Some("step_collect".to_string()),
-        Some(1),
-        None,
-        None,
-        rfc3339_before_now(1),
-    );
+    )
+    .plan_digest(submitted.plan_digest.clone())
+    .request_id("req_001".to_string())
+    .started_at(rfc3339_before_now(1))
+    .updated_at(rfc3339_before_now(1))
+    .pid(Some(std::process::id()))
+    .process_identity(None)
+    .deadline_at(Some(rfc3339_after_now(60)))
+    .current_step_id(Some("step_collect".to_string()))
+    .attempt(Some(1))
+    .cancel_requested_at(None)
+    .kill_requested_at(None)
+    .build();
     write_json_atomic(&running_path, &running_state).expect("write running state");
 
     let config = super::super::common::standalone_config(&root);

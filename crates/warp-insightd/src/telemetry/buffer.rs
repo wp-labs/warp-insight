@@ -24,6 +24,10 @@ impl TelemetryBuffer {
         }
     }
 
+    /// Stages records until the in-memory byte budget is exhausted.
+    ///
+    /// Records that do not fit are returned in `overflowed`; callers are
+    /// responsible for spooling or otherwise handling them.
     pub fn stage_all(&mut self, records: Vec<TelemetryRecordContract>) -> StageResult {
         let mut overflowed = Vec::new();
         for record in records {

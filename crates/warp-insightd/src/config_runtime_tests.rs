@@ -265,6 +265,8 @@ path = "log/out.ndjson"
     assert!(config.agent.instance_name.is_none());
     assert_eq!(config.telemetry.logs.output.kind, "file");
     assert!(config.discovery.host_enabled);
+    assert!(config.discovery.network_enabled);
+    assert!(config.discovery.endpoint_enabled);
     assert!(config.discovery.process_enabled);
     assert!(!config.discovery.container_enabled);
 }
@@ -280,6 +282,8 @@ schema_version = "v1"
 
 [discovery]
 host_enabled = true
+network_enabled = true
+endpoint_enabled = true
 process_enabled = true
 container_enabled = true
 
@@ -295,6 +299,8 @@ path = "log/out.ndjson"
     let config = load_from_path(&config_path).expect("load config");
 
     assert!(config.discovery.host_enabled);
+    assert!(config.discovery.network_enabled);
+    assert!(config.discovery.endpoint_enabled);
     assert!(config.discovery.process_enabled);
     assert!(config.discovery.container_enabled);
 }
@@ -310,6 +316,8 @@ schema_version = "v1"
 
 [discovery]
 host_enabled = false
+network_enabled = false
+endpoint_enabled = false
 process_enabled = false
 container_enabled = false
 "#,

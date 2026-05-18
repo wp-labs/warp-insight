@@ -7,9 +7,7 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
-use warp_insight_contracts::discovery::{
-    DiscoveredResource, DiscoveredTarget, DiscoveryOrigin, StringKeyValue,
-};
+use warp_insight_contracts::discovery::{DiscoveredResource, DiscoveredTarget, DiscoveryOrigin};
 use warp_insight_shared::time::now_rfc3339;
 
 use super::{DiscoveryProbe, DiscoveryProbeError, DiscoverySourceKind, ProbeOutput};
@@ -50,12 +48,19 @@ impl DiscoveryProbe for ContainerDiscoveryProbe {
             let mut attributes = BTreeMap::new();
             attributes.insert("container.id".to_string(), container.container_id.clone());
             attributes.insert("container.name".to_string(), container.name.clone());
-            attributes.insert("container.runtime".to_string(), container.runtime.to_string());
+            attributes.insert(
+                "container.runtime".to_string(),
+                container.runtime.to_string(),
+            );
             let mut execution_hints = BTreeMap::new();
-            execution_hints.insert("container.runtime".to_string(), container.runtime.to_string());
+            execution_hints.insert(
+                "container.runtime".to_string(),
+                container.runtime.to_string(),
+            );
             if let Some(namespace) = &container.runtime_namespace {
                 attributes.insert("container.runtime.namespace".to_string(), namespace.clone());
-                execution_hints.insert("container.runtime.namespace".to_string(), namespace.clone());
+                execution_hints
+                    .insert("container.runtime.namespace".to_string(), namespace.clone());
             }
             if let Some(pid) = container.pid {
                 execution_hints.insert("pid".to_string(), pid.to_string());

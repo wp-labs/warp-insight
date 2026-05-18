@@ -50,23 +50,24 @@ fn inspect_running_state_reports_expired_deadline_without_side_effects() {
 
 #[test]
 fn inspect_running_state_without_pid_is_inactive() {
-    let state = RunningExecutionState::new(
+    let state = RunningExecutionState::builder(
         "exec_001".to_string(),
         "act_001".to_string(),
-        "digest_001".to_string(),
-        "req_001".to_string(),
         "running".to_string(),
         "/tmp/workdir".to_string(),
-        None,
-        None,
-        "2026-04-12T10:00:00Z".to_string(),
-        Some("2000-01-01T00:00:00Z".to_string()),
-        None,
-        Some(1),
-        None,
-        None,
-        "2026-04-12T10:00:00Z".to_string(),
-    );
+    )
+    .plan_digest("digest_001".to_string())
+    .request_id("req_001".to_string())
+    .started_at("2026-04-12T10:00:00Z".to_string())
+    .updated_at("2026-04-12T10:00:00Z".to_string())
+    .pid(None)
+    .process_identity(None)
+    .deadline_at(Some("2000-01-01T00:00:00Z".to_string()))
+    .current_step_id(None)
+    .attempt(Some(1))
+    .cancel_requested_at(None)
+    .kill_requested_at(None)
+    .build();
 
     assert_eq!(
         inspect_running_state(&state).expect("inspect state"),

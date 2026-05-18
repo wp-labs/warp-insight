@@ -27,6 +27,9 @@ impl ExecutionQueueState {
     }
 
     pub fn enqueue(&mut self, item: ExecutionQueueItem) {
+        // The local execution queue is expected to stay small. Keep insertion
+        // simple and stable: lower numeric priority runs first, equal priority
+        // preserves FIFO order.
         let insert_at = self
             .items
             .iter()
@@ -63,28 +66,72 @@ pub struct ExecutionQueueItem {
 }
 
 impl ExecutionQueueItem {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub fn builder(
         execution_id: String,
         action_id: String,
         plan_digest: String,
         request_id: String,
-        priority: u32,
         queued_at: String,
-        deadline_at: Option<String>,
-        cancelable: bool,
-        risk_level: Option<String>,
-    ) -> Self {
-        Self {
+    ) -> ExecutionQueueItemBuilder {
+        ExecutionQueueItemBuilder {
             execution_id,
             action_id,
             plan_digest,
             request_id,
-            priority,
+            priority: 100,
             queued_at,
-            deadline_at,
-            cancelable,
-            risk_level,
+            deadline_at: None,
+            cancelable: true,
+            risk_level: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ExecutionQueueItemBuilder {
+    execution_id: String,
+    action_id: String,
+    plan_digest: String,
+    request_id: String,
+    priority: u32,
+    queued_at: String,
+    deadline_at: Option<String>,
+    cancelable: bool,
+    risk_level: Option<String>,
+}
+
+impl ExecutionQueueItemBuilder {
+    pub fn priority(mut self, priority: u32) -> Self {
+        self.priority = priority;
+        self
+    }
+
+    pub fn deadline_at(mut self, deadline_at: Option<String>) -> Self {
+        self.deadline_at = deadline_at;
+        self
+    }
+
+    pub fn cancelable(mut self, cancelable: bool) -> Self {
+        self.cancelable = cancelable;
+        self
+    }
+
+    pub fn risk_level(mut self, risk_level: Option<String>) -> Self {
+        self.risk_level = risk_level;
+        self
+    }
+
+    pub fn build(self) -> ExecutionQueueItem {
+        ExecutionQueueItem {
+            execution_id: self.execution_id,
+            action_id: self.action_id,
+            plan_digest: self.plan_digest,
+            request_id: self.request_id,
+            priority: self.priority,
+            queued_at: self.queued_at,
+            deadline_at: self.deadline_at,
+            cancelable: self.cancelable,
+            risk_level: self.risk_level,
         }
     }
 }
@@ -110,17 +157,15 @@ mod tests {
     use super::{ExecutionQueueItem, ExecutionQueueState};
 
     fn item(execution_id: &str, priority: u32, queued_at: &str) -> ExecutionQueueItem {
-        ExecutionQueueItem::new(
+        ExecutionQueueItem::builder(
             execution_id.to_string(),
             format!("act_{execution_id}"),
             format!("digest_{execution_id}"),
             format!("req_{execution_id}"),
-            priority,
             queued_at.to_string(),
-            None,
-            true,
-            None,
         )
+        .priority(priority)
+        .build()
     }
 
     #[test]

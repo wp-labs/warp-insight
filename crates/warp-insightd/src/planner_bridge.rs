@@ -16,7 +16,11 @@ pub fn build_collection_candidates(
                 target_ref: target.target_id.clone(),
                 collection_kind: "host_metrics".to_string(),
                 resource_ref: target.resource_ref.clone(),
-                execution_hints: target.execution_hints.iter().map(|(k, v)| StringKeyValue::new(k.clone(), v.clone())).collect(),
+                execution_hints: target
+                    .execution_hints
+                    .iter()
+                    .map(|(k, v)| StringKeyValue::new(k.clone(), v.clone()))
+                    .collect(),
                 generated_at: snapshot.generated_at.clone(),
             }),
             "process" => {
@@ -78,9 +82,7 @@ pub fn build_collection_candidates(
 mod tests {
     use std::collections::BTreeMap;
 
-    use warp_insight_contracts::discovery::{
-        DiscoveredTarget, DiscoverySnapshotContract, StringKeyValue,
-    };
+    use warp_insight_contracts::discovery::{DiscoveredTarget, DiscoverySnapshotContract};
 
     use super::build_collection_candidates;
 
@@ -107,7 +109,10 @@ mod tests {
                 resource_ref: "host-1:pid:42".to_string(),
                 execution_hints: BTreeMap::from([
                     ("process.pid".to_string(), "42".to_string()),
-                    ("process.identity".to_string(), "linux_proc_start:1".to_string()),
+                    (
+                        "process.identity".to_string(),
+                        "linux_proc_start:1".to_string(),
+                    ),
                 ]),
                 state: "active".to_string(),
             },

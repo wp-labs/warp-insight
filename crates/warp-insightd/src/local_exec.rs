@@ -10,6 +10,7 @@ use tokio::fs::File;
 use tokio::process::Command;
 use warp_insight_contracts::action_plan::ActionPlanContract;
 use warp_insight_contracts::action_result::{ActionResultContract, FinalStatus};
+use warp_insight_contracts::state_exec::ExecRuntimeContext;
 use warp_insight_shared::fs::{read_json, write_json_atomic};
 use warp_insight_shared::paths::{
     ACTIONS_DIR, WORKDIR_PLAN_FILE, WORKDIR_RESULT_FILE, WORKDIR_RUNTIME_FILE,
@@ -24,8 +25,8 @@ use crate::state_store::running;
 mod support;
 
 use support::{
-    ExecRuntimeContext, ExitClassification, join_capture, spawn_stream_capture, synthesize_result,
-    terminate_child, wait_for_child, write_exec_state, write_timed_out_result,
+    ExitClassification, join_capture, spawn_stream_capture, synthesize_result, terminate_child,
+    wait_for_child, write_exec_state, write_timed_out_result,
 };
 
 #[derive(Debug, Clone)]
@@ -98,23 +99,24 @@ pub async fn execute_async(request: &LocalExecRequest) -> io::Result<LocalExecOu
 
     let started_at = now_rfc3339();
     let running_path = running::path_for(&request.state_dir, &request.execution_id);
-    let running_state = running::RunningExecutionState::new(
+    let running_state = running::RunningExecutionState::builder(
         request.execution_id.clone(),
         request.plan.meta.action_id.clone(),
-        request.plan_digest.clone(),
-        request.request_id.clone(),
         "spawned".to_string(),
         workdir.display().to_string(),
-        child_pid.into(),
-        process_identity(child_pid)?,
-        started_at.clone(),
-        runtime.deadline_at.clone(),
-        None,
-        Some(1),
-        None,
-        None,
-        started_at,
-    );
+    )
+    .plan_digest(request.plan_digest.clone())
+    .request_id(request.request_id.clone())
+    .pid(child_pid.into())
+    .process_identity(process_identity(child_pid)?)
+    .started_at(started_at.clone())
+    .deadline_at(runtime.deadline_at.clone())
+    .current_step_id(None)
+    .attempt(Some(1))
+    .cancel_requested_at(None)
+    .kill_requested_at(None)
+    .updated_at(started_at)
+    .build();
     if let Err(err) = running::store(&running_path, &running_state) {
         terminate_child(&mut child).await?;
         join_capture(stdout_capture, "stdout").await?;
@@ -142,27 +144,32 @@ pub async fn execute_async(request: &LocalExecRequest) -> io::Result<LocalExecOu
     let result = load_or_synthesize_result(request, &workdir, &result_path, exit_status)?;
 
     let signal_state = running::load(&running_path).ok();
-    let finished_state = running::RunningExecutionState::new(
+    let finished_state = running::RunningExecutionState::builder(
         request.execution_id.clone(),
         request.plan.meta.action_id.clone(),
-        request.plan_digest.clone(),
-        request.request_id.clone(),
         final_state_name(&result).to_string(),
         workdir.display().to_string(),
-        child_pid.into(),
-        running_state.process_identity.clone(),
-        running_state.started_at,
-        runtime.deadline_at,
-        None,
-        Some(1),
+    )
+    .plan_digest(request.plan_digest.clone())
+    .request_id(request.request_id.clone())
+    .pid(child_pid.into())
+    .process_identity(running_state.process_identity.clone())
+    .started_at(running_state.started_at)
+    .deadline_at(runtime.deadline_at)
+    .current_step_id(None)
+    .attempt(Some(1))
+    .cancel_requested_at(
         signal_state
             .as_ref()
             .and_then(|state| state.cancel_requested_at.clone()),
+    )
+    .kill_requested_at(
         signal_state
             .as_ref()
             .and_then(|state| state.kill_requested_at.clone()),
-        now_rfc3339(),
-    );
+    )
+    .updated_at(now_rfc3339())
+    .build();
     running::store(&running_path, &finished_state)?;
 
     Ok(LocalExecOutcome {

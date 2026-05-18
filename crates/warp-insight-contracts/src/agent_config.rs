@@ -51,6 +51,10 @@ impl AgentConfigContract {
 pub struct DiscoverySection {
     #[serde(default = "default_discovery_host_enabled")]
     pub host_enabled: bool,
+    #[serde(default = "default_discovery_network_enabled")]
+    pub network_enabled: bool,
+    #[serde(default = "default_discovery_endpoint_enabled")]
+    pub endpoint_enabled: bool,
     #[serde(default)]
     pub process_enabled: bool,
     #[serde(default)]
@@ -61,6 +65,8 @@ impl Default for DiscoverySection {
     fn default() -> Self {
         Self {
             host_enabled: default_discovery_host_enabled(),
+            network_enabled: default_discovery_network_enabled(),
+            endpoint_enabled: default_discovery_endpoint_enabled(),
             process_enabled: true,
             container_enabled: false,
         }
@@ -307,5 +313,13 @@ fn default_startup_position() -> String {
 }
 
 fn default_discovery_host_enabled() -> bool {
+    true
+}
+
+fn default_discovery_network_enabled() -> bool {
+    true
+}
+
+fn default_discovery_endpoint_enabled() -> bool {
     true
 }

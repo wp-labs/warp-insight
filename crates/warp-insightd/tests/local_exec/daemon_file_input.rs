@@ -354,6 +354,8 @@ fn daemon_run_once_can_enable_high_cardinality_discovery_explicitly() {
     let mut config = standalone_config_with_file_input(&root, &input_path);
     config.discovery = DiscoverySection {
         host_enabled: true,
+        network_enabled: true,
+        endpoint_enabled: true,
         process_enabled: true,
         container_enabled: true,
     };

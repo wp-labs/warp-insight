@@ -19,9 +19,9 @@ pub(super) struct MetricsTick {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum MetricsFailureKind {
-    TargetViewLoadFailed,
-    RuntimeSnapshotLoadFailed,
-    RuntimeSnapshotStoreFailed,
+    TargetViewLoad,
+    RuntimeSnapshotLoad,
+    RuntimeSnapshotStore,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -103,7 +103,7 @@ pub(super) fn process_metrics_tick(state_dir: &Path) -> MetricsTick {
             let mut failures = Vec::new();
             if let Err(err) = runtime::store(&runtime_snapshot_path, &snapshot) {
                 failures.push(metrics_failure(
-                    MetricsFailureKind::RuntimeSnapshotStoreFailed,
+                    MetricsFailureKind::RuntimeSnapshotStore,
                     "runtime_snapshot_store",
                     &runtime_snapshot_path,
                     err,
@@ -118,7 +118,7 @@ pub(super) fn process_metrics_tick(state_dir: &Path) -> MetricsTick {
         }
         Err(err) => {
             let mut failures = vec![metrics_failure(
-                MetricsFailureKind::TargetViewLoadFailed,
+                MetricsFailureKind::TargetViewLoad,
                 "target_view_load",
                 &target_view_path,
                 err,
@@ -200,7 +200,7 @@ fn load_cached_runtime_snapshot(
         Ok(snapshot) => Some(snapshot),
         Err(err) => {
             failures.push(metrics_failure(
-                MetricsFailureKind::RuntimeSnapshotLoadFailed,
+                MetricsFailureKind::RuntimeSnapshotLoad,
                 "runtime_snapshot_load",
                 path,
                 err,

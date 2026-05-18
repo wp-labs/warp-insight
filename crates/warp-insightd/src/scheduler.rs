@@ -75,17 +75,22 @@ pub fn submit_local_plan(request: &SchedulerRequest) -> io::Result<SchedulerOutc
     let queue_path = execution_queue::path_for(&request.state_dir);
     let queue_write = (|| -> io::Result<()> {
         let mut queue = execution_queue::load_or_default(&queue_path)?;
-        queue.enqueue(ExecutionQueueItem::new(
-            execution_id.clone(),
-            request.plan.meta.action_id.clone(),
-            plan_digest.clone(),
-            request.plan.meta.request_id.clone(),
-            100,
-            now_rfc3339(),
-            deadline_at,
-            true,
-            Some(risk_level_name(request.plan.constraints.risk_level).to_string()),
-        ));
+        // Lower numeric priority runs earlier; scheduler uses the neutral
+        // default until dispatch constraints expose dynamic prioritization.
+        queue.enqueue(
+            ExecutionQueueItem::builder(
+                execution_id.clone(),
+                request.plan.meta.action_id.clone(),
+                plan_digest.clone(),
+                request.plan.meta.request_id.clone(),
+                now_rfc3339(),
+            )
+            .deadline_at(deadline_at)
+            .risk_level(Some(
+                risk_level_name(request.plan.constraints.risk_level).to_string(),
+            ))
+            .build(),
+        );
         execution_queue::store(&queue_path, &queue)
     })();
     if let Err(err) = queue_write {
