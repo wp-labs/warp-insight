@@ -317,6 +317,8 @@ fn config_with_more_than_one_running_action_is_rejected() {
         ControlPlaneSection {
             enabled: false,
             endpoint: None,
+            enrollment_token: None,
+            credential_request: None,
             tls_mode: None,
             auth_mode: None,
         },
@@ -349,6 +351,8 @@ fn config_with_all_discovery_probes_disabled_is_rejected() {
         ControlPlaneSection {
             enabled: false,
             endpoint: None,
+            enrollment_token: None,
+            credential_request: None,
             tls_mode: None,
             auth_mode: None,
         },
@@ -388,6 +392,8 @@ fn config_with_duplicate_log_input_ids_is_rejected() {
         ControlPlaneSection {
             enabled: false,
             endpoint: None,
+            enrollment_token: None,
+            credential_request: None,
             tls_mode: None,
             auth_mode: None,
         },
@@ -447,6 +453,8 @@ fn config_with_invalid_log_startup_position_is_rejected() {
         ControlPlaneSection {
             enabled: false,
             endpoint: None,
+            enrollment_token: None,
+            credential_request: None,
             tls_mode: None,
             auth_mode: None,
         },
@@ -498,6 +506,8 @@ fn config_with_invalid_tcp_output_framing_is_rejected() {
         ControlPlaneSection {
             enabled: false,
             endpoint: None,
+            enrollment_token: None,
+            credential_request: None,
             tls_mode: None,
             auth_mode: None,
         },

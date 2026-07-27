@@ -1,0 +1,27 @@
+// Control domain actors
+
+actor Agentd {
+  access protocol<http>
+  can SubmitEnrollmentRequest
+  can VerifyAgentCredential
+  can PollControlCommands
+  can AgentUpstreamMessage
+  can Reporting.AgentHello
+  can Reporting.ReportActionResult
+}
+
+actor PublicInstallClient {
+  access protocol<http>
+  can GetAgentInstallCode
+  can AdminGetAgentInstallCode
+}
+
+actor AdminOperator {
+  access protocol<http>
+  can ShowAgentRuntimeStatus
+  can PauseAgent
+  can UpgradeAgent
+  can AdminShowAgentRuntimeStatus
+  can AdminPauseAgent
+  can AdminUpgradeAgent
+}

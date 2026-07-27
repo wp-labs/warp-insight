@@ -1,0 +1,65 @@
+// WpAgent 子系统用例
+
+// 注册管理中心
+usecase RegisterWithManagementCenter {
+  meta {
+    label zh "注册管理中心"
+    label en "Register With Management Center"
+    summary zh "WpAgent 通过安装代码拉取安装脚本，并使用脚本中的注册 token 和宿主机画像向 WarpInsight 管理节点发起 enrollment，获取注册结果、agent identity、初始配置和策略绑定。"
+    tag "agent-register"
+    tag "wp-agent"
+  }
+
+  actor Control.Agentd
+  trigger Control.SubmitEnrollmentRequest
+  outcome Control.AgentIdentity, Control.AgentEnrollmentResult
+  flow Control.AgentdRegistrationFlow
+  verify Control.AgentdRegistrationVerified
+}
+
+// 定期上报自己状态
+usecase PeriodicallyReportSelfStatus {
+  meta {
+    label zh "定期上报自己状态"
+    label en "Periodically Report Self Status"
+    summary zh "WpAgent 定期向管理节点上报 agent id、版本、运行时状态和健康信息，用于在线状态展示与后续控制。"
+    tag "agent-health"
+    tag "wp-agent"
+  }
+
+  actor Control.Agentd
+  trigger Reporting.AgentHello
+  outcome Reporting.RuntimeHealthSnapshot
+  flow Reporting.AgentHelloFlow
+  verify Reporting.AgentHelloVerified
+}
+
+// 采集日志
+usecase CollectLogs {
+  meta {
+    label zh "采集日志"
+    label en "Collect Logs"
+    summary zh "WpAgent 按本地配置读取业务服务器上的日志文件输入，维护 offset 和 multiline 状态，并写入本地 telemetry buffer。"
+    tag "log-collection"
+    tag "wp-agent"
+  }
+
+  actor Discovery.Collector
+  trigger Discovery.CollectLogs
+  outcome Discovery.TelemetryBuffer
+}
+
+// 采集 Metric
+usecase CollectMetrics {
+  meta {
+    label zh "采集 Metric"
+    label en "Collect Metrics"
+    summary zh "WpAgent 按采集目标读取业务服务器的运行指标，形成 metrics sample snapshot，供后续上报与健康分析使用。"
+    tag "metric-collection"
+    tag "wp-agent"
+  }
+
+  actor Discovery.Collector
+  trigger Discovery.CollectMetrics
+  outcome Discovery.MetricsSamplesSnapshot
+}

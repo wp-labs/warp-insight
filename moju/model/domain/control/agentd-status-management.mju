@@ -1,0 +1,40 @@
+// Module: AgentdStatusManagement — Agentd 状态管理
+
+struct AgentInstance {
+  meta {
+    label zh "Agentd 实例"
+    label en "Agentd Instance"
+    summary zh "一次 Agentd 运行实例的状态记录，包含 boot id、版本、启动时间和最后在线时间。"
+    tag "agentd"
+    tag "status"
+  }
+
+  unique instance_id: String
+  agent_id: String
+  boot_id: String
+  version: String
+  started_at: DateTime
+  last_seen_at: DateTime
+}
+
+command ShowAgentRuntimeStatus {
+  agent_id: String
+  requested_by: String
+}
+
+struct AgentRuntimeStatusView {
+  meta {
+    label zh "Agentd 运行状态视图"
+    label en "Agentd Runtime Status View"
+    summary zh "WarpInsightAdmin 展示 Agentd 在线状态、版本、健康状态和最后上报时间所需的聚合视图。"
+    tag "agentd"
+    tag "status-view"
+  }
+
+  agent_id: String
+  instance_id: String
+  version: String
+  status: String
+  last_seen_at: DateTime
+  health: String
+}

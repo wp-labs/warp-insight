@@ -5,6 +5,7 @@ pub mod capability_report;
 pub mod config_runtime;
 pub mod daemon;
 pub mod discovery;
+pub mod enrollment;
 pub mod execution_support;
 pub mod exporter;
 pub mod local_exec;

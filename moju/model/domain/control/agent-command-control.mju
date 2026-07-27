@@ -1,0 +1,130 @@
+// Module: AgentCommandControl — Agent 控制指令编排
+
+command PauseAgent {
+  meta {
+    label zh "暂停 Agent"
+    label en "Pause Agent"
+    summary zh "管理员发起的 Agent 暂停控制意图，进入控制指令编排后转换为可轮询的下行消息。"
+    tag "agentd"
+    tag "control-command"
+    tag "pause"
+  }
+
+  agent_id: String
+  requested_by: String
+  requested_at: DateTime
+}
+
+command UpgradeAgent {
+  meta {
+    label zh "远程升级 Agent"
+    label en "Upgrade Agent"
+    summary zh "管理员发起的 Agent 远程升级控制意图，指定目标版本并进入控制指令编排。"
+    tag "agentd"
+    tag "control-command"
+    tag "upgrade"
+  }
+
+  agent_id: String
+  target_version: String
+  requested_by: String
+  requested_at: DateTime
+}
+
+command RefreshPolicyHint {
+  meta {
+    label zh "刷新策略提示"
+    label en "Refresh Policy Hint"
+    summary zh "管理节点下发给 Agentd 的策略刷新提示，指示 Agentd 拉取或应用新的策略版本。"
+    tag "agentd"
+    tag "control-command"
+    tag "policy"
+  }
+
+  policy_version: String
+  reason_code: String
+}
+
+command RotateIdentityHint {
+  meta {
+    label zh "轮换身份提示"
+    label en "Rotate Identity Hint"
+    summary zh "管理节点下发给 Agentd 的身份轮换提示，指示 Agentd 在指定时间前更新凭据。"
+    tag "agentd"
+    tag "control-command"
+    tag "identity"
+  }
+
+  reason_code: String
+  renew_before: DateTime
+}
+
+struct AgentControlCommand {
+  meta {
+    label zh "Agent 控制指令"
+    label en "Agent Control Command"
+    summary zh "管理端把管理员控制意图转换为可下发给指定 Agent 的控制指令，覆盖暂停、升级、策略刷新和身份轮换等控制动作。"
+    tag "agentd"
+    tag "control-command"
+  }
+
+  unique command_id: String
+  agent_id: String
+  command_kind: String
+  target_version: String
+  payload: String
+  requested_by: String
+  issued_at: DateTime
+  expires_at: DateTime
+  sequence: Int
+}
+
+struct DispatchReceipt {
+  meta {
+    label zh "控制指令派发回执"
+    label en "Dispatch Receipt"
+    summary zh "控制指令进入派发队列后的受理回执，记录目标 Agent、command id、dispatch id 和创建时间。"
+    tag "agentd"
+    tag "dispatch"
+    tag "control-command"
+  }
+
+  agent_id: String
+  command_id: String
+  dispatch_id: String
+  status: String
+  created_at: DateTime
+}
+
+event ControlCommandsReturned {
+  meta {
+    label zh "控制指令已返回"
+    label en "Control Commands Returned"
+    summary zh "管理节点向 Agentd 返回本次轮询可获取的控制指令消息。"
+    tag "agentd"
+    tag "control-command"
+    tag "polling"
+  }
+
+  agent_id: String
+  instance_id: String
+  messages: List<AgentControlCommand>
+  next_sequence: Int
+  returned_at: DateTime
+}
+
+event ControlLongPollTimedOut {
+  meta {
+    label zh "控制指令长轮询超时"
+    label en "Control Long Poll Timed Out"
+    summary zh "Agentd 轮询控制指令时没有可返回的新消息，长轮询等待超时。"
+    tag "agentd"
+    tag "control-command"
+    tag "polling"
+  }
+
+  agent_id: String
+  instance_id: String
+  wait_ms: Int
+  timed_out_at: DateTime
+}

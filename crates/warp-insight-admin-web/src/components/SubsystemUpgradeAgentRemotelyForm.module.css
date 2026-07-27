@@ -1,0 +1,46 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.label {
+  color: #526073;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.input {
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid #c8d2e0;
+  border-radius: 6px;
+  color: #172033;
+  font-size: 13px;
+}
+
+.button {
+  align-self: flex-start;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #1f6feb;
+  border-radius: 6px;
+  background: #1f6feb;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button:disabled {
+  border-color: #b9c5d6;
+  background: #eef3f8;
+  color: #718095;
+  cursor: not-allowed;
+}

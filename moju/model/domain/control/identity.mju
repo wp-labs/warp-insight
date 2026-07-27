@@ -1,0 +1,198 @@
+// Module: Identity — Agent 身份与凭据生命周期
+
+struct AgentIdentity {
+  meta {
+    label zh "Agent 身份"
+    label en "Agent Identity"
+    summary zh "Agentd 注册后由管理端签发的稳定身份，绑定租户、环境、节点和凭据状态。"
+    tag "agentd"
+    tag "identity"
+  }
+
+  unique agent_id: String
+  instance_id: String
+  tenant_id: String
+  environment_id: String
+  node_id: String
+  issued_at: DateTime
+  expires_at: DateTime
+  status: AgentIdentityStatus
+}
+
+variant AgentIdentityStatus {
+  meta {
+    label zh "Agent 身份状态"
+    label en "Agent Identity Status"
+    summary zh "描述 Agentd 身份是否有效、吊销、过期或待续期。"
+    tag "agentd"
+    tag "identity"
+  }
+
+  Active
+  Revoked
+  Expired
+  RenewalRequired
+}
+
+struct AgentHostProfile {
+  meta {
+    label zh "Agent 宿主机画像"
+    label en "Agent Host Profile"
+    summary zh "Agentd 注册时上报的业务服务器宿主机信息，包括主机名、系统、架构、机器 ID、云实例和 IP 信息。"
+    tag "agentd"
+    tag "host"
+  }
+
+  unique node_id: String
+  hostname: String
+  os: String
+  arch: String
+  machine_id: String
+  cloud_instance_id: String
+  k8s_node_uid: String
+  ip_addresses: List<String>
+}
+
+struct AgentCredentialBundle {
+  meta {
+    label zh "Agent 凭据包"
+    label en "Agent Credential Bundle"
+    summary zh "Agent 注册成功后由管理端签发或返回的长期通讯凭据集合，可用于后续 HTTPS 凭据认证或 mTLS 客户端认证。"
+    tag "agentd"
+    tag "credential"
+  }
+
+  unique credential_id: String
+  agent_id: String
+  instance_id: String
+  certificate: String
+  private_key_ref: String
+  ca_bundle: String
+  issued_at: DateTime
+  not_before: DateTime
+  not_after: DateTime
+}
+
+struct AgentControlAuthProfile {
+  meta {
+    label zh "Agent 控制通道认证配置"
+    label en "Agent Control Auth Profile"
+    summary zh "Agent 注册成功后调用管理端 Agent API 时使用的认证策略；后续通讯依赖 AgentIdentity 和通讯凭据，不再接受 enrollment token。"
+    tag "control"
+    tag "auth"
+  }
+
+  server_tls_required: Bool
+  agent_credential_required: Bool
+  mtls_client_certificate_allowed: Bool
+  enrollment_token_rejected: Bool
+}
+
+command RenewAgentCredential {
+  agent_id: String
+  instance_id: String
+  credential_request: String
+  requested_at: DateTime
+}
+
+command VerifyAgentCredential {
+  agent_id: String
+  instance_id: String
+  credential: String
+  requested_at: DateTime
+}
+
+struct AgentCredentialVerificationResult {
+  meta {
+    label zh "Agent 凭据校验结果"
+    label en "Agent Credential Verification Result"
+    summary zh "管理端对 Agent 后续 API 调用携带的通讯凭据进行校验后的结果。"
+    tag "agentd"
+    tag "credential"
+    tag "verification"
+  }
+
+  agent_id: String
+  instance_id: String
+  status: AgentCredentialVerificationStatus
+  reason_code: String
+  verified_at: DateTime
+}
+
+variant AgentCredentialVerificationStatus {
+  Verified
+  UnknownAgent
+  CredentialMissing
+  CredentialExpired
+  CredentialRevoked
+  CredentialMismatch
+}
+
+event AgentCredentialIssued {
+  agent_id
+  instance_id
+  credential
+  issued_at
+}
+
+event AgentCredentialRevoked {
+  agent_id
+  instance_id
+  reason_code
+  revoked_at
+}
+
+event AgentCredentialVerified {
+  agent_id
+  instance_id
+  verified_at
+}
+
+event AgentCredentialRejected {
+  agent_id
+  instance_id
+  reason_code
+  rejected_at
+}
+
+flow VerifyAgentCredentialFlow {
+  meta {
+    label zh "校验 Agent 通讯凭据"
+    label en "Verify Agent Credential Flow"
+    summary zh "管理端校验 Agent 后续 API 调用携带的通讯凭据，确认其绑定的 AgentIdentity 和实例仍然有效。"
+    tag "agentd"
+    tag "credential"
+    tag "verification"
+  }
+
+  actor Agentd
+  trigger VerifyAgentCredential
+
+  depends AgentIdentity, AgentCredentialBundle, AgentControlAuthProfile
+
+  creates AgentCredentialVerificationResult
+
+  step VerifyCredential {
+    create AgentCredentialVerificationResult {
+      agent_id = VerifyAgentCredential.agent_id
+      instance_id = VerifyAgentCredential.instance_id
+      status = "verified"
+      verified_at = VerifyAgentCredential.requested_at
+    }
+
+  }
+}
+
+verify AgentCredentialVerificationVerified for flow VerifyAgentCredentialFlow {
+  given {
+    VerifyAgentCredential.agent_id = "agent-issued"
+    VerifyAgentCredential.instance_id = "instance-issued"
+    VerifyAgentCredential.requested_at = "2026-07-04T00:05:00Z"
+  }
+
+  when VerifyAgentCredential
+
+  expect {
+    AgentCredentialVerificationResult.status == "verified"
+  }
+}

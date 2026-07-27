@@ -133,6 +133,8 @@ pub(crate) fn standalone_config(root: &std::path::Path) -> AgentConfigContract {
         ControlPlaneSection {
             enabled: false,
             endpoint: None,
+            enrollment_token: None,
+            credential_request: None,
             tls_mode: None,
             auth_mode: None,
         },

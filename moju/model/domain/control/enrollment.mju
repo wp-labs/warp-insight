@@ -1,0 +1,307 @@
+// Module: Enrollment — 自动注册与身份引导
+
+struct AgentBootstrapBundle {
+  meta {
+    label zh "Agent 引导包"
+    label en "Agent Bootstrap Bundle"
+    summary zh "Agentd 安装和首次连接管理端时使用的引导信息，只表达安装入口、管理端 HTTPS 地址、内部 CA 信任根和租户环境信息；注册资格由 AgentEnrollmentToken 单独表达。"
+    tag "enrollment"
+    tag "bootstrap"
+  }
+
+  unique bundle_id: String
+  install_script_url: String
+  agent_package_url: String
+  control_endpoint: String
+  trust_bundle: String
+  tenant_id: String
+  environment_id: String
+  expires_at: DateTime
+}
+
+struct ManagementEndpointTrustBundle {
+  meta {
+    label zh "管理端信任包"
+    label en "Management Endpoint Trust Bundle"
+    summary zh "Agent 安装和注册阶段用于校验 WarpInsightAdmin HTTPS 服务端证书的内部 CA 信任材料和端点约束。"
+    tag "enrollment"
+    tag "tls"
+    tag "trust-bundle"
+  }
+
+  unique trust_bundle_id: String
+  control_endpoint: String
+  ca_bundle: String
+  server_name: String
+  expected_san: String
+  issued_at: DateTime
+  expires_at: DateTime
+}
+
+struct AgentEnrollmentToken {
+  meta {
+    label zh "Agent 注册 Token"
+    label en "Agent Enrollment Token"
+    summary zh "管理端生成的 Agentd 注册资格凭证，服务端保存 token hash，并通过环境绑定、宿主机选择器、使用次数、有效期和状态控制合法性。"
+    tag "enrollment"
+    tag "token"
+  }
+
+  unique token_id: String
+  token_hash: String
+  tenant_id: String
+  environment_id: String
+  allowed_node_selector: String
+  max_uses: Int
+  used_count: Int
+  issued_by: String
+  issued_at: DateTime
+  expires_at: DateTime
+  revoked_at: DateTime
+  status: AgentEnrollmentTokenStatus
+}
+
+variant AgentEnrollmentTokenStatus {
+  meta {
+    label zh "Agent 注册 Token 状态"
+    label en "Agent Enrollment Token Status"
+    summary zh "描述注册 token 的可用、过期、耗尽或禁用等状态。"
+    tag "enrollment"
+    tag "status"
+  }
+
+  Active
+  Expired
+  Revoked
+  Exhausted
+}
+
+struct AgentEnrollmentTokenValidation {
+  meta {
+    label zh "Agent 注册 Token 校验结果"
+    label en "Agent Enrollment Token Validation"
+    summary zh "管理端对注册 token 的校验结果，覆盖 hash 匹配、状态、有效期、使用次数、租户环境绑定和宿主机选择器。"
+    tag "enrollment"
+    tag "token"
+    tag "validation"
+  }
+
+  token_id: String
+  tenant_id: String
+  environment_id: String
+  host_profile: AgentHostProfile
+  status: AgentEnrollmentTokenValidationStatus
+  reason_code: String
+  validated_at: DateTime
+}
+
+variant AgentEnrollmentTokenValidationStatus {
+  Valid
+  HashMismatch
+  Expired
+  Revoked
+  Exhausted
+  EnvironmentMismatch
+  HostNotAllowed
+}
+
+struct AgentEnrollmentResult {
+  meta {
+    label zh "Agent 注册结果"
+    label en "Agent Enrollment Result"
+    summary zh "管理端返回给 Agentd 的注册结果，包含是否成功、拒绝原因、签发身份、通讯凭据、初始配置和策略绑定。"
+    tag "enrollment"
+    tag "result"
+  }
+
+  status: AgentEnrollmentResultStatus
+  reason_code: String
+  agent_id: String
+  instance_id: String
+  issued_identity: AgentIdentity
+  credential_bundle: AgentCredentialBundle
+  initial_config: AgentInitialConfig
+  policy_binding: AgentPolicyBinding
+}
+
+variant AgentEnrollmentResultStatus {
+  meta {
+    label zh "Agent 注册结果状态"
+    label en "Agent Enrollment Result Status"
+    summary zh "描述 Agentd 注册请求成功、拒绝或需要额外处理的结果状态。"
+    tag "enrollment"
+    tag "status"
+  }
+
+  Accepted
+  Rejected
+  PendingReview
+}
+
+event AgentEnrollmentAccepted {
+  agent_id
+  instance_id
+  tenant_id
+  environment_id
+  node_id
+  accepted_at
+}
+
+event AgentEnrollmentRejected {
+  token_id
+  node_id
+  reason_code
+  rejected_at
+}
+
+event AgentEnrollmentTokenAccepted {
+  token_id
+  tenant_id
+  environment_id
+  node_id
+  accepted_at
+}
+
+event AgentEnrollmentTokenRejected {
+  token_id
+  node_id
+  reason_code
+  rejected_at
+}
+
+event DuplicateRegistrationDetected {
+  node_id
+  existing_agent_id
+  candidate_instance_id
+  action
+  detected_at
+}
+
+struct AgentEnrollmentAuthProfile {
+  meta {
+    label zh "Agent 注册认证配置"
+    label en "Agent Enrollment Auth Profile"
+    summary zh "定义 Agentd 注册阶段所需的 HTTPS 服务端证书校验、内部 CA 信任根、注册 token 和凭据申请要求。"
+    tag "enrollment"
+    tag "auth"
+  }
+
+  server_tls_required: Bool
+  trust_bundle_required: Bool
+  enrollment_token_required: Bool
+  credential_request_required: Bool
+}
+
+command GetAgentInstallCode {
+}
+
+struct AgentInstallCode {
+  meta {
+    label zh "Agent 安装代码"
+    label en "Agent Install Code"
+    summary zh "WarpInsightAdmin 返回给管理员的 Agent 安装入口代码，按架构提供可复制执行的安装命令，并关联 bootstrap bundle。"
+    tag "admin"
+    tag "agent-install"
+    tag "install-code"
+  }
+
+  x86_linux_install_code: String
+  arm_linux_install_code: String
+  bootstrap_bundle: AgentBootstrapBundle
+}
+
+flow AgentdRegistrationFlow {
+  meta {
+    label zh "Agentd 注册管理中心"
+    label en "Agentd Registration Flow"
+    summary zh "Agentd 使用安装代码拉取安装脚本，并通过脚本中的 enrollment token 向 WarpInsight 管理节点提交注册请求；管理侧校验 token 后签发 agent identity 和通讯凭据，并返回初始配置、策略绑定和注册结果。"
+    tag "agentd"
+    tag "registration"
+    tag "enrollment"
+  }
+
+  actor Agentd
+  trigger SubmitEnrollmentRequest
+
+  creates AgentIdentity
+  creates AgentCredentialBundle
+  creates AgentEnrollmentTokenValidation
+  creates AgentInitialConfig
+  creates AgentPolicyBinding
+  creates AgentEnrollmentResult
+
+  step ValidateEnrollmentToken {
+    create AgentEnrollmentTokenValidation {
+      token_id = "install-token-001"
+      tenant_id = "tenant-default"
+      environment_id = "env-default"
+      host_profile = SubmitEnrollmentRequest.host_profile
+      status = "valid"
+      validated_at = SubmitEnrollmentRequest.requested_at
+    }
+
+  }
+
+  step IssueAgentIdentity {
+    create AgentIdentity {
+      agent_id = "agent-issued"
+      instance_id = "instance-issued"
+      status = "active"
+    }
+  }
+
+  step IssueAgentCredential {
+    create AgentCredentialBundle {
+      credential_id = "credential-issued"
+      agent_id = "agent-issued"
+      instance_id = "instance-issued"
+      issued_at = SubmitEnrollmentRequest.requested_at
+    }
+
+  }
+
+  step BuildInitialConfig {
+    create AgentInitialConfig {
+      schema_version = "v1"
+      mode = "managed"
+      gateway_endpoint = "https://warp-insight.local"
+      policy_version = "v1"
+    }
+  }
+
+  step BindInitialPolicy {
+    create AgentPolicyBinding {
+      agent_id = "agent-issued"
+      policy_id = "default-agent-policy"
+      policy_version = "v1"
+      bound_at = SubmitEnrollmentRequest.requested_at
+    }
+  }
+
+  step AcceptRegistration {
+    create AgentEnrollmentResult {
+      status = "accepted"
+      agent_id = "agent-issued"
+      instance_id = "instance-issued"
+      credential_bundle = "credential-issued"
+      initial_config = "v1"
+      policy_binding = "default-agent-policy"
+    }
+  }
+}
+
+verify AgentdRegistrationVerified for flow AgentdRegistrationFlow {
+  given {
+    SubmitEnrollmentRequest.token = "install-token-001"
+    SubmitEnrollmentRequest.host_profile = "host-profile-default"
+    SubmitEnrollmentRequest.requested_at = "2026-07-04T00:00:00Z"
+  }
+
+  when SubmitEnrollmentRequest
+
+  expect {
+    AgentIdentity.agent_id == "agent-issued"
+    AgentCredentialBundle.credential_id == "credential-issued"
+    AgentEnrollmentResult.status == "accepted"
+  }
+}

@@ -1,0 +1,531 @@
+// 上报域 (Reporting Domain) — HOW we report
+
+// ══════════════════════════════════════════════════════════
+// Module: Protocol — 通信协议
+// ══════════════════════════════════════════════════════════
+
+// ── Gateway ──
+
+message<command> AgentHello {
+  agent_id: String
+  instance_id: String
+  version: String
+}
+
+message<response> AgentStatusAccepted {
+  snapshot: RuntimeHealthSnapshot
+}
+
+command DispatchActionPlan {
+  api_version
+  kind
+  unique dispatch_id
+  plan
+}
+
+event ActionPlanAck {
+  api_version
+  kind
+  dispatch_id
+  action_id
+  plan_digest
+  agent_id
+  instance_id
+  execution_id
+  ack_status
+  reason_code
+  reason_message
+  queue_position
+  received_at
+  acknowledged_at
+}
+
+struct AckStatus {
+  variant
+}
+
+struct ActionPlanAckBuilder {
+  dispatch_id
+  action_id
+  plan_digest
+  agent_id
+  instance_id
+  execution_id
+  ack_status
+  reason_code
+  reason_message
+  queue_position
+  received_at
+  acknowledged_at
+}
+
+message<command> ReportActionResult {
+  api_version: String
+  unique report_id: String
+  kind: String
+  dispatch_id: String
+  action_id: String
+  report_attempt: Int
+  final_status: String
+  execution_id: String
+  plan_digest: String
+  agent_id: String
+  instance_id: String
+  result_attestation: ResultAttestation
+  reported_at: DateTime
+  result: String
+}
+
+message<response> ActionResultAccepted {
+  receipt: ActionResultReceipt
+}
+
+struct ActionResultReceipt {
+  report_id: String
+  agent_id: String
+  accepted_at: DateTime
+}
+
+struct ResultAttestation {
+  result_digest: String
+  signature: String
+  issued_by: String
+  attested_at: DateTime
+}
+
+// ── Ingest ──
+
+command ReportDiscoverySnapshot {
+  api_version
+  kind
+  unique report_id
+  agent_id
+  instance_id
+  mode
+  snapshot
+  reported_at
+}
+
+struct DiscoveryReportMode {
+  variant
+}
+
+event DiscoveryIngestAck {
+  report_id
+  status
+  ingested_resources
+  ingested_targets
+  received_at
+  ack_at
+}
+
+struct DiscoveryIngestAckStatus {
+  variant
+}
+
+event IngestHeadError {
+  reason
+  detail
+}
+
+// ══════════════════════════════════════════════════════════
+// Module: Contract — 业务数据契约
+// ══════════════════════════════════════════════════════════
+
+// ── Action Plan ──
+
+struct ActionPlanContract {
+  api_version
+  kind
+  plan_meta
+  target
+  constraints
+  program
+}
+
+struct ActionPlanMeta {
+  unique action_id
+  request_id
+  template_id
+  tenant_id
+  environment_id
+  plan_version
+  compiled_at
+  expires_at
+}
+
+struct ActionPlanTarget {
+  agent_id
+  instance_id
+  node_id
+  host_name
+  platform
+  arch
+  selectors
+}
+
+struct ActionPlanConstraints {
+  risk_level
+  approval_ref
+  approval_mode
+  requested_by
+  reason
+  max_total_duration_ms
+  step_timeout_default_ms
+  execution_profile
+  required_capabilities
+}
+
+struct RiskLevel {
+  level
+}
+
+struct ApprovalMode {
+  mode
+}
+
+struct ActionPlanProgram {
+  entry
+  steps
+}
+
+struct ActionPlanStep {
+  unique id
+  kind
+  op
+}
+
+// ── Action Result ──
+
+struct ActionResultContract {
+  api_version
+  kind
+  action_id
+  execution_id
+  request_id
+  final_status
+  exit_reason
+  step_records
+  outputs
+  resource_usage
+  started_at
+  finished_at
+}
+
+struct FinalStatus {
+  variant
+}
+
+struct StepActionRecord {
+  unique step_id
+  attempt
+  op
+  status
+  started_at
+  finished_at
+  duration_ms
+  error_code
+  stdout_summary
+  stderr_summary
+  resource_usage
+}
+
+struct StepStatus {
+  variant
+}
+
+struct ActionOutputs {
+  items
+}
+
+struct ActionOutputItem {
+  name
+  value
+  redacted
+}
+
+struct ExecutionResourceUsage {
+  max_rss_bytes
+  cpu_time_ms
+  stdout_bytes
+  stderr_bytes
+}
+
+// ── Capability ──
+
+struct CapabilityReportContract {
+  schema_version
+  agent_id
+  instance_id
+  version
+  generated_at
+  sections
+}
+
+struct CapabilityReportSections {
+  exec
+  metrics
+  logs
+  upgrade
+  limits
+}
+
+struct ExecCapabilities {
+  supported
+  max_concurrent
+  cancel_supported
+}
+
+struct MetricsCapabilities {
+  supported
+  collection_kinds
+}
+
+struct LogsCapabilities {
+  supported
+  input_kinds
+  output_kinds
+}
+
+struct UpgradeCapabilities {
+  supported
+  stage_kinds
+}
+
+struct CapabilityLimits {
+  max_stdout_bytes
+  max_stderr_bytes
+  max_duration_ms
+}
+
+// ── Telemetry ──
+
+struct TelemetryRecordContract {
+  api_version
+  kind
+  unique record_id
+  agent_id
+  instance_id
+  collected_at
+}
+
+// ══════════════════════════════════════════════════════════
+// Module: Health — 健康上报
+// ══════════════════════════════════════════════════════════
+
+struct DiscoveryReadiness {
+  variant
+}
+
+struct DiscoveryProbeHealth {
+  source
+  probe
+  phase
+  status
+  resource_count
+  target_count
+  error
+}
+
+struct DiscoveryHealthSnapshot {
+  readiness
+  cached_snapshot_loaded
+  used_cached_snapshot
+  resource_count
+  target_count
+  failure_count
+  last_success_at
+  updated_at
+  probes
+}
+
+struct MetricsHealthSnapshot {
+  active: Bool
+  target_count: Int
+  sample_count: Int
+  failure_count: Int
+}
+
+variant HealthState {
+  Healthy
+  Degraded
+  Unhealthy
+}
+
+struct RuntimeHealthSnapshot {
+  state: HealthState
+  queue_depth: Int
+  running_count: Int
+  reporting_count: Int
+  discovery: String
+  metrics: MetricsHealthSnapshot
+  updated_at: DateTime
+}
+
+struct MetricsTick {
+  health_snapshot
+  failures
+}
+
+struct MetricsFailureKind {
+  variant
+}
+
+struct MetricsFailure {
+  kind
+  detail
+}
+
+struct TelemetryTick {
+  failures
+}
+
+struct TelemetryFailureKind {
+  variant
+}
+
+struct TelemetryFailure {
+  kind
+  detail
+}
+
+// ══════════════════════════════════════════════════════════
+// Module: Pipeline — 上报管线与编排
+// ══════════════════════════════════════════════════════════
+
+// ── 上报管线 ──
+
+struct ReportingRequest {
+  state_dir
+  execution_id
+  agent_id
+  instance_id
+}
+
+struct PreparedReport {
+  report
+  origin
+}
+
+struct PreparedReportOrigin {
+  state_dir
+  execution_id
+}
+
+struct LocalReportIssue {
+  kind
+  detail
+}
+
+struct LocalReportInspection {
+  execution_id
+  action_id
+  has_result
+  has_runtime
+  has_state
+  elapsed_since_finish_ms
+}
+
+state ReportingState {
+  execution_id
+  action_id
+  report_attempt
+  last_reported_at
+}
+
+// ── 导出 ──
+
+struct ExporterOutput {
+  kind
+  path
+}
+
+struct ExporterSource {
+  unique source_id
+  kind
+}
+
+struct ExportResult {
+  kind
+  items
+  errors
+}
+
+struct DiscRowContext {
+  resource
+  target
+  candidate
+}
+
+// ── 记录与编排 ──
+
+struct ExecutionHistoryRecord {
+  execution_id
+  action_id
+  plan_digest
+  final_status
+  finished_at
+}
+
+struct DaemonLoop {
+  config
+  exec_bin
+}
+
+struct DiscoveryHealth {
+  snapshot
+}
+
+struct SignalRequestKind {
+  variant
+}
+
+struct RunningStateStatus {
+  variant
+}
+
+// ═══════════════════════════════════════════
+// Flow & Verify
+// ═══════════════════════════════════════════
+
+flow AgentHelloFlow {
+  actor Control.Agentd
+  trigger AgentHello
+
+  creates RuntimeHealthSnapshot
+
+  step ReportHealth {
+    create RuntimeHealthSnapshot {
+      state = AgentHello.agent_id
+      updated_at = AgentHello.version
+    }
+  }
+}
+
+flow ReportActionResultFlow {
+  actor Control.Agentd
+  trigger ReportActionResult
+
+  creates ActionResultReceipt
+
+  step AcceptActionResult {
+    create ActionResultReceipt {
+      report_id = ReportActionResult.report_id
+      agent_id = ReportActionResult.agent_id
+      accepted_at = ReportActionResult.reported_at
+    }
+  }
+}
+
+verify AgentHelloVerified for flow AgentHelloFlow {
+  given {
+    AgentHello.agent_id = "agent-001"
+    AgentHello.version = "v1"
+  }
+
+  when AgentHello
+
+  expect {
+    RuntimeHealthSnapshot.state == "agent-001"
+  }
+}

@@ -3,6 +3,7 @@ members = [
   "crates/warp-insight-contracts",
   "crates/warp-insight-validate",
   "crates/warp-insight-shared",
+  "crates/warp-insight-admin",
   "crates/warp-insightd",
   "crates/warp-insight-exec",
   "crates/warp-insight-upgrader",

@@ -11,6 +11,10 @@ Workspace layout:
   Static validators for plans, results, config, and state.
 - `crates/warp-insight-shared`
   Shared errors, IDs, paths, and common runtime helpers.
+- `crates/warp-insight-admin`
+  Admin WEB backend skeleton for install links, Agent status, and remote upgrades.
+- `crates/warp-insight-admin-web`
+  Browser WEB frontend for the WarpInsightAdmin console.
 - `crates/warp-insightd`
   Edge daemon skeleton.
 - `crates/warp-insight-exec`
@@ -24,4 +28,3 @@ Workspace layout:
 
 The current code is intentionally minimal and is meant to anchor the module boundaries
 defined under `doc/design`.
-

@@ -431,27 +431,54 @@ Gateway 或 Result Ingestor 至少要支持以下幂等判断：
 
 ### 12.2 当前推荐
 
-当前第一版更建议：
+当前第一版设计决定为：
 
-- `WebSocket over mTLS`
+- `HTTPS long polling + mTLS`
 - 消息 envelope 使用 JSON
+- agent 只建立出站连接，控制平台不反连 agent
 
 原因：
 
-- 开发与联调成本更低
-- 抓包、回放、现场诊断更直接
-- 对长连接、双向下发、主动上报已经足够
+- HTTPS 是企业网络、防火墙、代理、LB 最容易接受的默认协议
+- agent 主动出站连接，不要求边缘节点暴露入站端口
+- long polling 足以承载第一版低频控制消息和中心侧下发
+- mTLS 可以把注册后的 agent 身份绑定到 client certificate 与本地私钥
+- 抓包、回放、现场诊断、审计和故障排查都比流式 RPC 更直接
 - 不会把南向协议过早绑死在特定 RPC 框架上
+
+第一版控制通道建议拆成以下 HTTPS API 语义：
+
+- `POST /v1/agent/hello`
+- `POST /v1/agent/heartbeat`
+- `POST /v1/agent/capabilities`
+- `GET /v1/agent/commands?wait=30s`
+- `POST /v1/dispatch/{dispatch_id}/ack`
+- `POST /v1/executions/{execution_id}/result`
+
+其中：
+
+- `GET /v1/agent/commands?wait=30s` 是控制平台向 agent 下发消息的 long polling 通道
+- agent 在请求超时、收到消息或连接异常后立即重新发起下一次 long poll
+- Gateway 仍必须区分连接是否在线、计划是否已投递、计划是否已 ack、结果是否已回报
+
+身份建立分两段：
+
+- 首次 enrollment 使用 `HTTPS server TLS + enrollment_token`
+- 注册成功后的控制面通信使用 `HTTPS long polling + mTLS`
+
+首次 enrollment 不要求 mTLS，因为 agent 当时还没有正式 client certificate。
 
 传输实现上可以是：
 
+- HTTPS long polling over mTLS
 - WebSocket over mTLS
 - gRPC bidirectional stream
 
 其中：
 
-- `WebSocket over mTLS` 适合作为第一版主实现
-- gRPC stream 可以保留为后续可选实现
+- `HTTPS long polling + mTLS` 是第一版主实现
+- WebSocket over mTLS 可以作为后续低延迟下发的可选实现
+- gRPC stream 可以保留为后续服务化和强 IDL 治理场景的可选实现
 
 ### 12.3 为什么第一版不优先 gRPC stream
 
@@ -469,17 +496,22 @@ gRPC stream 的优点是：
 
 ### 12.4 HTTP 与 MQTT 的位置
 
-普通 `HTTP over mTLS` 更适合：
+普通 `HTTPS long polling + mTLS` 是第一版南向主协议。
 
-- 北向管理 API
-- 查询 API
-- 配置提交与结果读取
+它适合：
 
-它不适合作为第一版南向主协议，因为：
+- 注册后 agent 到 Gateway 的控制会话
+- heartbeat / capability 上报
+- action plan 下发
+- ack / result 回报
+- policy hint / identity rotation hint 等低频控制消息
 
-- 服务端不能自然地主动下发
-- 容易退化成 agent 轮询中心
-- 会话语义不如长连接模型直接
+需要明确的是：
+
+- 这里的 HTTP 不是短间隔 busy polling
+- agent 使用有超时时间的 long poll 等待中心消息
+- Gateway 通过租约、sequence、dispatch 状态机表达控制语义
+- 控制消息对象仍使用 `AgentUpstreamMessage` / `AgentDownstreamMessage` 逻辑协议，不绑定 HTTP 路由
 
 `MQTT over TLS/mTLS` 可以作为未来备选，但第一版不建议作为南向主协议，因为：
 
@@ -543,7 +575,8 @@ gRPC stream 的优点是：
 
 当前阶段建议固定：
 
-- 万级叶子规模可以采用树形分层 + `WebSocket over mTLS`
+- 万级叶子规模优先采用 gateway 水平分片和树形分层
+- 南向单跳仍优先保持 `HTTPS long polling + mTLS`
 - 中心内部服务间调用可使用 gRPC
 - 南向逻辑协议不与具体传输强绑定
 
@@ -587,6 +620,7 @@ Gateway 自身第一版建议维护：
 - `Agent Gateway` 是控制中心南向协议入口
 - Gateway 负责认证、会话和消息转发，不负责编译和审批
 - `DispatchActionPlan / ActionPlanAck / ReportActionResult` 是第一版核心协议对象
-- 第一版优先采用双向长连接模型
+- 第一版优先采用 agent 主动出站的 HTTPS long polling 模型
 - 逻辑协议与传输实现解耦
-- 第一版南向主实现优先 `WebSocket over mTLS`
+- 第一版南向主实现优先 `HTTPS long polling + mTLS`
+- 首次 enrollment 使用 `HTTPS server TLS + enrollment_token`，注册成功后正式控制面 API 使用 mTLS

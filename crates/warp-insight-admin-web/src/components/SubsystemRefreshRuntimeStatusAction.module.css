@@ -1,0 +1,40 @@
+.container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #172033;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.code {
+  display: block;
+  max-width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  overflow-x: auto;
+  background: #f3f6f9;
+  color: #26364d;
+  font-size: 12px;
+}
+
+.copyButton {
+  align-self: flex-start;
+  padding: 6px 10px;
+  border: 1px solid #b9c5d6;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #1f3a5f;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}

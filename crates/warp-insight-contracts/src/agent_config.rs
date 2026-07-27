@@ -92,6 +92,10 @@ pub struct ControlPlaneSection {
     #[serde(default)]
     pub endpoint: Option<String>,
     #[serde(default)]
+    pub enrollment_token: Option<String>,
+    #[serde(default)]
+    pub credential_request: Option<String>,
+    #[serde(default)]
     pub tls_mode: Option<String>,
     #[serde(default)]
     pub auth_mode: Option<String>,

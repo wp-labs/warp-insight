@@ -1,0 +1,268 @@
+// WarpInsightAdmin Agent control reusable layout regions
+
+region PauseAgentUsecaseCard {
+  meta {
+    label zh "暂停 Agent 卡片"
+    label en "Pause Agent Card"
+    summary zh "控制中心的暂停任务卡片，承载暂停 Agent 用例的目标选择、提交操作和受理结果。"
+    tag "admin"
+    tag "agent-pause"
+    tag "usecase-card"
+  }
+
+  orientation vertical
+  contains PauseAgentUsecaseMeta { slot_trigger: PauseAgent, slot_outcome: DispatchReceipt }
+  contains PauseAgentForm
+  contains PauseDispatchReceiptResult
+}
+
+region PauseAgentForm {
+  meta {
+    label zh "暂停 Agent 表单"
+    label en "Pause Agent Form"
+    summary zh "输入 Agent ID，并触发 AdminPauseAgent 下发暂停请求。"
+    tag "admin"
+    tag "agent-pause"
+    tag "form"
+  }
+
+  orientation vertical
+  contains PauseAgentInput { slot_field: agent_id }
+  contains SubmitPauseAction { slot_command: AdminPauseAgent }
+  on activate emit AdminPauseAgentRequested
+}
+
+region PauseDispatchReceiptResult {
+  meta {
+    label zh "暂停派发回执"
+    label en "Pause Agent Dispatch Receipt"
+    summary zh "展示暂停控制指令的派发 ID 和回执创建时间。"
+    tag "admin"
+    tag "agent-pause"
+    tag "result"
+  }
+
+  orientation vertical
+  contains PauseDispatchIdText { slot_field: dispatch_id }
+  contains PauseDispatchCreatedAtText { slot_field: created_at }
+}
+
+region UpgradeAgentRemotelyUsecaseCard {
+  meta {
+    label zh "远程升级 Agent 卡片"
+    label en "Upgrade Agent Remotely Card"
+    summary zh "控制中心的远程升级卡片，承载远程升级 Agent 用例的升级表单和受理结果。"
+    tag "admin"
+    tag "agent-upgrade"
+    tag "usecase-card"
+  }
+
+  orientation vertical
+  contains UpgradeAgentRemotelyUsecaseMeta { slot_trigger: UpgradeAgent, slot_outcome: DispatchReceipt }
+  contains UpgradeAgentRemotelyForm
+  contains UpgradeDispatchReceiptResult
+}
+
+region UpgradeAgentRemotelyForm {
+  meta {
+    label zh "远程升级表单"
+    label en "Remote Upgrade Form"
+    summary zh "输入 Agent ID 和目标版本，并触发 AdminUpgradeAgent 下发升级请求。"
+    tag "admin"
+    tag "agent-upgrade"
+    tag "form"
+  }
+
+  orientation vertical
+  contains UpgradeAgentInput { slot_field: agent_id }
+  contains TargetVersionInput { slot_field: target_version }
+  contains SubmitUpgradeAction { slot_command: AdminUpgradeAgent }
+  on activate emit AdminUpgradeAgentRequested
+}
+
+region UpgradeDispatchReceiptResult {
+  meta {
+    label zh "升级派发回执"
+    label en "Upgrade Agent Dispatch Receipt"
+    summary zh "展示升级控制指令的派发 ID 和回执创建时间。"
+    tag "admin"
+    tag "agent-upgrade"
+    tag "result"
+  }
+
+  orientation vertical
+  contains UpgradeDispatchIdText { slot_field: dispatch_id }
+  contains UpgradeDispatchCreatedAtText { slot_field: created_at }
+}
+
+region PauseAgentUsecaseMeta {
+  meta {
+    label zh "暂停用例说明"
+    label en "Pause Agent Usecase Meta"
+    summary zh "表达暂停 Agent 用例的触发命令和输出结果。"
+    tag "admin"
+    tag "agent-pause"
+    tag "usecase-meta"
+  }
+
+  orientation vertical
+}
+
+region PauseAgentInput {
+  meta {
+    label zh "暂停 Agent 输入"
+    label en "Pause Agent Input"
+    summary zh "填写需要暂停的 agent_id。"
+    tag "admin"
+    tag "input"
+    tag "agent-pause"
+  }
+
+  orientation vertical
+}
+
+region SubmitPauseAction {
+  meta {
+    label zh "提交暂停操作"
+    label en "Submit Pause Action"
+    summary zh "触发 AdminPauseAgent 命令下发暂停请求。"
+    tag "admin"
+    tag "action"
+    tag "agent-pause"
+  }
+
+  orientation horizontal
+}
+
+region PauseDispatchIdText {
+  meta {
+    label zh "暂停派发 ID"
+    label en "Pause Dispatch ID"
+    summary zh "展示暂停请求被受理后的派发 ID。"
+    tag "admin"
+    tag "output"
+    tag "agent-pause"
+  }
+
+  orientation vertical
+}
+
+region PauseDispatchCreatedAtText {
+  meta {
+    label zh "暂停派发创建时间"
+    label en "Pause Dispatch Created Time"
+    summary zh "展示暂停派发回执创建的时间。"
+    tag "admin"
+    tag "output"
+    tag "agent-pause"
+  }
+
+  orientation vertical
+}
+
+region UpgradeAgentRemotelyUsecaseMeta {
+  meta {
+    label zh "远程升级用例说明"
+    label en "Remote Upgrade Usecase Meta"
+    summary zh "表达远程升级 Agent 用例的触发命令和输出结果。"
+    tag "admin"
+    tag "agent-upgrade"
+    tag "usecase-meta"
+  }
+
+  orientation vertical
+}
+
+region UpgradeAgentInput {
+  meta {
+    label zh "升级 Agent 输入"
+    label en "Upgrade Agent Input"
+    summary zh "填写需要远程升级的 agent_id。"
+    tag "admin"
+    tag "input"
+    tag "agent-upgrade"
+  }
+
+  orientation vertical
+}
+
+region TargetVersionInput {
+  meta {
+    label zh "目标版本输入"
+    label en "Target Version Input"
+    summary zh "填写 Agent 远程升级的目标版本。"
+    tag "admin"
+    tag "input"
+    tag "agent-upgrade"
+  }
+
+  orientation vertical
+}
+
+region SubmitUpgradeAction {
+  meta {
+    label zh "提交远程升级操作"
+    label en "Submit Upgrade Action"
+    summary zh "触发 AdminUpgradeAgent 命令下发远程升级请求。"
+    tag "admin"
+    tag "action"
+    tag "agent-upgrade"
+  }
+
+  orientation horizontal
+}
+
+region UpgradeDispatchIdText {
+  meta {
+    label zh "升级派发 ID"
+    label en "Upgrade Dispatch ID"
+    summary zh "展示升级控制指令的派发 ID。"
+    tag "admin"
+    tag "output"
+    tag "agent-upgrade"
+  }
+
+  orientation vertical
+}
+
+region UpgradeDispatchCreatedAtText {
+  meta {
+    label zh "升级派发创建时间"
+    label en "Upgrade Dispatch Created Time"
+    summary zh "展示升级派发回执创建的时间。"
+    tag "admin"
+    tag "output"
+    tag "agent-upgrade"
+  }
+
+  orientation vertical
+}
+
+event AdminPauseAgentRequested {
+  meta {
+    label zh "请求暂停 Agent"
+    label en "Agent Pause Requested"
+    summary zh "AdminOperator 在暂停表单中触发 Agent 暂停请求。"
+    tag "admin"
+    tag "agent-pause"
+    tag "ui-event"
+  }
+
+  agent_id
+  requested_by
+}
+
+event AdminUpgradeAgentRequested {
+  meta {
+    label zh "请求远程升级 Agent"
+    label en "Agent Upgrade Requested"
+    summary zh "AdminOperator 在远程升级表单中触发 Agent 远程升级请求。"
+    tag "admin"
+    tag "agent-upgrade"
+    tag "ui-event"
+  }
+
+  agent_id
+  target_version
+  requested_by
+}

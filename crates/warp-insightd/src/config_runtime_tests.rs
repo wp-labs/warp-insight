@@ -94,6 +94,9 @@ instance_name = "${HOME}/instance"
 
 [control_plane]
 enabled = false
+endpoint = "https://control.local"
+enrollment_token = "${HOME}/enroll-token"
+credential_request = "csr:${HOME}"
 
 [paths]
 root_dir = "${HOME}/agent-root"
@@ -141,6 +144,14 @@ multiline_mode = "indented"
     assert_eq!(
         config.agent.instance_name.as_deref(),
         Some(format!("{home}/instance").as_str())
+    );
+    assert_eq!(
+        config.control_plane.enrollment_token.as_deref(),
+        Some(format!("{home}/enroll-token").as_str())
+    );
+    assert_eq!(
+        config.control_plane.credential_request.as_deref(),
+        Some(format!("csr:{home}").as_str())
     );
     assert_eq!(
         config.telemetry.logs.output.file.path,

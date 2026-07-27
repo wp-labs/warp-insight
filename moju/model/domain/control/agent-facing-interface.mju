@@ -1,0 +1,85 @@
+// Module: AgentFacingInterface — Agent 侧服务接口
+
+message<command> SubmitEnrollmentRequest {
+  token: String
+  credential_request: String
+  host_profile: AgentHostProfile
+  capability_summary: String
+  requested_at: DateTime
+}
+
+message<command> PollControlCommands {
+  agent_id: String
+  instance_id: String
+  last_seen_sequence: Int
+  wait_ms: Int
+  requested_at: DateTime
+}
+
+message<response> AgentEnrollmentResultReturned {
+  result: AgentEnrollmentResult
+}
+
+message<response> AgentControlCommandsReturned {
+  agent_id: String
+  instance_id: String
+  messages: List<AgentControlCommand>
+  next_sequence: Int
+  returned_at: DateTime
+}
+
+interface WpAgentOnlineRegistrationInterface {
+  meta {
+    label zh "WpAgent 在线注册接口"
+    label en "WpAgent Online Registration Interface"
+    summary zh "WpAgent 安装后主动访问的在线注册入口，提交 enrollment token、凭据申请、宿主机画像和能力摘要，并返回注册结果、agent identity、初始配置和策略绑定。"
+    tag "agentd"
+    tag "registration"
+    tag "enrollment"
+    tag "http"
+    tag "interface"
+  }
+
+  entry SubmitEnrollmentRequest {
+    actor Agentd
+    output AgentEnrollmentResultReturned
+    calls AgentdRegistrationFlow
+  }
+
+  entry SubmitAgentStatus {
+    actor Agentd
+    input Reporting.AgentHello
+    output Reporting.AgentStatusAccepted
+    calls Reporting.AgentHelloFlow
+  }
+
+  entry PollControlCommands {
+    actor Agentd
+    output AgentControlCommandsReturned
+    calls PollControlCommandsFlow
+  }
+
+  entry ReportActionResult {
+    actor Agentd
+    input Reporting.ReportActionResult
+    output Reporting.ActionResultAccepted
+    calls Reporting.ReportActionResultFlow
+  }
+}
+
+flow PollControlCommandsFlow {
+  meta {
+    label zh "轮询 Agent 控制指令"
+    label en "Poll Agent Control Commands Flow"
+    summary zh "Agentd 使用自身身份和实例信息轮询最新控制指令，管理端返回下行消息和下一次轮询序号。"
+    tag "agentd"
+    tag "control-command"
+    tag "polling"
+  }
+
+  actor Agentd
+  trigger PollControlCommands
+
+  step ReturnLatestCommands {
+  }
+}

@@ -1,0 +1,75 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  min-width: 280px;
+  padding: 16px;
+  border: 1px solid #dbe3ee;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(33, 48, 73, 0.05);
+  gap: 14px;
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agentId {
+  color: #172033;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.instance {
+  margin-top: 3px;
+  color: #5f6f86;
+  font-size: 12px;
+}
+
+.badge {
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badgeWarn {
+  background: #fff7e6;
+  color: #9a5b00;
+}
+
+.badgeDanger {
+  background: #feecec;
+  color: #b42318;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #edf1f6;
+}
+
+.item {
+  min-width: 0;
+}
+
+.label {
+  color: #718095;
+  font-size: 12px;
+}
+
+.value {
+  margin-top: 3px;
+  overflow: hidden;
+  color: #26364d;
+  font-size: 13px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

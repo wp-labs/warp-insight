@@ -1,0 +1,22 @@
+{
+  "schema_version": "v1",
+  "snapshot_id": "discovery:12:2026-04-21T08:20:01.905181Z",
+  "revision": 12,
+  "generated_at": "2026-04-21T08:20:01.905181Z",
+  "origins": [
+    {
+      "origin_id": "local_runtime:host:2026-04-21T08:20:00.083003Z",
+      "probe": "host",
+      "source": "local_runtime",
+      "observed_at": "2026-04-21T08:20:00.083003Z"
+    },
+    {
+      "origin_id": "local_runtime:process:2026-04-21T08:20:00.083761Z",
+      "probe": "process",
+      "source": "local_runtime",
+      "observed_at": "2026-04-21T08:20:00.083761Z"
+    }
+  ],
+  "last_success_at": "2026-04-21T08:20:01.905181Z",
+  "last_error": null
+}

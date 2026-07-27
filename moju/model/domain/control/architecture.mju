@@ -1,0 +1,220 @@
+// 控制域 architecture
+
+layer Application
+layer Domain
+layer Infra
+
+dependency_rule LayerDirection {
+  Application -> Domain
+  Domain -> Infra
+  Infra -> none_external
+}
+
+module<ui> AdminWebFrontend {
+  meta {
+    label zh "WarpInsightAdmin 前端 WEB"
+    label en "WarpInsightAdmin Web Frontend"
+    summary zh "WarpInsightAdmin 的浏览器端 WEB 前端，承载主界面、Agent 控制界面，并通过后端 WEB 服务接口完成管理操作。"
+    tag "admin"
+    tag "web"
+    tag "frontend"
+  }
+
+  layer Application
+  depends UserFacingInterface
+  responsible_for "WarpInsightAdmin 前端 WEB：主界面、Agent 控制界面、状态展示、安装代码复制操作和远程升级操作入口。"
+}
+
+module<interface> UserFacingInterface {
+  meta {
+    label zh "用户侧服务接口"
+    label en "User Facing Service Interface"
+    summary zh "WarpInsightAdmin 面向用户和管理员的 HTTP 接口，统一承载公开安装代码获取、Agent 状态查询、暂停和远程升级能力。"
+    tag "user-facing"
+    tag "admin"
+    tag "web"
+    tag "backend"
+    tag "http"
+    tag "interface"
+  }
+
+  layer Application
+  owns WarpInsightAdminPublicInstallInterface
+  owns WarpInsightAdminManagementInterface
+  owns AdminGetAgentInstallCode
+  owns AdminShowAgentRuntimeStatus
+  owns AdminPauseAgent
+  owns AdminUpgradeAgent
+  owns AdminAgentInstallCodeReturned
+  owns AdminAgentRuntimeStatusReturned
+  owns AdminPauseAgentDispatchReturned
+  owns AdminUpgradeAgentDispatchReturned
+  provides WarpInsightAdminPublicInstallInterface by protocol<http>
+  provides WarpInsightAdminManagementInterface by protocol<http>
+  depends Enrollment
+  depends Identity
+  depends AgentdStatusManagement
+  depends AgentCommandControl
+  responsible_for "用户侧服务接口：作为浏览器端和管理员用户的 Application 层入口，提供公开安装代码、状态查询、暂停和升级 API。"
+}
+
+module<interface> AgentFacingInterface {
+  meta {
+    label zh "Agent 侧服务接口"
+    label en "Agent Facing Service Interface"
+    summary zh "管理节点面向 WpAgent 暴露的 HTTP 接口，承载在线注册、状态提交、最新指令获取和任务执行结果提交。"
+    tag "agent-facing"
+    tag "agentd"
+    tag "registration"
+    tag "enrollment"
+    tag "backend"
+    tag "http"
+    tag "interface"
+  }
+
+  layer Application
+  owns WpAgentOnlineRegistrationInterface
+  owns SubmitEnrollmentRequest
+  owns AgentEnrollmentResultReturned
+  owns PollControlCommands
+  owns PollControlCommandsFlow
+  owns AgentControlCommandsReturned
+  provides WpAgentOnlineRegistrationInterface by protocol<http>
+  depends Enrollment
+  depends Identity
+  depends AgentCommandControl
+  depends Reporting.Protocol
+  responsible_for "Agent 侧服务接口：作为 WpAgent 的 Application 层入口，接收注册、状态、指令轮询和执行结果上报请求。"
+}
+
+module<service> Enrollment {
+  meta {
+    label zh "注册与引导"
+    label en "Enrollment"
+    summary zh "负责 Agent 安装引导、注册 token、注册请求、注册结果与安装代码生成。"
+    tag "control"
+    tag "enrollment"
+  }
+
+  layer Application
+  owns AgentBootstrapBundle
+  owns ManagementEndpointTrustBundle
+  owns AgentEnrollmentToken
+  owns AgentEnrollmentTokenStatus
+  owns AgentEnrollmentTokenValidation
+  owns AgentEnrollmentTokenValidationStatus
+  owns AgentEnrollmentResult
+  owns AgentEnrollmentResultStatus
+  owns AgentEnrollmentTokenAccepted
+  owns AgentEnrollmentTokenRejected
+  owns AgentEnrollmentAccepted
+  owns AgentEnrollmentRejected
+  owns DuplicateRegistrationDetected
+  owns AgentEnrollmentAuthProfile
+  owns GetAgentInstallCode
+  owns AgentInstallCode
+  owns AgentdRegistrationFlow
+  responsible_for "自动注册用例：bootstrap 信息、注册 token、凭据申请、注册结果、重复注册处理"
+}
+
+module<service> Identity {
+  meta {
+    label zh "Agent 身份"
+    label en "Agent Identity"
+    summary zh "负责 Agent 身份、宿主机画像、证书凭据与身份生命周期。"
+    tag "control"
+    tag "identity"
+  }
+
+  layer Domain
+  owns AgentIdentity
+  owns AgentIdentityStatus
+  owns AgentHostProfile
+  owns AgentCredentialBundle
+  owns AgentControlAuthProfile
+  owns RenewAgentCredential
+  owns VerifyAgentCredential
+  owns AgentCredentialVerificationResult
+  owns AgentCredentialVerificationStatus
+  owns AgentCredentialIssued
+  owns AgentCredentialRevoked
+  owns AgentCredentialVerified
+  owns AgentCredentialRejected
+  owns VerifyAgentCredentialFlow
+  responsible_for "Agent 身份与凭据生命周期：agent_id、宿主机画像、通讯凭据签发、校验、续期和吊销"
+}
+
+module<service> AgentdStatusManagement {
+  meta {
+    label zh "Agentd 状态管理"
+    label en "Agentd Status Management"
+    summary zh "负责 Agentd 实例、运行状态查询、在线状态视图和管理端状态展示所需的状态聚合。"
+    tag "control"
+    tag "agentd"
+    tag "status"
+  }
+
+  layer Domain
+  owns AgentInstance
+  owns ShowAgentRuntimeStatus
+  owns AgentRuntimeStatusView
+  responsible_for "Agentd 状态管理：实例、版本、最后在线时间、健康状态和运行状态视图。"
+}
+
+module<service> AgentCommandControl {
+  meta {
+    label zh "Agent 控制指令"
+    label en "Agent Command Control"
+    summary zh "负责管理员控制意图、Agent 下行指令类型和长轮询返回结果。"
+    tag "control"
+    tag "agentd"
+    tag "command"
+  }
+
+  layer Application
+  owns PauseAgent
+  owns UpgradeAgent
+  owns RefreshPolicyHint
+  owns RotateIdentityHint
+  owns AgentControlCommand
+  owns DispatchReceipt
+  owns ControlCommandsReturned
+  owns ControlLongPollTimedOut
+  responsible_for "Agent 控制指令：管理员控制意图、统一下行控制指令、派发回执、轮询返回结果；执行结果回执由 Reporting.ActionResultReceipt 表达。"
+}
+
+module<adapter> Protocol {
+  meta {
+    label zh "控制消息协议"
+    label en "Control Protocol"
+    summary zh "负责管理节点与 Agentd 之间的上行/下行控制消息 envelope、消息类型和接收结果。"
+    tag "control"
+    tag "protocol"
+  }
+
+  layer Infra
+  owns AgentUpstreamMessage
+  owns AgentDownstreamMessage
+  owns AgentUpstreamMessageType
+  owns AgentDownstreamMessageType
+  owns ControlMessageAccepted
+  owns ControlMessageRejected
+  responsible_for "控制消息通道：HTTPS long polling、上行消息 envelope、下行消息 envelope、消息类型、消息接收或拒绝结果。"
+}
+
+module<service> Registry {
+  meta {
+    label zh "Agent 登记簿"
+    label en "Agent Registry"
+    summary zh "负责 Agent 登记索引、能力索引、策略绑定和初始配置等控制域核心事实。"
+    tag "control"
+    tag "registry"
+  }
+
+  layer Domain
+  owns AgentRegistryEntry
+  owns AgentCapabilityIndex
+  owns AgentPolicyBinding
+  owns AgentInitialConfig
+  responsible_for "控制域登记簿：agent 登记索引、能力索引、策略绑定和初始配置；身份状态由 AgentIdentityStatus 表达。"
+}

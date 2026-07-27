@@ -1,0 +1,203 @@
+{
+  "generated_at": "2026-04-21T08:20:01.905181Z",
+  "total_targets": 1065,
+  "host_targets": 1,
+  "process_targets": 1064,
+  "container_targets": 0,
+  "outcomes": [
+    {
+      "collection_kind": "host_metrics",
+      "status": "succeeded",
+      "attempted_targets": 1,
+      "succeeded_targets": 1,
+      "failed_targets": 0,
+      "last_error": null,
+      "runtime_facts": [
+        {
+          "key": "host.name",
+          "value": "local-host"
+        },
+        {
+          "key": "host.target.count",
+          "value": "1"
+        }
+      ],
+      "sample_targets": [
+        {
+          "candidate_id": "hostname:local-host:host:host_metrics",
+          "target_ref": "hostname:local-host:host",
+          "status": "succeeded",
+          "last_error": null,
+          "resource_ref": "hostname:local-host",
+          "execution_hints": [
+            {
+              "key": "host.name",
+              "value": "local-host"
+            }
+          ],
+          "runtime_facts": [
+            {
+              "key": "host.name",
+              "value": "local-host"
+            },
+            {
+              "key": "host.target.count",
+              "value": "1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "collection_kind": "process_metrics",
+      "status": "partial",
+      "attempted_targets": 1064,
+      "succeeded_targets": 1063,
+      "failed_targets": 1,
+      "last_error": "ps did not exit successfully",
+      "runtime_facts": [
+        {
+          "key": "process.probe.mode",
+          "value": "ps"
+        },
+        {
+          "key": "process.probe.success_count",
+          "value": "1063"
+        },
+        {
+          "key": "process.probe.failed_count",
+          "value": "1"
+        }
+      ],
+      "sample_targets": [
+        {
+          "candidate_id": "hostname:local-host:pid:1:ps_lstart:Fri Apr 17 00:39:27 2026:process:process_metrics",
+          "target_ref": "hostname:local-host:pid:1:ps_lstart:Fri Apr 17 00:39:27 2026:process",
+          "status": "succeeded",
+          "last_error": null,
+          "resource_ref": "hostname:local-host:pid:1:ps_lstart:Fri Apr 17 00:39:27 2026",
+          "execution_hints": [
+            {
+              "key": "process.pid",
+              "value": "1"
+            },
+            {
+              "key": "process.identity",
+              "value": "ps_lstart:Fri Apr 17 00:39:27 2026"
+            }
+          ],
+          "runtime_facts": [
+            {
+              "key": "process.pid",
+              "value": "1"
+            },
+            {
+              "key": "process.identity",
+              "value": "ps_lstart:Fri Apr 17 00:39:27 2026"
+            },
+            {
+              "key": "process.state",
+              "value": "Ss"
+            },
+            {
+              "key": "process.memory.rss_kb",
+              "value": "31936"
+            },
+            {
+              "key": "process.executable.name",
+              "value": "/sbin/launchd"
+            }
+          ]
+        },
+        {
+          "candidate_id": "hostname:local-host:pid:327:ps_lstart:Fri Apr 17 00:40:01 2026:process:process_metrics",
+          "target_ref": "hostname:local-host:pid:327:ps_lstart:Fri Apr 17 00:40:01 2026:process",
+          "status": "succeeded",
+          "last_error": null,
+          "resource_ref": "hostname:local-host:pid:327:ps_lstart:Fri Apr 17 00:40:01 2026",
+          "execution_hints": [
+            {
+              "key": "process.pid",
+              "value": "327"
+            },
+            {
+              "key": "process.identity",
+              "value": "ps_lstart:Fri Apr 17 00:40:01 2026"
+            }
+          ],
+          "runtime_facts": [
+            {
+              "key": "process.pid",
+              "value": "327"
+            },
+            {
+              "key": "process.identity",
+              "value": "ps_lstart:Fri Apr 17 00:40:01 2026"
+            },
+            {
+              "key": "process.state",
+              "value": "Ss"
+            },
+            {
+              "key": "process.memory.rss_kb",
+              "value": "122592"
+            },
+            {
+              "key": "process.executable.name",
+              "value": "/usr/libexec/logd"
+            }
+          ]
+        },
+        {
+          "candidate_id": "hostname:local-host:pid:328:ps_lstart:Fri Apr 17 00:40:01 2026:process:process_metrics",
+          "target_ref": "hostname:local-host:pid:328:ps_lstart:Fri Apr 17 00:40:01 2026:process",
+          "status": "succeeded",
+          "last_error": null,
+          "resource_ref": "hostname:local-host:pid:328:ps_lstart:Fri Apr 17 00:40:01 2026",
+          "execution_hints": [
+            {
+              "key": "process.pid",
+              "value": "328"
+            },
+            {
+              "key": "process.identity",
+              "value": "ps_lstart:Fri Apr 17 00:40:01 2026"
+            }
+          ],
+          "runtime_facts": [
+            {
+              "key": "process.pid",
+              "value": "328"
+            },
+            {
+              "key": "process.identity",
+              "value": "ps_lstart:Fri Apr 17 00:40:01 2026"
+            },
+            {
+              "key": "process.state",
+              "value": "Ss"
+            },
+            {
+              "key": "process.memory.rss_kb",
+              "value": "4368"
+            },
+            {
+              "key": "process.executable.name",
+              "value": "/usr/libexec/smd"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "collection_kind": "container_metrics",
+      "status": "idle",
+      "attempted_targets": 0,
+      "succeeded_targets": 0,
+      "failed_targets": 0,
+      "last_error": null,
+      "runtime_facts": [],
+      "sample_targets": []
+    }
+  ]
+}

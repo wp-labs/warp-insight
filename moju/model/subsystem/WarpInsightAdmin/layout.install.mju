@@ -1,0 +1,44 @@
+// WarpInsightAdmin install page layout regions
+
+region AgentInstallCodeList {
+  meta {
+    label zh "Agent 安装代码列表"
+    label en "Agent Install Code List"
+    summary zh "安装页主体区域，只展示两个固定安装代码：X86-Linux 和 Arm-Linux。页面不需要输入项、生成操作、token、过期时间或安装说明。"
+    tag "admin"
+    tag "agent-install"
+    tag "install-code-list"
+  }
+
+  orientation grid
+  contains X86LinuxAgentInstallCode { area: x86_linux_agent_install_code, row: 1, col: 1, width: 50%, slot_field: x86_linux_install_code }
+  contains ArmLinuxAgentInstallCode { area: arm_linux_agent_install_code, row: 1, col: 2, width: 50%, slot_field: arm_linux_install_code }
+}
+
+region X86LinuxAgentInstallCode {
+  meta {
+    label zh "X86-Linux 安装代码"
+    label en "X86-Linux Install Code"
+    summary zh "用于 X86 Linux 业务服务器的 Agent 安装代码，可直接复制到终端执行。"
+    tag "admin"
+    tag "agent-install"
+    tag "install-code"
+    tag "x86-linux"
+  }
+
+  orientation vertical
+}
+
+region ArmLinuxAgentInstallCode {
+  meta {
+    label zh "Arm-Linux 安装代码"
+    label en "Arm-Linux Install Code"
+    summary zh "用于 Arm Linux 业务服务器的 Agent 安装代码，可直接复制到终端执行。"
+    tag "admin"
+    tag "agent-install"
+    tag "install-code"
+    tag "arm-linux"
+  }
+
+  orientation vertical
+}

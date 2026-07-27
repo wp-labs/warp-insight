@@ -1,0 +1,15 @@
+profile HttpRust for warp-insight-admin.target<bin,http> {
+  language rust
+  runtime async
+  deps axum, tokio, serde
+  scaffold api, route, dto, handler
+  path "crates/warp-insight-admin"
+}
+
+profile WebTs for warp-insight-admin-web.target<site,web> {
+  language typescript
+  runtime browser
+  deps react, vite
+  scaffold dto, client, route
+  path "crates/warp-insight-admin-web"
+}

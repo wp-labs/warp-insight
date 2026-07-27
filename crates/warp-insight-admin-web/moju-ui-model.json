@@ -1,0 +1,1967 @@
+{
+  "domain": "Global",
+  "crate_name": "warp-insight-admin-web",
+  "types": {
+    "states": [],
+    "variants": [
+      {
+        "name": "ControlAgentEnrollmentTokenStatus",
+        "arms": [
+          {
+            "kind": "Meta",
+            "payload": null
+          },
+          {
+            "kind": "LabelZhAgentToken",
+            "payload": null
+          },
+          {
+            "kind": "LabelEnAgentEnrollmentTokenStatus",
+            "payload": null
+          },
+          {
+            "kind": "SummaryZhToken",
+            "payload": null
+          },
+          {
+            "kind": "TagEnrollment",
+            "payload": null
+          },
+          {
+            "kind": "TagStatus",
+            "payload": null
+          },
+          {
+            "kind": "Value",
+            "payload": null
+          },
+          {
+            "kind": "Active",
+            "payload": null
+          },
+          {
+            "kind": "Expired",
+            "payload": null
+          },
+          {
+            "kind": "Revoked",
+            "payload": null
+          },
+          {
+            "kind": "Exhausted",
+            "payload": null
+          }
+        ]
+      },
+      {
+        "name": "ReportingHealthState",
+        "arms": [
+          {
+            "kind": "Healthy",
+            "payload": null
+          },
+          {
+            "kind": "Degraded",
+            "payload": null
+          },
+          {
+            "kind": "Unhealthy",
+            "payload": null
+          }
+        ]
+      },
+      {
+        "name": "ControlAgentEnrollmentTokenValidationStatus",
+        "arms": [
+          {
+            "kind": "Valid",
+            "payload": null
+          },
+          {
+            "kind": "HashMismatch",
+            "payload": null
+          },
+          {
+            "kind": "Expired",
+            "payload": null
+          },
+          {
+            "kind": "Revoked",
+            "payload": null
+          },
+          {
+            "kind": "Exhausted",
+            "payload": null
+          },
+          {
+            "kind": "EnvironmentMismatch",
+            "payload": null
+          },
+          {
+            "kind": "HostNotAllowed",
+            "payload": null
+          }
+        ]
+      },
+      {
+        "name": "ControlAgentEnrollmentResultStatus",
+        "arms": [
+          {
+            "kind": "Meta",
+            "payload": null
+          },
+          {
+            "kind": "LabelZhAgent",
+            "payload": null
+          },
+          {
+            "kind": "LabelEnAgentEnrollmentResultStatus",
+            "payload": null
+          },
+          {
+            "kind": "SummaryZhAgentd",
+            "payload": null
+          },
+          {
+            "kind": "TagEnrollment",
+            "payload": null
+          },
+          {
+            "kind": "TagStatus",
+            "payload": null
+          },
+          {
+            "kind": "Value",
+            "payload": null
+          },
+          {
+            "kind": "Accepted",
+            "payload": null
+          },
+          {
+            "kind": "Rejected",
+            "payload": null
+          },
+          {
+            "kind": "PendingReview",
+            "payload": null
+          }
+        ]
+      },
+      {
+        "name": "ControlAgentIdentityStatus",
+        "arms": [
+          {
+            "kind": "Meta",
+            "payload": null
+          },
+          {
+            "kind": "LabelZhAgent",
+            "payload": null
+          },
+          {
+            "kind": "LabelEnAgentIdentityStatus",
+            "payload": null
+          },
+          {
+            "kind": "SummaryZhAgentd",
+            "payload": null
+          },
+          {
+            "kind": "TagAgentd",
+            "payload": null
+          },
+          {
+            "kind": "TagIdentity",
+            "payload": null
+          },
+          {
+            "kind": "Value",
+            "payload": null
+          },
+          {
+            "kind": "Active",
+            "payload": null
+          },
+          {
+            "kind": "Revoked",
+            "payload": null
+          },
+          {
+            "kind": "Expired",
+            "payload": null
+          },
+          {
+            "kind": "RenewalRequired",
+            "payload": null
+          }
+        ]
+      },
+      {
+        "name": "ControlAgentDownstreamMessageType",
+        "arms": [
+          {
+            "kind": "Meta",
+            "payload": null
+          },
+          {
+            "kind": "LabelZhAgent",
+            "payload": null
+          },
+          {
+            "kind": "LabelEnAgentDownstreamMessageType",
+            "payload": null
+          },
+          {
+            "kind": "SummaryZhAgentd",
+            "payload": null
+          },
+          {
+            "kind": "TagControl",
+            "payload": null
+          },
+          {
+            "kind": "TagProtocol",
+            "payload": null
+          },
+          {
+            "kind": "Value",
+            "payload": null
+          },
+          {
+            "kind": "EnrollmentResult",
+            "payload": null
+          },
+          {
+            "kind": "ControlCommands",
+            "payload": null
+          },
+          {
+            "kind": "PolicyRefreshHint",
+            "payload": null
+          },
+          {
+            "kind": "IdentityRotationHint",
+            "payload": null
+          }
+        ]
+      },
+      {
+        "name": "ControlAgentCredentialVerificationStatus",
+        "arms": [
+          {
+            "kind": "Verified",
+            "payload": null
+          },
+          {
+            "kind": "UnknownAgent",
+            "payload": null
+          },
+          {
+            "kind": "CredentialMissing",
+            "payload": null
+          },
+          {
+            "kind": "CredentialExpired",
+            "payload": null
+          },
+          {
+            "kind": "CredentialRevoked",
+            "payload": null
+          },
+          {
+            "kind": "CredentialMismatch",
+            "payload": null
+          }
+        ]
+      },
+      {
+        "name": "ControlAgentUpstreamMessageType",
+        "arms": [
+          {
+            "kind": "Meta",
+            "payload": null
+          },
+          {
+            "kind": "LabelZhAgent",
+            "payload": null
+          },
+          {
+            "kind": "LabelEnAgentUpstreamMessageType",
+            "payload": null
+          },
+          {
+            "kind": "SummaryZhAgentd",
+            "payload": null
+          },
+          {
+            "kind": "TagControl",
+            "payload": null
+          },
+          {
+            "kind": "TagProtocol",
+            "payload": null
+          },
+          {
+            "kind": "Value",
+            "payload": null
+          },
+          {
+            "kind": "EnrollmentRequest",
+            "payload": null
+          },
+          {
+            "kind": "StatusReport",
+            "payload": null
+          },
+          {
+            "kind": "CommandPoll",
+            "payload": null
+          },
+          {
+            "kind": "ActionResult",
+            "payload": null
+          }
+        ]
+      }
+    ],
+    "views": [],
+    "events": [
+      {
+        "name": "ControlAgentCredentialRevoked",
+        "fields": [
+          {
+            "name": "agentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "instanceId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "reasonCode",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "revokedAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "ControlControlMessageRejected",
+        "fields": [
+          {
+            "name": "messageId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "agentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "instanceId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "reasonCode",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "rejectedAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "ControlAgentCredentialIssued",
+        "fields": [
+          {
+            "name": "agentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "instanceId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "credential",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "issuedAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "ControlAgentEnrollmentTokenAccepted",
+        "fields": [
+          {
+            "name": "tokenId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "tenantId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "environmentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "nodeId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "acceptedAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "ReportingIngestHeadError",
+        "fields": [
+          {
+            "name": "reason",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "detail",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "ReportingActionPlanAck",
+        "fields": [
+          {
+            "name": "apiVersion",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "kind",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "dispatchId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "actionId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "planDigest",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "agentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "instanceId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "executionId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "ackStatus",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "reasonCode",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "reasonMessage",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "queuePosition",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "receivedAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "acknowledgedAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "ReportingDiscoveryIngestAck",
+        "fields": [
+          {
+            "name": "reportId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "status",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "ingestedResources",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "ingestedTargets",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "receivedAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "ackAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "ControlControlLongPollTimedOut",
+        "fields": [
+          {
+            "name": "agentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "instanceId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "waitMs",
+            "ts_type": "number",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "timedOutAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "ControlControlCommandsReturned",
+        "fields": [
+          {
+            "name": "agentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "instanceId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "messages",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "nextSequence",
+            "ts_type": "number",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "returnedAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "ControlAgentEnrollmentAccepted",
+        "fields": [
+          {
+            "name": "agentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "instanceId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "tenantId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "environmentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "nodeId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "acceptedAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "SubsystemAdminPauseAgentRequested",
+        "fields": [
+          {
+            "name": "agentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "requestedBy",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "ControlAgentEnrollmentRejected",
+        "fields": [
+          {
+            "name": "tokenId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "nodeId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "reasonCode",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "rejectedAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "ControlAgentCredentialVerified",
+        "fields": [
+          {
+            "name": "agentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "instanceId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "verifiedAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "ControlAgentCredentialRejected",
+        "fields": [
+          {
+            "name": "agentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "instanceId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "reasonCode",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "rejectedAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "SubsystemAdminUpgradeAgentRequested",
+        "fields": [
+          {
+            "name": "agentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "targetVersion",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "requestedBy",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "ControlAgentEnrollmentTokenRejected",
+        "fields": [
+          {
+            "name": "tokenId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "nodeId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "reasonCode",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "rejectedAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "ControlControlMessageAccepted",
+        "fields": [
+          {
+            "name": "messageId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "agentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "instanceId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "acceptedAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "SubsystemAdminShowAgentRuntimeStatusRequested",
+        "fields": [
+          {
+            "name": "agentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "requestedBy",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      },
+      {
+        "name": "ControlDuplicateRegistrationDetected",
+        "fields": [
+          {
+            "name": "nodeId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "existingAgentId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "candidateInstanceId",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "action",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          },
+          {
+            "name": "detectedAt",
+            "ts_type": "string",
+            "unique": false,
+            "optional": false
+          }
+        ]
+      }
+    ],
+    "messages": []
+  },
+  "regions": [
+    {
+      "name": "SubsystemAdminOperatorAccess",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemUpgradeAgentRemotelyUsecaseCard",
+      "orientation": "vertical",
+      "contains": [
+        {
+          "region": "SubsystemUpgradeAgentRemotelyUsecaseMeta",
+          "prop_name": "subsystemUpgradeAgentRemotelyUsecaseMeta",
+          "slot_fills": [
+            {
+              "slot_name": "SlotTrigger",
+              "component": "SubsystemUpgradeAgent"
+            },
+            {
+              "slot_name": "SlotOutcome",
+              "component": "SubsystemDispatchReceipt"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemUpgradeAgentRemotelyForm",
+          "prop_name": "subsystemUpgradeAgentRemotelyForm",
+          "slot_fills": []
+        },
+        {
+          "region": "SubsystemUpgradeDispatchReceiptResult",
+          "prop_name": "subsystemUpgradeDispatchReceiptResult",
+          "slot_fills": []
+        }
+      ],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemPauseAgentInput",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemTotalAgentMetric",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemNoAbnormalAgentPlaceholder",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemUnhealthyAgentMetric",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemShowAgentRuntimeStatusForm",
+      "orientation": "vertical",
+      "contains": [
+        {
+          "region": "SubsystemRuntimeStatusAgentInput",
+          "prop_name": "subsystemRuntimeStatusAgentInput",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemAgentId"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemRefreshRuntimeStatusAction",
+          "prop_name": "subsystemRefreshRuntimeStatusAction",
+          "slot_fills": [
+            {
+              "slot_name": "SlotCommand",
+              "component": "SubsystemAdminShowAgentRuntimeStatus"
+            }
+          ]
+        }
+      ],
+      "when": null,
+      "layout_props": [],
+      "interactions": [
+        {
+          "op": "activate",
+          "handler_name": "onClick",
+          "emit_event": "SubsystemAdminShowAgentRuntimeStatusRequested"
+        }
+      ],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAgentInstanceText",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAdminHomePage",
+      "orientation": "vertical",
+      "contains": [
+        {
+          "region": "SubsystemAdminTopNavigation",
+          "prop_name": "subsystemAdminTopNavigation",
+          "slot_fills": []
+        },
+        {
+          "region": "SubsystemAgentStatusOverviewMetrics",
+          "prop_name": "subsystemAgentStatusOverviewMetrics",
+          "slot_fills": []
+        },
+        {
+          "region": "SubsystemAbnormalAgentPanel",
+          "prop_name": "subsystemAbnormalAgentPanel",
+          "slot_fills": []
+        }
+      ],
+      "when": null,
+      "layout_props": [
+        "fillRemaining"
+      ],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAgentControlCenterPage",
+      "orientation": "vertical",
+      "contains": [
+        {
+          "region": "SubsystemAdminTopNavigation",
+          "prop_name": "subsystemAdminTopNavigation",
+          "slot_fills": []
+        },
+        {
+          "region": "SubsystemAdminOperatorLane",
+          "prop_name": "subsystemAdminOperatorLane",
+          "slot_fills": [
+            {
+              "slot_name": "SlotActor",
+              "component": "SubsystemAdminOperator"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemAgentControlUsecaseBoard",
+          "prop_name": "subsystemAgentControlUsecaseBoard",
+          "slot_fills": []
+        }
+      ],
+      "when": null,
+      "layout_props": [
+        "fillRemaining"
+      ],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemUpgradeAgentRemotelyUsecaseMeta",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAdminOperatorLane",
+      "orientation": "horizontal",
+      "contains": [
+        {
+          "region": "SubsystemAdminOperatorIdentity",
+          "prop_name": "subsystemAdminOperatorIdentity",
+          "slot_fills": [
+            {
+              "slot_name": "SlotActor",
+              "component": "SubsystemAdminOperator"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemAdminOperatorAccess",
+          "prop_name": "subsystemAdminOperatorAccess",
+          "slot_fills": [
+            {
+              "slot_name": "SlotProtocol",
+              "component": "SubsystemHttp"
+            }
+          ]
+        }
+      ],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAbnormalAgentPanel",
+      "orientation": "grid",
+      "contains": [
+        {
+          "region": "SubsystemAbnormalAgentCardGrid",
+          "prop_name": "subsystemAbnormalAgentCardGrid",
+          "slot_fills": []
+        },
+        {
+          "region": "SubsystemNoAbnormalAgentPlaceholder",
+          "prop_name": "subsystemNoAbnormalAgentPlaceholder",
+          "slot_fills": []
+        }
+      ],
+      "when": null,
+      "layout_props": [
+        "fillRemaining"
+      ],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemTargetVersionInput",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemPauseDispatchReceiptResult",
+      "orientation": "vertical",
+      "contains": [
+        {
+          "region": "SubsystemPauseDispatchIdText",
+          "prop_name": "subsystemPauseDispatchIdText",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemDispatchId"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemPauseDispatchCreatedAtText",
+          "prop_name": "subsystemPauseDispatchCreatedAtText",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemCreatedAt"
+            }
+          ]
+        }
+      ],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemX86LinuxAgentInstallCode",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAdminOperatorIdentity",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemPauseDispatchCreatedAtText",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAgentVersionFilter",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemArmLinuxAgentInstallCode",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAgentHealthStatusFilter",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAgentVersionText",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemOnlineAgentMetric",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemLastSeenLagMetric",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAgentStatusSearchInput",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemPauseAgentUsecaseMeta",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAbnormalAgentCardGrid",
+      "orientation": "grid",
+      "contains": [],
+      "when": null,
+      "layout_props": [
+        "fillRemaining",
+        "scrollable"
+      ],
+      "interactions": [],
+      "repeat": {
+        "region": "SubsystemAbnormalAgentCard",
+        "item": "agent",
+        "data_path": "agentRuntimeStatusView",
+        "separator": null
+      }
+    },
+    {
+      "name": "SubsystemAdminTopNavigation",
+      "orientation": "horizontal",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAgentControlUsecaseBoard",
+      "orientation": "grid",
+      "contains": [
+        {
+          "region": "SubsystemPauseAgentUsecaseCard",
+          "prop_name": "subsystemPauseAgentUsecaseCard",
+          "slot_fills": [
+            {
+              "slot_name": "SlotUsecase",
+              "component": "SubsystemPauseAgent"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemUpgradeAgentRemotelyUsecaseCard",
+          "prop_name": "subsystemUpgradeAgentRemotelyUsecaseCard",
+          "slot_fills": [
+            {
+              "slot_name": "SlotUsecase",
+              "component": "SubsystemUpgradeAgentRemotely"
+            }
+          ]
+        }
+      ],
+      "when": null,
+      "layout_props": [
+        "fillRemaining"
+      ],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAgentInstallPage",
+      "orientation": "vertical",
+      "contains": [
+        {
+          "region": "SubsystemAdminTopNavigation",
+          "prop_name": "subsystemAdminTopNavigation",
+          "slot_fills": []
+        },
+        {
+          "region": "SubsystemAgentInstallCodeList",
+          "prop_name": "subsystemAgentInstallCodeList",
+          "slot_fills": [
+            {
+              "slot_name": "SlotUsecase",
+              "component": "SubsystemGetAgentInstallCode"
+            }
+          ]
+        }
+      ],
+      "when": null,
+      "layout_props": [
+        "fillRemaining"
+      ],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemUpgradeAgentInput",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemUpgradeDispatchIdText",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemShowAgentRuntimeStatusUsecaseCard",
+      "orientation": "vertical",
+      "contains": [
+        {
+          "region": "SubsystemShowAgentRuntimeStatusUsecaseMeta",
+          "prop_name": "subsystemShowAgentRuntimeStatusUsecaseMeta",
+          "slot_fills": [
+            {
+              "slot_name": "SlotTrigger",
+              "component": "SubsystemShowAgentRuntimeStatus"
+            },
+            {
+              "slot_name": "SlotOutcome",
+              "component": "SubsystemAgentRuntimeStatusView"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemShowAgentRuntimeStatusForm",
+          "prop_name": "subsystemShowAgentRuntimeStatusForm",
+          "slot_fills": []
+        },
+        {
+          "region": "SubsystemAgentRuntimeStatusResult",
+          "prop_name": "subsystemAgentRuntimeStatusResult",
+          "slot_fills": []
+        }
+      ],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAgentRuntimeStatusResult",
+      "orientation": "grid",
+      "contains": [
+        {
+          "region": "SubsystemAgentInstanceText",
+          "prop_name": "subsystemAgentInstanceText",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemInstanceId"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemAgentVersionText",
+          "prop_name": "subsystemAgentVersionText",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemVersion"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemAgentOnlineStatusBadge",
+          "prop_name": "subsystemAgentOnlineStatusBadge",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemStatus"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemAgentHealthBadge",
+          "prop_name": "subsystemAgentHealthBadge",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemHealth"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemAgentLastSeenAtText",
+          "prop_name": "subsystemAgentLastSeenAtText",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemLastSeenAt"
+            }
+          ]
+        }
+      ],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemRuntimeStatusAgentInput",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemPauseAgentForm",
+      "orientation": "vertical",
+      "contains": [
+        {
+          "region": "SubsystemPauseAgentInput",
+          "prop_name": "subsystemPauseAgentInput",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemAgentId"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemSubmitPauseAction",
+          "prop_name": "subsystemSubmitPauseAction",
+          "slot_fills": [
+            {
+              "slot_name": "SlotCommand",
+              "component": "SubsystemAdminPauseAgent"
+            }
+          ]
+        }
+      ],
+      "when": null,
+      "layout_props": [],
+      "interactions": [
+        {
+          "op": "activate",
+          "handler_name": "onClick",
+          "emit_event": "SubsystemAdminPauseAgentRequested"
+        }
+      ],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemSubmitPauseAction",
+      "orientation": "horizontal",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAgentHealthBadge",
+      "orientation": "horizontal",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAgentLastSeenAtText",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemRefreshRuntimeStatusAction",
+      "orientation": "horizontal",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAgentOnlineStatusBadge",
+      "orientation": "horizontal",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAgentStatusOverviewMetrics",
+      "orientation": "horizontal",
+      "contains": [
+        {
+          "region": "SubsystemTotalAgentMetric",
+          "prop_name": "subsystemTotalAgentMetric",
+          "slot_fills": [
+            {
+              "slot_name": "SlotSource",
+              "component": "SubsystemAgentRuntimeStatusView"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemOnlineAgentMetric",
+          "prop_name": "subsystemOnlineAgentMetric",
+          "slot_fills": [
+            {
+              "slot_name": "SlotSource",
+              "component": "SubsystemAgentRuntimeStatusView"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemUnhealthyAgentMetric",
+          "prop_name": "subsystemUnhealthyAgentMetric",
+          "slot_fills": [
+            {
+              "slot_name": "SlotSource",
+              "component": "SubsystemAgentRuntimeStatusView"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemLastSeenLagMetric",
+          "prop_name": "subsystemLastSeenLagMetric",
+          "slot_fills": [
+            {
+              "slot_name": "SlotSource",
+              "component": "SubsystemAgentRuntimeStatusView"
+            }
+          ]
+        }
+      ],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAbnormalAgentCard",
+      "orientation": "grid",
+      "contains": [
+        {
+          "region": "SubsystemAgentInstanceText",
+          "prop_name": "subsystemAgentInstanceText",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemInstanceId"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemAgentVersionText",
+          "prop_name": "subsystemAgentVersionText",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemVersion"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemAgentOnlineStatusBadge",
+          "prop_name": "subsystemAgentOnlineStatusBadge",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemStatus"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemAgentHealthBadge",
+          "prop_name": "subsystemAgentHealthBadge",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemHealth"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemAgentLastSeenAtText",
+          "prop_name": "subsystemAgentLastSeenAtText",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemLastSeenAt"
+            }
+          ]
+        }
+      ],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAgentOnlineStatusFilter",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemUpgradeDispatchCreatedAtText",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemPauseAgentUsecaseCard",
+      "orientation": "vertical",
+      "contains": [
+        {
+          "region": "SubsystemPauseAgentUsecaseMeta",
+          "prop_name": "subsystemPauseAgentUsecaseMeta",
+          "slot_fills": [
+            {
+              "slot_name": "SlotTrigger",
+              "component": "SubsystemPauseAgent"
+            },
+            {
+              "slot_name": "SlotOutcome",
+              "component": "SubsystemDispatchReceipt"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemPauseAgentForm",
+          "prop_name": "subsystemPauseAgentForm",
+          "slot_fills": []
+        },
+        {
+          "region": "SubsystemPauseDispatchReceiptResult",
+          "prop_name": "subsystemPauseDispatchReceiptResult",
+          "slot_fills": []
+        }
+      ],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemUpgradeAgentRemotelyForm",
+      "orientation": "vertical",
+      "contains": [
+        {
+          "region": "SubsystemUpgradeAgentInput",
+          "prop_name": "subsystemUpgradeAgentInput",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemAgentId"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemTargetVersionInput",
+          "prop_name": "subsystemTargetVersionInput",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemTargetVersion"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemSubmitUpgradeAction",
+          "prop_name": "subsystemSubmitUpgradeAction",
+          "slot_fills": [
+            {
+              "slot_name": "SlotCommand",
+              "component": "SubsystemAdminUpgradeAgent"
+            }
+          ]
+        }
+      ],
+      "when": null,
+      "layout_props": [],
+      "interactions": [
+        {
+          "op": "activate",
+          "handler_name": "onClick",
+          "emit_event": "SubsystemAdminUpgradeAgentRequested"
+        }
+      ],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemSubmitUpgradeAction",
+      "orientation": "horizontal",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemAgentInstallCodeList",
+      "orientation": "grid",
+      "contains": [
+        {
+          "region": "SubsystemX86LinuxAgentInstallCode",
+          "prop_name": "subsystemX86LinuxAgentInstallCode",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemX86LinuxInstallCode"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemArmLinuxAgentInstallCode",
+          "prop_name": "subsystemArmLinuxAgentInstallCode",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemArmLinuxInstallCode"
+            }
+          ]
+        }
+      ],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemUpgradeDispatchReceiptResult",
+      "orientation": "vertical",
+      "contains": [
+        {
+          "region": "SubsystemUpgradeDispatchIdText",
+          "prop_name": "subsystemUpgradeDispatchIdText",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemDispatchId"
+            }
+          ]
+        },
+        {
+          "region": "SubsystemUpgradeDispatchCreatedAtText",
+          "prop_name": "subsystemUpgradeDispatchCreatedAtText",
+          "slot_fills": [
+            {
+              "slot_name": "SlotField",
+              "component": "SubsystemCreatedAt"
+            }
+          ]
+        }
+      ],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemPauseDispatchIdText",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemShowAgentRuntimeStatusUsecaseMeta",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    }
+  ],
+  "flows": [],
+  "interfaces": [],
+  "modules": [
+    {
+      "name": "AgentHost1ControlClient",
+      "layer": "",
+      "owns": [],
+      "depends": [
+        "ControlProtocol"
+      ],
+      "implements": [],
+      "responsible_for": [
+        "AgentHost1 上的 WpAgent 主动连接 WarpInsight 管理节点控制通道。"
+      ]
+    },
+    {
+      "name": "ControlAdminWebFrontend",
+      "layer": "Application",
+      "owns": [],
+      "depends": [
+        "ControlUserFacingInterface"
+      ],
+      "implements": [],
+      "responsible_for": [
+        "WarpInsightAdmin 前端 WEB：主界面、Agent 控制界面、状态展示、安装代码复制操作和远程升级操作入口。"
+      ]
+    },
+    {
+      "name": "AgentHost2ControlClient",
+      "layer": "",
+      "owns": [],
+      "depends": [
+        "ControlProtocol"
+      ],
+      "implements": [],
+      "responsible_for": [
+        "AgentHost2 上的 WpAgent 主动连接 WarpInsight 管理节点控制通道。"
+      ]
+    }
+  ],
+  "profile": {
+    "language": "typescript",
+    "framework": "react",
+    "deps": [
+      "react",
+      "vite",
+      "chrono"
+    ],
+    "dev_deps": [
+      "typescript",
+      "@types/react",
+      "@types/react-dom",
+      "vite",
+      "@vitejs/plugin-react",
+      "prettier"
+    ]
+  }
+}

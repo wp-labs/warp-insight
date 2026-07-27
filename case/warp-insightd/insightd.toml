@@ -1,0 +1,43 @@
+schema_version = "v1"
+
+[telemetry.logs]
+in_memory_buffer_bytes = 1048576
+spool_dir = "state/spool/logs"
+
+[telemetry.logs.output]
+kind = "file"
+
+[telemetry.logs.output.file]
+path = "log/warp-parse-records.ndjson"
+
+# 可选：
+# [agent]
+# # 为空时会自动生成实例名；如需显式指定可取消注释。
+# # instance_name = "monitoring-host-01"
+#
+# 可选：
+# [paths]
+# # 下面这些默认分别是 ".", "run", "state", "log"
+# # root_dir = "."
+# # run_dir = "run"
+# # state_dir = "state"
+# # log_dir = "log"
+#
+# 示例：把某个监控系统日志文件送到本地 warp-parse record 输出文件。
+# 取消注释后，把 path 改成你的真实日志路径。
+#
+# [[telemetry.logs.file_inputs]]
+# input_id = "monitoring-app"
+# path = "/var/log/monitoring/app.log"
+# startup_position = "head"
+# multiline_mode = "none"
+#
+# 示例：把日志通过 TCP 发到本机 WarpParse 的 tcp_src。
+# [telemetry.logs.output]
+# kind = "tcp"
+#
+# [telemetry.logs.output.tcp]
+# addr = "127.0.0.1"
+# port = 9000
+# framing = "line"
+

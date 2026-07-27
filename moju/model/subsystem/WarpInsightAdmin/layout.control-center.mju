@@ -1,0 +1,56 @@
+// WarpInsightAdmin control center page layout regions
+
+region AdminOperatorLane {
+  meta {
+    label zh "管理操作者区域"
+    label en "Admin Operator Area"
+    summary zh "控制中心中展示 AdminOperator 身份和访问方式，表达控制操作由管理员发起。"
+    tag "admin"
+    tag "actor"
+    tag "agent-control"
+  }
+
+  orientation horizontal
+  contains AdminOperatorIdentity { slot_actor: AdminOperator }
+  contains AdminOperatorAccess { slot_protocol: "http" }
+}
+
+region AgentControlUsecaseBoard {
+  meta {
+    label zh "Agent 控制用例板"
+    label en "Agent Control Usecase Board"
+    summary zh "控制中心的常见任务区域，集中放置暂停 Agent 和升级 Agent 两个操作入口。"
+    tag "admin"
+    tag "agent-control"
+    tag "usecase-layout"
+  }
+
+  orientation grid
+  contains PauseAgentUsecaseCard { slot_usecase: PauseAgent }
+  contains UpgradeAgentRemotelyUsecaseCard { slot_usecase: UpgradeAgentRemotely }
+  layout fill_remaining
+}
+
+region AdminOperatorIdentity {
+  meta {
+    label zh "操作者身份"
+    label en "Admin Operator Identity"
+    summary zh "表达 AdminOperator 是控制中心操作的发起者。"
+    tag "admin"
+    tag "actor"
+  }
+
+  orientation vertical
+}
+
+region AdminOperatorAccess {
+  meta {
+    label zh "操作者访问方式"
+    label en "Admin Operator Access"
+    summary zh "表达 AdminOperator 通过 HTTP 访问 WarpInsightAdmin WEB。"
+    tag "admin"
+    tag "access"
+  }
+
+  orientation vertical
+}

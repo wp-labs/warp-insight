@@ -1,0 +1,587 @@
+// 发现采集域 (Discovery & Collection Domain) — HOW we observe
+
+// ══════════════════════════════════════════════════════════
+// Module: Config — Agent 配置
+// ══════════════════════════════════════════════════════════
+
+struct AgentConfigContract {
+  unique schema_version
+  agent
+  control_plane
+  paths
+  execution
+  telemetry
+  discovery
+}
+
+struct AgentSection {
+  agent_id
+  environment_id
+  instance_name
+}
+
+struct ControlPlaneSection {
+  enabled
+  endpoint
+  tls_mode
+  auth_mode
+}
+
+struct PathsSection {
+  root_dir
+  run_dir
+  state_dir
+  log_dir
+}
+
+struct ExecutionSection {
+  max_running_actions
+  cancel_grace_ms
+  default_stdout_limit_bytes
+  default_stderr_limit_bytes
+}
+
+struct DiscoverySection {
+  host_enabled
+  network_enabled
+  endpoint_enabled
+  process_enabled
+  container_enabled
+}
+
+struct TelemetrySection {
+  logs
+}
+
+struct LogsSection {
+  file_inputs
+  in_memory_buffer_bytes
+  spool_dir
+  output
+}
+
+struct LogsOutputSection {
+  kind
+  file
+  tcp
+}
+
+struct LogsFileOutputSection {
+  path
+}
+
+struct LogsTcpOutputSection {
+  addr
+  port
+  framing
+}
+
+struct LogFileInputSection {
+  unique input_id
+  path
+  startup_position
+  multiline_mode
+}
+
+struct EnsuredConfigFile {
+  path
+}
+
+struct ConfigError {
+  detail
+}
+
+// ══════════════════════════════════════════════════════════
+// Module: Probe — 发现探针与运行时
+// ══════════════════════════════════════════════════════════
+
+struct DiscoveryProbe {
+}
+
+struct HostDiscoveryProbe {
+  kind
+}
+
+struct NetworkDiscoveryProbe {
+  kind
+}
+
+struct EndpointDiscoveryProbe {
+  kind
+}
+
+struct ProcessDiscoveryProbe {
+  kind
+}
+
+struct ContainerDiscoveryProbe {
+  kind
+}
+
+struct K8sDiscoveryProbe {
+  kind
+}
+
+struct ProbeOutput {
+  source
+  probe
+  resources
+  targets
+}
+
+struct DiscoveryProbeError {
+  source
+  probe
+  detail
+}
+
+struct DiscoveryRuntime {
+  probes
+}
+
+struct DiscoveryRefreshResult {
+  refreshed_snapshot
+  persisted_snapshot
+  used_cached_snapshot
+  had_successful_refresh
+  errors
+  last_success_at
+  last_error
+  store_failure
+  successful_probes
+}
+
+struct SuccessfulProbeRefresh {
+  source
+  probe
+  resource_count
+  target_count
+}
+
+struct DiscoveryStoreFailure {
+  phase
+  detail
+}
+
+struct DiscoveryCachePaths {
+  snapshot_path
+  meta_path
+}
+
+struct DiscoveryCacheLoadFailure {
+  phase
+  detail
+}
+
+// ══════════════════════════════════════════════════════════
+// Module: Collect — 采集管线
+// ══════════════════════════════════════════════════════════
+
+// ── 文件输入 ──
+
+struct FileInputConfig {
+  unique input_id
+  path
+  startup_position
+  multiline_mode
+}
+
+struct FileInputProcessor {
+  config
+  state
+}
+
+struct ProcessOutcome {
+  kind
+  batch
+  delivery
+}
+
+struct ProcessOutcomeKind {
+  variant
+}
+
+struct RawFileLine {
+  offset
+  content
+}
+
+struct ReadFromOffset {
+  offset
+  limit
+}
+
+struct StartupPosition {
+  variant
+}
+
+struct ResumeDecision {
+  start_offset
+}
+
+struct IfEmptyThen {
+  variant
+}
+
+struct MultilineMode {
+  variant
+}
+
+struct FoldedLine {
+  lines
+  start_offset
+  end_offset
+}
+
+struct FoldResult {
+  folded
+  remainder
+}
+
+// ── 缓冲与输出 ──
+
+struct RecordSink {
+}
+
+struct TelemetryRecordSink {
+  kind
+}
+
+struct FileRecordSink {
+  path
+}
+
+struct TcpRecordSink {
+  addr
+  port
+  framing
+}
+
+struct TcpFraming {
+  variant
+}
+
+struct StageResult {
+  staged
+  overflow
+}
+
+struct TelemetryBuffer {
+  records
+  byte_limit
+}
+
+// ── Metrics ──
+
+struct MetricsRuntimeSnapshot {
+  collection_time
+  target_samples
+}
+
+struct MetricsCollectionOutcome {
+  target
+  success
+  error
+}
+
+struct MetricsCollectionTargetSample {
+  target_ref
+  resource_ref
+  collection_kind
+  collected_at
+}
+
+struct MetricsSamplesSnapshot {
+  groups
+}
+
+struct MetricsSampleGroup {
+  target_ref
+  resource_ref
+  collection_kind
+  records
+}
+
+struct MetricsSampleRecord {
+  name
+  value
+  timestamp
+}
+
+struct MetricsTargetView {
+  generated_at
+  entries
+}
+
+struct MetricsTargetViewEntry {
+  target_ref
+  resource_ref
+  collection_kind
+  last_collected_at
+}
+
+// ── WarpParse ──
+
+struct WarpParseIngestHead {
+  api_version
+  kind
+  encoding
+  compression
+  record_count
+  unique source_id
+  agent_id
+  instance_id
+  collected_at
+  sent_at
+}
+
+struct WarpParseIngestMessageKind {
+  variant
+}
+
+struct WarpParseIngestEncoding {
+  variant
+}
+
+struct WarpParseIngestCompression {
+  variant
+}
+
+// ── 位点管理 ──
+
+struct LogCheckpointState {
+  file_checkpoints
+  pending_multiline
+}
+
+struct PendingMultilineState {
+  input_id
+  lines
+}
+
+struct TrackedFileCheckpoint {
+  unique input_id
+  path
+  offset
+  inode
+  updated_at
+}
+
+struct PendingCheckpoint {
+  input_id
+  offset
+}
+
+struct RuntimeState {
+  pending
+}
+
+struct CollectedReadBatch {
+  lines
+  next_offset
+  eof
+}
+
+struct DeliveryOutcome {
+  success
+  records
+}
+
+// ══════════════════════════════════════════════════════════
+// Module: Execute — 调度执行与状态
+// ══════════════════════════════════════════════════════════
+
+// ── 调度队列 ──
+
+struct SchedulerRequest {
+  run_dir
+  state_dir
+  plan
+}
+
+struct SchedulerOutcome {
+  execution_id
+  plan_digest
+}
+
+struct DrainRequest {
+  run_dir
+  state_dir
+  exec_bin
+  instance_id
+  cancel_grace_ms
+  stdout_limit_bytes
+  stderr_limit_bytes
+}
+
+struct DrainOutcome {
+  execution_id
+  plan_digest
+  report
+}
+
+struct QueueHeadContext {
+  request
+  item
+}
+
+struct QueueHeadDisposition {
+  variant
+}
+
+struct ExecutionQueueState {
+  items
+}
+
+struct ExecutionQueueItem {
+  unique execution_id
+  action_id
+  plan_digest
+  request_id
+  enqueued_at
+  deadline_at
+  risk_level
+}
+
+struct ExecutionQueueItemBuilder {
+  execution_id
+  action_id
+  plan_digest
+  request_id
+  enqueued_at
+}
+
+// ── 本地执行 ──
+
+struct LocalExecRequest {
+  workdir
+  exec_bin
+  cancel_grace_ms
+  stdout_limit_bytes
+  stderr_limit_bytes
+}
+
+struct LocalExecOutcome {
+  execution_id
+  exit_code
+  stdout_bytes
+  stderr_bytes
+  duration_ms
+}
+
+struct ExitClassification {
+  exit_code
+  timed_out
+  cancelled
+}
+
+struct QuarantineRequest {
+  execution_id
+  reason
+}
+
+// ── 运行时状态 ──
+
+state RunningExecutionState {
+  execution_id
+  action_id
+  plan_digest
+  spawned_at
+  pid
+  status
+}
+
+struct RunningExecutionStateBuilder {
+  execution_id
+  action_id
+  plan_digest
+}
+
+struct ProcessIdentityState {
+  pid
+  start_time
+}
+
+state AgentRuntimeState {
+  schema_version
+  agent_id
+  instance_id
+  version
+  mode
+  updated_at
+}
+
+struct RuntimeMode {
+  variant
+}
+
+struct ExecRuntimeContext {
+  unique execution_id
+  spawned_at
+  deadline_at
+  agent_id
+  node_id
+  workdir
+}
+
+state ExecProgressState {
+  execution_id
+  action_id
+  state
+  updated_at
+  step_id
+  attempt
+  reason_code
+  detail
+}
+
+// ═══════════════════════════════════════════
+// Flow & Verify
+// ═══════════════════════════════════════════
+
+actor Collector {
+  can RefreshDiscovery
+  can CollectLogs
+  can CollectMetrics
+}
+
+command RefreshDiscovery {
+  state_dir
+}
+
+command CollectLogs {
+  input_id
+  path
+  since_offset
+}
+
+command CollectMetrics {
+  target_ref
+  collection_kind
+  collected_at
+}
+
+flow RefreshDiscoveryFlow {
+  actor Collector
+  trigger RefreshDiscovery
+
+  creates DiscoveryRefreshResult
+
+  step Refresh {
+    create DiscoveryRefreshResult {
+      last_success_at = RefreshDiscovery.state_dir
+    }
+  }
+}
+
+verify RefreshDiscoveryVerified for flow RefreshDiscoveryFlow {
+  given {
+    RefreshDiscovery.state_dir = "/var/lib/warp-insight/state"
+  }
+
+  when RefreshDiscovery
+
+  expect {
+    DiscoveryRefreshResult.last_success_at == "/var/lib/warp-insight/state"
+  }
+}

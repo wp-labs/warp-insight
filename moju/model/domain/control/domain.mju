@@ -1,0 +1,12 @@
+// 控制域 (Control Domain) — HOW an agent joins and is controlled
+//
+// Domain facts in this package are split by module boundary:
+// - user-facing-interface.mju
+// - agent-facing-interface.mju
+// - enrollment.mju
+// - identity.mju
+// - agentd-status-management.mju
+// - agent-command-control.mju
+// - protocol.mju
+// - registry.mju
+// - actors.mju

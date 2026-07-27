@@ -1,0 +1,168 @@
+// 被观测域 (Observed Domain) — WHAT is observed
+
+// ══════════════════════════════════════════════════════════
+// Module: Snapshot — 发现快照契约
+// ══════════════════════════════════════════════════════════
+
+struct DiscoverySnapshotContract {
+  schema_version
+  unique snapshot_id
+  revision
+  generated_at
+  origins
+  resources
+  targets
+}
+
+struct DiscoveryOrigin {
+  unique origin_id
+  probe
+  source
+  observed_at
+}
+
+struct DiscoveryCacheMeta {
+  schema_version
+  unique snapshot_id
+  revision
+  generated_at
+  origins
+  last_success_at
+  last_error
+}
+
+struct DiscoveredResource {
+  unique resource_id
+  kind
+  origin_idx
+  attributes
+  discovered_at
+  last_seen_at
+  health
+  source
+}
+
+struct DiscoveredTarget {
+  unique target_id
+  kind
+  origin_idx
+  resource_ref
+  execution_hints
+  state
+}
+
+struct CandidateCollectionTarget {
+  unique candidate_id
+  target_ref
+  collection_kind
+  resource_ref
+  execution_hints
+  generated_at
+}
+
+struct StringKeyValue {
+  key
+  value
+}
+
+// ══════════════════════════════════════════════════════════
+// Module: Entity — 被观测实体
+// ══════════════════════════════════════════════════════════
+
+struct ObservedProcess {
+  pid
+  comm
+  cmdline
+}
+
+struct ObservedNetworkInterface {
+  name
+  mtu
+}
+
+struct ObservedIpAddress {
+  address
+  netmask
+}
+
+struct ObservedServiceEndpoint {
+  address
+  port
+  protocol
+}
+
+struct ObservedContainer {
+  unique container_id
+  name
+  image
+}
+
+struct ObservedFileIdentity {
+  path
+  inode
+}
+
+struct OciRuntimeSpec {
+  version
+}
+
+struct OciLinuxSpec {
+}
+
+struct ContainerRuntimeRoot {
+  path
+  kind
+}
+
+struct ProcessSocketOwner {
+  pid
+  fd
+}
+
+struct AddressFamily {
+  variant
+}
+
+struct SocketTableKind {
+  variant
+}
+
+struct DiscoverySourceKind {
+  variant
+}
+
+// ═══════════════════════════════════════════
+// Flow & Verify
+// ═══════════════════════════════════════════
+
+actor Observer {
+  can CreateSnapshot
+}
+
+command CreateSnapshot {
+  snapshot_id
+}
+
+flow CreateSnapshotFlow {
+  actor Observer
+  trigger CreateSnapshot
+  creates DiscoveredResource
+  step RecordResource {
+    create DiscoveredResource {
+      resource_id = CreateSnapshot.snapshot_id
+      kind = "host"
+    }
+  }
+}
+
+verify CreateSnapshotVerified for flow CreateSnapshotFlow {
+  given {
+    CreateSnapshot.snapshot_id = "snap-001"
+  }
+
+  when CreateSnapshot
+
+  expect {
+    DiscoveredResource.resource_id == "snap-001"
+  }
+}

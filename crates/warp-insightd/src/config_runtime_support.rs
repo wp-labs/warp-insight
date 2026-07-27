@@ -33,6 +33,15 @@ container_enabled = false
 # # instance_name = "monitoring-host-01"
 #
 # 可选：
+# [control_plane]
+# # install.sh 可写入管理端地址和 enrollment token；注册成功后 daemon 会把正式 agent_id 写入 state。
+# enabled = true
+# endpoint = "https://10.0.1.1"
+# enrollment_token = "${WARP_INSIGHT_ENROLLMENT_TOKEN}"
+# tls_mode = "https"
+# auth_mode = "enrollment_token"
+#
+# 可选：
 # [paths]
 # # 下面这些默认分别是 ".", "run", "state", "log"
 # # root_dir = "."
@@ -68,6 +77,9 @@ pub(super) fn expand_env_contract(
     config.agent.environment_id = expand_optional(config.agent.environment_id)?;
     config.agent.instance_name = expand_optional(config.agent.instance_name)?;
     config.control_plane.endpoint = expand_optional(config.control_plane.endpoint)?;
+    config.control_plane.enrollment_token = expand_optional(config.control_plane.enrollment_token)?;
+    config.control_plane.credential_request =
+        expand_optional(config.control_plane.credential_request)?;
     config.control_plane.tls_mode = expand_optional(config.control_plane.tls_mode)?;
     config.control_plane.auth_mode = expand_optional(config.control_plane.auth_mode)?;
     config.paths.root_dir = expand_string(config.paths.root_dir)?;

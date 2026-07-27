@@ -1,0 +1,74 @@
+// warp-insight 部署视图
+
+node ManagementPlatformHost {
+  meta {
+    label zh "WarpInsight管理节点"
+    summary zh "在线业务区内的 WarpInsight 管理节点，运行 WarpInsightAdmin 前端 WEB、后端 WEB 服务接口、控制中心和数据平台能力。"
+    tag "center"
+    tag "online-business-zone"
+  }
+}
+
+node AgentHost1 {
+  meta {
+    label zh "现有业务服务器节点 1"
+    summary zh "在线业务区内已经存在的业务服务器节点，安装 WpAgent 后运行 warp-insightd 和 warp-insight-upgrader，集成本机 OS、进程、网络、容器运行时、业务日志、本地状态与 spool 资源，负责本地发现、采集、缓冲、上送和受控升级。"
+    tag "edge"
+    tag "online-business-zone"
+    tag "existing-host"
+  }
+}
+
+node AgentHost2 {
+  meta {
+    label zh "现有业务服务器节点 2"
+    summary zh "在线业务区内已经存在的业务服务器节点，安装 WpAgent 后运行 warp-insightd 和 warp-insight-upgrader，集成本机 OS、进程、网络、容器运行时、业务日志、本地状态与 spool 资源，负责本地发现、采集、缓冲、上送和受控升级。"
+    tag "edge"
+    tag "online-business-zone"
+    tag "existing-host"
+  }
+}
+
+module<adapter> AgentHost1ControlClient {
+  meta {
+    label zh "AgentHost1 控制客户端"
+    label en "AgentHost1 Control Client"
+    summary zh "AgentHost1 上的 WpAgent 主动连接 WarpInsight 管理节点控制通道。"
+    tag "topology-helper"
+    tag "control-link"
+  }
+
+  depends Control.Protocol
+  responsible_for "AgentHost1 上的 WpAgent 主动连接 WarpInsight 管理节点控制通道。"
+}
+
+module<adapter> AgentHost2ControlClient {
+  meta {
+    label zh "AgentHost2 控制客户端"
+    label en "AgentHost2 Control Client"
+    summary zh "AgentHost2 上的 WpAgent 主动连接 WarpInsight 管理节点控制通道。"
+    tag "topology-helper"
+    tag "control-link"
+  }
+
+  depends Control.Protocol
+  responsible_for "AgentHost2 上的 WpAgent 主动连接 WarpInsight 管理节点控制通道。"
+}
+
+network OnlineBusinessZone {
+  ingress controlled_internal
+  trust_level business_internal
+  contains ManagementPlatformHost
+  contains AgentHost1
+  contains AgentHost2
+}
+
+// 拓扑辅助绑定：为节点连线提供模块依赖依据，不作为节点内 target 展示。
+bind warp-insight-admin-web to ManagementPlatformHost with topology
+bind warp-insight-admin to ManagementPlatformHost with topology
+bind AgentHost1ControlClient to AgentHost1 with topology
+bind AgentHost2ControlClient to AgentHost2 with topology
+
+// 节点间关系：Agent 主动连接管理节点控制通道。
+link<call> AgentHost1 -> ManagementPlatformHost
+link<call> AgentHost2 -> ManagementPlatformHost

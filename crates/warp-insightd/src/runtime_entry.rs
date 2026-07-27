@@ -169,15 +169,15 @@ async fn run_daemon(
         Some(path) => resolve_requested_config_root(&root, Some(path)),
         None => resolve_config_root(&root),
     };
-    let config = crate::config_runtime::load_or_init(&config_root)?;
-    let paths = &config.paths;
-    let root_dir = Path::new(&paths.root_dir);
-    let run_dir = Path::new(&paths.run_dir);
-    let state_dir = Path::new(&paths.state_dir);
-    let log_dir = Path::new(&paths.log_dir);
+    let mut config = crate::config_runtime::load_or_init(&config_root)?;
+    let root_dir = PathBuf::from(&config.paths.root_dir);
+    let run_dir = PathBuf::from(&config.paths.run_dir);
+    let state_dir = PathBuf::from(&config.paths.state_dir);
+    let log_dir = PathBuf::from(&config.paths.log_dir);
 
-    crate::bootstrap::initialize(root_dir, run_dir, state_dir, log_dir)?;
-    initialize_runtime_state(state_dir, &config)?;
+    crate::bootstrap::initialize(&root_dir, &run_dir, &state_dir, &log_dir)?;
+    crate::enrollment::ensure_enrolled(&mut config, &state_dir).await?;
+    initialize_runtime_state(&state_dir, &config)?;
     self_observability::register();
     let exec_bin = resolve_exec_bin()?;
     let loop_ctx = daemon::DaemonLoop {

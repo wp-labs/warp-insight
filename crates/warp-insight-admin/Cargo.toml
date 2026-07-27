@@ -1,0 +1,15 @@
+# @moju generated
+# @moju hash=d2b0d37b3a089d76
+
+[package]
+name = "warp-insight-admin"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+moju-core = { path = "/Users/zuowenjian/devspace/rust/x-topology/moju-sys/moju-core" }
+moju-derive = { path = "/Users/zuowenjian/devspace/rust/x-topology/moju-sys/moju-derive" }
+axum = "0.7"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+serde = { version = "1", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }

@@ -1,0 +1,15 @@
+[
+  {
+    "candidate_id": "hostname:local-host:host:host_metrics",
+    "target_ref": "hostname:local-host:host",
+    "collection_kind": "host_metrics",
+    "resource_ref": "hostname:local-host",
+    "execution_hints": [
+      {
+        "key": "host.name",
+        "value": "local-host"
+      }
+    ],
+    "generated_at": "2026-04-21T08:20:01.905181Z"
+  }
+]

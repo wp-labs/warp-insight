@@ -5,6 +5,7 @@ pub mod action_result;
 pub mod agent_config;
 pub mod capability_report;
 pub mod discovery;
+pub mod enrollment;
 pub mod exporter;
 pub mod gateway;
 pub mod ingest;

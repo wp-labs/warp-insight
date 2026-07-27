@@ -417,6 +417,8 @@ fn sync_runtime_identity_prefers_config_identity_when_present() {
         ControlPlaneSection {
             enabled: false,
             endpoint: None,
+            enrollment_token: None,
+            credential_request: None,
             tls_mode: None,
             auth_mode: None,
         },

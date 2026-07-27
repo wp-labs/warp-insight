@@ -1,0 +1,42 @@
+// Module: Registry — 控制平台登记簿
+
+state AgentRegistryEntry {
+  unique agent_id: String
+  tenant_id: String
+  environment_id: String
+  node_id: String
+  current_instance_id: String
+  registered_at: DateTime
+  updated_at: DateTime
+}
+
+state AgentCapabilityIndex {
+  agent_id: String
+  instance_id: String
+  capability_report_id: String
+  generated_at: DateTime
+  indexed_at: DateTime
+}
+
+struct AgentPolicyBinding {
+  agent_id: String
+  policy_id: String
+  policy_version: String
+  bound_at: DateTime
+}
+
+struct AgentInitialConfig {
+  meta {
+    label zh "初始 Agent 配置"
+    label en "Agent Initial Config"
+    summary zh "Agentd 注册成功后管理端返回的初始运行配置，包括控制面地址、策略版本和遥测输出。"
+    tag "agentd"
+    tag "config"
+  }
+
+  schema_version: String
+  mode: String
+  gateway_endpoint: String
+  policy_version: String
+  telemetry_output: String
+}

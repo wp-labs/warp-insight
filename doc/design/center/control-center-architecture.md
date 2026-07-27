@@ -28,6 +28,8 @@
 - [`report-action-result-schema.md`](report-action-result-schema.md)
 - [`control-center-storage-schema.md`](control-center-storage-schema.md)
 - [`agent-gateway-protocol.md`](agent-gateway-protocol.md)
+- [`identity-enrollment-protocol.md`](identity-enrollment-protocol.md)
+- [`management-platform-bootstrap.md`](management-platform-bootstrap.md)
 - [`roadmap.md`](../foundation/roadmap.md)
 
 ---
@@ -143,8 +145,11 @@
 建议控制中心拆成以下逻辑模块：
 
 - Northbound API
+- Install Bootstrap Endpoint
+- Enrollment Service
 - Agent Gateway
 - Agent Registry
+- Token / Certificate Service
 - Capability Catalog
 - Policy Service
 - Action Template Registry
@@ -219,7 +224,43 @@
 - 分发
 - ack 处理
 
-### 6.2 Agent Gateway
+### 6.2 Install Bootstrap Endpoint
+
+面向 operator 和目标机器安装脚本的 bootstrap 入口。
+
+第一版建议承担：
+
+- 根据 `advertise_url` 生成 agent 安装 URL
+- 生成短期 bootstrap token
+- 分发 agent 安装脚本
+- 分发 trust bundle
+- 分发最小 bootstrap 配置
+
+它不直接做：
+
+- 长期控制面认证
+- agent client certificate 签发后的正式控制通道
+- telemetry 数据接收
+
+### 6.3 Enrollment Service
+
+面向首次启动的 `warp-insightd`。
+
+第一版建议承担：
+
+- 校验 `enrollment_token`
+- 接收 CSR 和 node facts
+- 创建或更新 agent identity
+- 触发 client certificate 签发
+- 返回 `agent_id`、`instance_id`、CA bundle、gateway endpoint 和初始配置
+
+它不直接做：
+
+- action 编译
+- action dispatch
+- telemetry 数据解析
+
+### 6.4 Agent Gateway
 
 面向 `warp-insightd` 的南向入口。
 
@@ -238,7 +279,7 @@
 - 编译
 - 审批
 
-### 6.3 Agent Registry
+### 6.5 Agent Registry
 
 负责维护 agent 逻辑身份、实例状态和租约。
 
@@ -254,7 +295,24 @@
 - `last_seen_at`
 - `lease_expires_at`
 
-### 6.4 Capability Catalog
+### 6.6 Token / Certificate Service
+
+负责 bootstrap token 与 agent client certificate 生命周期。
+
+第一版建议承担：
+
+- bootstrap token 创建、过期、使用次数限制和撤销
+- 管理平台 server trust bundle 管理
+- agent CSR 校验与 client certificate 签发
+- 证书续期与吊销记录
+
+它不直接做：
+
+- agent 会话维护
+- action dispatch
+- 审批判断
+
+### 6.7 Capability Catalog
 
 负责接收并索引边缘能力声明。
 
@@ -271,7 +329,7 @@
 - Dispatch Service
 - Upgrade Orchestrator
 
-### 6.5 Policy Service
+### 6.8 Policy Service
 
 负责策略定义、版本管理和目标范围匹配。
 
@@ -282,7 +340,7 @@
 - 环境级策略
 - node selector 生效范围
 
-### 6.6 Action Template Registry
+### 6.9 Action Template Registry
 
 负责维护作者侧模板与可复用动作。
 
@@ -294,7 +352,7 @@
 - 默认风险等级
 - 支持目标范围
 
-### 6.7 Approval Service
+### 6.10 Approval Service
 
 负责风险校验、审批流转和审批结果落库。
 
@@ -305,7 +363,7 @@
 - `R2` / `R3` 审批流
 - 审批过期与撤销
 
-### 6.8 Plan Compiler
+### 6.11 Plan Compiler
 
 负责把作者输入和控制约束编译成边缘唯一理解的 `ActionPlan`。
 
@@ -321,7 +379,7 @@
 
 - 单目标 `ActionPlan`
 
-### 6.9 Signer
+### 6.12 Signer
 
 负责对中心侧最终控制对象签名。
 
@@ -334,7 +392,7 @@
 
 - 结果级签名属于 `warp-insightd` 责任，不属于中心 Signer
 
-### 6.10 Dispatch Service
+### 6.13 Dispatch Service
 
 负责将已签名计划投递到目标 agent。
 
@@ -351,7 +409,7 @@
 - 重编译计划
 - 解释执行结果
 
-### 6.11 Execution Tracker
+### 6.14 Execution Tracker
 
 负责维护 request / action / execution 的中心状态机。
 
@@ -362,7 +420,7 @@
 - agent 在线状态
 - dispatch 状态
 
-### 6.12 Result Ingestor
+### 6.15 Result Ingestor
 
 负责接收 `ReportActionResult` 并做最小校验与入库。
 
@@ -374,7 +432,7 @@
 - `result_attestation`
 - `final_status`
 
-### 6.13 Upgrade Orchestrator
+### 6.16 Upgrade Orchestrator
 
 负责中心侧升级批次管理、波次控制和结果跟踪。
 
@@ -386,7 +444,7 @@
 - 健康闸门
 - 自动暂停 / 回滚触发
 
-### 6.14 Audit & Risk Service
+### 6.17 Audit & Risk Service
 
 负责高风险动作、策略变化、审批变化和执行闭环的审计归档。
 
@@ -399,7 +457,7 @@
 - result report
 - upgrade / rollback
 
-### 6.15 Control Query API
+### 6.18 Control Query API
 
 负责给 UI、CLI、自动化系统提供控制面查询。
 
@@ -582,7 +640,8 @@
 当前建议是：
 
 - 逻辑协议独立于传输实现
-- 第一版优先采用 `WebSocket over mTLS`
+- 第一版优先采用 agent 主动出站的 `HTTPS long polling + mTLS`
+- WebSocket over mTLS 可作为后续低延迟下发的可选实现
 - gRPC 可作为后续可选实现，不作为第一版绑定前提
 
 ### 10.3 多级树拓扑下的接入模型
@@ -675,7 +734,10 @@ AI 不应直接拥有：
 第一版建议至少按以下逻辑边界编码：
 
 - `control-api`
+- `install-bootstrap`
+- `enrollment-service`
 - `agent-gateway`
+- `token-cert-service`
 - `policy-engine`
 - `plan-compiler`
 - `dispatch-tracker`
@@ -685,10 +747,22 @@ AI 不应直接拥有：
 
 第一版建议优先单体部署：
 
-- 一个进程
+- 一个 all-in-one 管理平台容器
+- 一个进程或少量同容器进程
 - 一个关系库
 - 一个对象存储
 - 一个最小事件总线实现
+
+管理平台容器必须通过 `advertise_url` 对外声明自身可访问地址，用于生成安装 URL 和 agent bootstrap 配置。
+
+第一版推荐入口：
+
+```text
+operator runs warp-insight-platform container
+  -> platform generates install URL
+  -> agent installer writes enrollment_url / gateway_url / trust_bundle
+  -> agent enrolls and switches to mTLS control plane
+```
 
 但这不意味着 `Agent Gateway` 永远与其他模块共进程。
 
@@ -715,15 +789,18 @@ AI 不应直接拥有：
 控制中心第一版最小可用闭环建议固定为：
 
 1. agent 注册与租约
-2. capability report 接收
-3. `ActionTemplate` 管理
-4. `ActionRequest` 创建
-5. `ApprovalRecord` 流转
-6. `ActionPlan` 编译与签名
-7. `DispatchActionPlan` 下发
-8. `ActionPlanAck` 接收
-9. `ReportActionResult` 接收
-10. 审计归档与查询
+2. 管理平台安装 URL 生成
+3. bootstrap token 与 trust bundle 分发
+4. enrollment 与 client certificate 签发
+5. capability report 接收
+6. `ActionTemplate` 管理
+7. `ActionRequest` 创建
+8. `ApprovalRecord` 流转
+9. `ActionPlan` 编译与签名
+10. `DispatchActionPlan` 下发
+11. `ActionPlanAck` 接收
+12. `ReportActionResult` 接收
+13. 审计归档与查询
 
 如果这条链路未打通，不应宣称控制中心已经成立。
 
@@ -736,4 +813,6 @@ AI 不应直接拥有：
 - 控制中心是中心节点中的独立核心子系统
 - 控制中心第一版优先做控制闭环，不优先做大而全平台
 - 逻辑边界先拆清，物理部署允许单体起步
+- 第一版物理部署推荐 all-in-one 管理平台容器
+- 管理平台容器通过安装 URL 引导 agent 接入，不要求 agent 端口扫描
 - 中心编译签名、边缘执行回报的职责分工必须保持不变

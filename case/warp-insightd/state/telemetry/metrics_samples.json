@@ -1,0 +1,249 @@
+{
+  "generated_at": "2026-04-21T08:20:01.905181Z",
+  "samples": [
+    {
+      "metric_name": "system.target.count",
+      "value": {
+        "kind": "i64",
+        "value": 1
+      },
+      "value_type": "gauge_i64",
+      "unit": "1",
+      "collection_kind": "host_metrics",
+      "target_ref": "hostname:local-host:host",
+      "resource_ref": "hostname:local-host",
+      "metric_attributes": [
+        {
+          "key": "sample.status",
+          "value": "succeeded"
+        }
+      ],
+      "resource_attributes": [
+        {
+          "key": "resource.id",
+          "value": "hostname:local-host"
+        },
+        {
+          "key": "collection.kind",
+          "value": "host_metrics"
+        }
+      ]
+    },
+    {
+      "metric_name": "process.state",
+      "value": {
+        "kind": "text",
+        "value": "Ss"
+      },
+      "value_type": "gauge_string",
+      "unit": "state",
+      "collection_kind": "process_metrics",
+      "target_ref": "hostname:local-host:pid:1:ps_lstart:Fri Apr 17 00:39:27 2026:process",
+      "resource_ref": "hostname:local-host:pid:1:ps_lstart:Fri Apr 17 00:39:27 2026",
+      "metric_attributes": [
+        {
+          "key": "sample.status",
+          "value": "succeeded"
+        },
+        {
+          "key": "process.identity",
+          "value": "ps_lstart:Fri Apr 17 00:39:27 2026"
+        }
+      ],
+      "resource_attributes": [
+        {
+          "key": "resource.id",
+          "value": "hostname:local-host:pid:1:ps_lstart:Fri Apr 17 00:39:27 2026"
+        },
+        {
+          "key": "collection.kind",
+          "value": "process_metrics"
+        },
+        {
+          "key": "process.pid",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "metric_name": "process.memory.rss",
+      "value": {
+        "kind": "i64",
+        "value": 31936
+      },
+      "value_type": "gauge_i64",
+      "unit": "KiBy",
+      "collection_kind": "process_metrics",
+      "target_ref": "hostname:local-host:pid:1:ps_lstart:Fri Apr 17 00:39:27 2026:process",
+      "resource_ref": "hostname:local-host:pid:1:ps_lstart:Fri Apr 17 00:39:27 2026",
+      "metric_attributes": [
+        {
+          "key": "sample.status",
+          "value": "succeeded"
+        },
+        {
+          "key": "process.identity",
+          "value": "ps_lstart:Fri Apr 17 00:39:27 2026"
+        }
+      ],
+      "resource_attributes": [
+        {
+          "key": "resource.id",
+          "value": "hostname:local-host:pid:1:ps_lstart:Fri Apr 17 00:39:27 2026"
+        },
+        {
+          "key": "collection.kind",
+          "value": "process_metrics"
+        },
+        {
+          "key": "process.pid",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "metric_name": "process.state",
+      "value": {
+        "kind": "text",
+        "value": "Ss"
+      },
+      "value_type": "gauge_string",
+      "unit": "state",
+      "collection_kind": "process_metrics",
+      "target_ref": "hostname:local-host:pid:327:ps_lstart:Fri Apr 17 00:40:01 2026:process",
+      "resource_ref": "hostname:local-host:pid:327:ps_lstart:Fri Apr 17 00:40:01 2026",
+      "metric_attributes": [
+        {
+          "key": "sample.status",
+          "value": "succeeded"
+        },
+        {
+          "key": "process.identity",
+          "value": "ps_lstart:Fri Apr 17 00:40:01 2026"
+        }
+      ],
+      "resource_attributes": [
+        {
+          "key": "resource.id",
+          "value": "hostname:local-host:pid:327:ps_lstart:Fri Apr 17 00:40:01 2026"
+        },
+        {
+          "key": "collection.kind",
+          "value": "process_metrics"
+        },
+        {
+          "key": "process.pid",
+          "value": "327"
+        }
+      ]
+    },
+    {
+      "metric_name": "process.memory.rss",
+      "value": {
+        "kind": "i64",
+        "value": 122592
+      },
+      "value_type": "gauge_i64",
+      "unit": "KiBy",
+      "collection_kind": "process_metrics",
+      "target_ref": "hostname:local-host:pid:327:ps_lstart:Fri Apr 17 00:40:01 2026:process",
+      "resource_ref": "hostname:local-host:pid:327:ps_lstart:Fri Apr 17 00:40:01 2026",
+      "metric_attributes": [
+        {
+          "key": "sample.status",
+          "value": "succeeded"
+        },
+        {
+          "key": "process.identity",
+          "value": "ps_lstart:Fri Apr 17 00:40:01 2026"
+        }
+      ],
+      "resource_attributes": [
+        {
+          "key": "resource.id",
+          "value": "hostname:local-host:pid:327:ps_lstart:Fri Apr 17 00:40:01 2026"
+        },
+        {
+          "key": "collection.kind",
+          "value": "process_metrics"
+        },
+        {
+          "key": "process.pid",
+          "value": "327"
+        }
+      ]
+    },
+    {
+      "metric_name": "process.state",
+      "value": {
+        "kind": "text",
+        "value": "Ss"
+      },
+      "value_type": "gauge_string",
+      "unit": "state",
+      "collection_kind": "process_metrics",
+      "target_ref": "hostname:local-host:pid:328:ps_lstart:Fri Apr 17 00:40:01 2026:process",
+      "resource_ref": "hostname:local-host:pid:328:ps_lstart:Fri Apr 17 00:40:01 2026",
+      "metric_attributes": [
+        {
+          "key": "sample.status",
+          "value": "succeeded"
+        },
+        {
+          "key": "process.identity",
+          "value": "ps_lstart:Fri Apr 17 00:40:01 2026"
+        }
+      ],
+      "resource_attributes": [
+        {
+          "key": "resource.id",
+          "value": "hostname:local-host:pid:328:ps_lstart:Fri Apr 17 00:40:01 2026"
+        },
+        {
+          "key": "collection.kind",
+          "value": "process_metrics"
+        },
+        {
+          "key": "process.pid",
+          "value": "328"
+        }
+      ]
+    },
+    {
+      "metric_name": "process.memory.rss",
+      "value": {
+        "kind": "i64",
+        "value": 4368
+      },
+      "value_type": "gauge_i64",
+      "unit": "KiBy",
+      "collection_kind": "process_metrics",
+      "target_ref": "hostname:local-host:pid:328:ps_lstart:Fri Apr 17 00:40:01 2026:process",
+      "resource_ref": "hostname:local-host:pid:328:ps_lstart:Fri Apr 17 00:40:01 2026",
+      "metric_attributes": [
+        {
+          "key": "sample.status",
+          "value": "succeeded"
+        },
+        {
+          "key": "process.identity",
+          "value": "ps_lstart:Fri Apr 17 00:40:01 2026"
+        }
+      ],
+      "resource_attributes": [
+        {
+          "key": "resource.id",
+          "value": "hostname:local-host:pid:328:ps_lstart:Fri Apr 17 00:40:01 2026"
+        },
+        {
+          "key": "collection.kind",
+          "value": "process_metrics"
+        },
+        {
+          "key": "process.pid",
+          "value": "328"
+        }
+      ]
+    }
+  ]
+}

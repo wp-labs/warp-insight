@@ -1,0 +1,62 @@
+// WarpInsightAdmin 子系统用例
+
+// 获取 Agent 安装代码
+usecase GetAgentInstallCode {
+  meta {
+    label zh "获取 Agent 安装代码"
+    label en "Get Agent Install Code"
+    summary zh "公开安装调用方在 WarpInsightAdmin 安装页直接获取 X86-Linux 或 Arm-Linux 的 Agent 安装代码；页面不需要输入参数和管理员身份权限，代码可直接复制到服务器终端执行。"
+    tag "agent-install"
+    tag "install-code"
+    tag "public"
+  }
+
+  actor Control.PublicInstallClient
+  trigger Control.GetAgentInstallCode
+  outcome Control.AgentInstallCode
+}
+
+// 展示 Agent 的运行状态
+usecase ShowAgentRuntimeStatus {
+  meta {
+    label zh "展示 Agent 的运行状态"
+    label en "Show Agent Runtime Status"
+    summary zh "管理员在 WarpInsightAdmin 中查看已接入 Agent 的在线状态、版本、最后上报时间和健康状态。"
+    tag "agent-status"
+    tag "admin"
+  }
+
+  actor Control.AdminOperator
+  trigger Control.ShowAgentRuntimeStatus
+  outcome Control.AgentRuntimeStatusView
+}
+
+// 暂停 Agent
+usecase PauseAgent {
+  meta {
+    label zh "暂停 Agent"
+    label en "Pause Agent"
+    summary zh "管理员在 WarpInsightAdmin 控制中心选择目标 Agent，向业务服务器上的 WpAgent 下发暂停请求。"
+    tag "agent-pause"
+    tag "admin"
+  }
+
+  actor Control.AdminOperator
+  trigger Control.PauseAgent
+  outcome Control.DispatchReceipt
+}
+
+// 远程升级 Agent
+usecase UpgradeAgentRemotely {
+  meta {
+    label zh "远程升级 Agent"
+    label en "Upgrade Agent Remotely"
+    summary zh "管理员在 WarpInsightAdmin 中选择目标 Agent 和目标版本，向业务服务器上的 WpAgent 下发远程升级请求。"
+    tag "agent-upgrade"
+    tag "admin"
+  }
+
+  actor Control.AdminOperator
+  trigger Control.UpgradeAgent
+  outcome Control.DispatchReceipt
+}

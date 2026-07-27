@@ -1,0 +1,221 @@
+// WarpInsightAdmin Agent status reusable layout regions
+
+region ShowAgentRuntimeStatusUsecaseCard {
+  meta {
+    label zh "展示 Agent 运行状态卡片"
+    label en "Show Agent Runtime Status Card"
+    summary zh "控制中心的状态查询卡片，承载展示 Agent 运行状态用例的查询表单和结果。"
+    tag "admin"
+    tag "agent-status"
+    tag "usecase-card"
+  }
+
+  orientation vertical
+  contains ShowAgentRuntimeStatusUsecaseMeta { slot_trigger: ShowAgentRuntimeStatus, slot_outcome: AgentRuntimeStatusView }
+  contains ShowAgentRuntimeStatusForm
+  contains AgentRuntimeStatusResult
+}
+
+region ShowAgentRuntimeStatusForm {
+  meta {
+    label zh "运行状态查询表单"
+    label en "Runtime Status Form"
+    summary zh "输入 Agent ID，并触发 AdminShowAgentRuntimeStatus 查询 Agent 的运行状态。"
+    tag "admin"
+    tag "agent-status"
+    tag "form"
+  }
+
+  orientation vertical
+  contains RuntimeStatusAgentInput { slot_field: agent_id }
+  contains RefreshRuntimeStatusAction { slot_command: AdminShowAgentRuntimeStatus }
+  on activate emit AdminShowAgentRuntimeStatusRequested
+}
+
+region AgentRuntimeStatusResult {
+  meta {
+    label zh "Agent 运行状态结果"
+    label en "Agent Runtime Status Result"
+    summary zh "展示 Agent 实例、版本、在线状态、健康状态和最后上报时间。"
+    tag "admin"
+    tag "agent-status"
+    tag "result"
+  }
+
+  orientation grid
+  contains AgentInstanceText { area: agent_instance_text, row: 1, col: 1, width: 95%, slot_field: instance_id }
+  contains AgentVersionText { area: agent_version_text, row: 2, col: 1, width: 94%, slot_field: version }
+  contains AgentOnlineStatusBadge { area: agent_online_status_badge, row: 3, col: 1, width: 32%, slot_field: status }
+  contains AgentHealthBadge { area: agent_health_badge, row: 4, col: 1, width: 32%, slot_field: health }
+  contains AgentLastSeenAtText { area: agent_last_seen_at_text, row: 5, col: 1, width: 32%, slot_field: last_seen_at }
+}
+
+region AgentStatusSearchInput {
+  meta {
+    label zh "Agent 搜索输入"
+    label en "Agent Search Input"
+    summary zh "在首页按 agent_id 搜索 Agent 状态。"
+    tag "admin"
+    tag "input"
+    tag "agent-status"
+  }
+
+  orientation vertical
+}
+
+region AgentOnlineStatusFilter {
+  meta {
+    label zh "在线状态筛选"
+    label en "Online Status Filter"
+    summary zh "在首页按在线状态筛选 Agent。"
+    tag "admin"
+    tag "filter"
+    tag "agent-status"
+  }
+
+  orientation vertical
+}
+
+region AgentHealthStatusFilter {
+  meta {
+    label zh "健康状态筛选"
+    label en "Health Status Filter"
+    summary zh "在首页按健康状态筛选 Agent。"
+    tag "admin"
+    tag "filter"
+    tag "agent-status"
+  }
+
+  orientation vertical
+}
+
+region AgentVersionFilter {
+  meta {
+    label zh "版本筛选"
+    label en "Version Filter"
+    summary zh "在首页按 Agent 版本筛选状态列表。"
+    tag "admin"
+    tag "filter"
+    tag "agent-status"
+  }
+
+  orientation vertical
+}
+
+region ShowAgentRuntimeStatusUsecaseMeta {
+  meta {
+    label zh "运行状态用例说明"
+    label en "Runtime Status Usecase Meta"
+    summary zh "表达展示 Agent 运行状态用例的触发命令和输出结果。"
+    tag "admin"
+    tag "agent-status"
+    tag "usecase-meta"
+  }
+
+  orientation vertical
+}
+
+region RuntimeStatusAgentInput {
+  meta {
+    label zh "状态查询 Agent 输入"
+    label en "Runtime Status Agent Input"
+    summary zh "填写需要查看运行状态的 agent_id。"
+    tag "admin"
+    tag "input"
+    tag "agent-status"
+  }
+
+  orientation vertical
+}
+
+region RefreshRuntimeStatusAction {
+  meta {
+    label zh "刷新运行状态操作"
+    label en "Refresh Runtime Status Action"
+    summary zh "触发 AdminShowAgentRuntimeStatus 查询并刷新 Agent 运行状态。"
+    tag "admin"
+    tag "action"
+    tag "agent-status"
+  }
+
+  orientation horizontal
+}
+
+region AgentInstanceText {
+  meta {
+    label zh "Agent 实例"
+    label en "Agent Instance"
+    summary zh "展示 Agent 当前实例 ID。"
+    tag "admin"
+    tag "output"
+    tag "agent-status"
+  }
+
+  orientation vertical
+}
+
+region AgentVersionText {
+  meta {
+    label zh "Agent 版本"
+    label en "Agent Version"
+    summary zh "展示 Agent 当前运行版本。"
+    tag "admin"
+    tag "output"
+    tag "agent-status"
+  }
+
+  orientation vertical
+}
+
+region AgentOnlineStatusBadge {
+  meta {
+    label zh "在线状态"
+    label en "Online Status"
+    summary zh "展示 Agent 在线、离线或未知等连接状态。"
+    tag "admin"
+    tag "output"
+    tag "agent-status"
+  }
+
+  orientation horizontal
+}
+
+region AgentHealthBadge {
+  meta {
+    label zh "健康状态"
+    label en "Health Status"
+    summary zh "展示 Agent 当前健康状态。"
+    tag "admin"
+    tag "output"
+    tag "agent-status"
+  }
+
+  orientation horizontal
+}
+
+region AgentLastSeenAtText {
+  meta {
+    label zh "最后上报时间"
+    label en "Last Seen Time"
+    summary zh "展示 Agent 最近一次向管理平台上报状态的时间。"
+    tag "admin"
+    tag "output"
+    tag "agent-status"
+  }
+
+  orientation vertical
+}
+
+event AdminShowAgentRuntimeStatusRequested {
+  meta {
+    label zh "请求展示 Agent 运行状态"
+    label en "Agent Runtime Status Requested"
+    summary zh "AdminOperator 在运行状态表单中触发查询 Agent 运行状态。"
+    tag "admin"
+    tag "agent-status"
+    tag "ui-event"
+  }
+
+  agent_id
+  requested_by
+}
