@@ -1,0 +1,52 @@
+module<pipeline> Collect {
+  meta {
+    label zh "采集管线"
+    label en "Collection Pipeline"
+    summary zh "负责日志采集、Metric 采集、多行折叠、遥测缓冲、WarpParse 摄入头和采集位点管理。"
+    tag "agent"
+    tag "collection"
+  }
+
+  layer Domain
+  owns CollectLogs
+  owns CollectMetrics
+  owns FileInputConfig
+  owns FileInputProcessor
+  owns ProcessOutcome
+  owns ProcessOutcomeKind
+  owns RawFileLine
+  owns ReadFromOffset
+  owns StartupPosition
+  owns ResumeDecision
+  owns IfEmptyThen
+  owns MultilineMode
+  owns FoldedLine
+  owns FoldResult
+  owns RecordSink
+  owns TelemetryRecordSink
+  owns FileRecordSink
+  owns TcpRecordSink
+  owns TcpFraming
+  owns StageResult
+  owns TelemetryBuffer
+  owns MetricsRuntimeSnapshot
+  owns MetricsCollectionOutcome
+  owns MetricsCollectionTargetSample
+  owns MetricsSamplesSnapshot
+  owns MetricsSampleGroup
+  owns MetricsSampleRecord
+  owns MetricsTargetView
+  owns MetricsTargetViewEntry
+  owns WarpParseIngestHead
+  owns WarpParseIngestMessageKind
+  owns WarpParseIngestEncoding
+  owns WarpParseIngestCompression
+  owns LogCheckpointState
+  owns PendingMultilineState
+  owns TrackedFileCheckpoint
+  owns PendingCheckpoint
+  owns RuntimeState
+  owns CollectedReadBatch
+  owns DeliveryOutcome
+  responsible_for "数据采集管线：日志文件输入、多行折叠、缓冲输出、Metrics 采集、WarpParse 摄入、位点管理"
+}

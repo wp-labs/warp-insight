@@ -1,0 +1,21 @@
+module<service> AgentCommandControl {
+  meta {
+    label zh "Agent 控制指令"
+    label en "Agent Command Control"
+    summary zh "负责管理员控制意图、Agent 下行指令类型和长轮询返回结果。"
+    tag "control"
+    tag "agentd"
+    tag "command"
+  }
+
+  layer Application
+  owns PauseAgent
+  owns UpgradeAgent
+  owns RefreshPolicyHint
+  owns RotateIdentityHint
+  owns AgentControlCommand
+  owns DispatchReceipt
+  owns ControlCommandsReturned
+  owns ControlLongPollTimedOut
+  responsible_for "Agent 控制指令：管理员控制意图、统一下行控制指令、派发回执、轮询返回结果；执行结果回执由 Reporting.ActionResultReceipt 表达。"
+}

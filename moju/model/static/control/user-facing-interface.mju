@@ -1,0 +1,335 @@
+// Module: UserFacingInterface — 用户侧服务接口
+
+message<command> AdminGetAgentInstallCode {
+}
+
+message<command> AdminShowAgentRuntimeStatus {
+  agent_id: String
+  requested_by: String
+}
+
+message<command> AdminGetAgentOverview {
+  requested_by: String
+}
+
+message<command> AdminPauseAgent {
+  agent_id: String
+  requested_by: String
+}
+
+message<command> AdminUpgradeAgent {
+  agent_id: String
+  target_version: String
+  requested_by: String
+}
+
+message<response> AdminAgentInstallCodeReturned {
+  install_code: AgentInstallCode
+}
+
+message<response> AdminAgentRuntimeStatusReturned {
+  status: AgentRuntimeStatusView
+}
+
+message<response> AdminAgentOverviewReturned {
+  overview: AgentOverview
+}
+
+message<response> AdminPauseAgentDispatchReturned {
+  result: DispatchReceipt
+}
+
+message<response> AdminUpgradeAgentDispatchReturned {
+  result: DispatchReceipt
+}
+
+interface WarpInsightAdminPublicInstallInterface {
+  meta {
+    label zh "WarpInsightAdmin 公开安装接口"
+    label en "WarpInsightAdmin Public Install Interface"
+    summary zh "无需管理员身份权限即可读取 Agent 安装代码的公开引导接口，仅用于安装脚本复制和 bootstrap 引导。"
+    tag "public"
+    tag "bootstrap"
+    tag "agent-install"
+    tag "web"
+    tag "interface"
+  }
+
+  entry AdminGetAgentInstallCode {
+    actor OperationsEngineer
+    output AdminAgentInstallCodeReturned
+    calls AdminGetAgentInstallCodeFlow
+  }
+}
+
+interface WarpInsightAdminManagementInterface {
+  meta {
+    label zh "WarpInsightAdmin 管理接口"
+    label en "WarpInsightAdmin Management Interface"
+    summary zh "需要管理员身份权限的 Web 管理接口，覆盖 Agent 运行状态查询、暂停和远程升级操作。"
+    tag "admin"
+    tag "authenticated"
+    tag "web"
+    tag "interface"
+  }
+
+  entry AdminShowAgentRuntimeStatus {
+    actor AdminOperator
+    output AdminAgentRuntimeStatusReturned
+    calls AdminShowAgentRuntimeStatusFlow
+  }
+
+  entry AdminGetAgentOverview {
+    actor AdminOperator
+    output AdminAgentOverviewReturned
+    calls AdminGetAgentOverviewFlow
+  }
+
+  entry AdminPauseAgent {
+    actor AdminOperator
+    output AdminPauseAgentDispatchReturned
+    calls AdminPauseAgentFlow
+  }
+
+  entry AdminUpgradeAgent {
+    actor AdminOperator
+    output AdminUpgradeAgentDispatchReturned
+    calls AdminUpgradeAgentFlow
+  }
+}
+
+flow AdminGetAgentInstallCodeFlow {
+  meta {
+    label zh "获取 Agent 安装代码"
+    label en "Get Agent Install Code Flow"
+    summary zh "公开安装调用方获取可复制执行的 Agent 安装代码，返回 X86-Linux 和 Arm-Linux 两类安装命令。"
+    tag "admin"
+    tag "agent-install"
+    tag "public"
+  }
+
+  actor OperationsEngineer
+  trigger AdminGetAgentInstallCode
+
+  creates AgentBootstrapBundle
+  creates AgentInstallCode
+
+  step BuildInstallCode {
+    create AgentBootstrapBundle {
+      bundle_id = "agent-bootstrap-default"
+      install_script_url = "https://warp-insight-admin/x86/install.sh"
+      control_endpoint = "https://warp-insight-admin"
+      trust_bundle = "internal-ca"
+      tenant_id = "tenant-default"
+      environment_id = "env-default"
+      expires_at = "2026-07-05T00:00:00Z"
+    }
+
+    create AgentInstallCode {
+      x86_linux_install_code = "https://warp-insight-admin/x86/install.sh | bash"
+      arm_linux_install_code = "https://warp-insight-admin/arm/install.sh | bash"
+      bootstrap_bundle = "agent-bootstrap-default"
+    }
+  }
+}
+
+flow AdminShowAgentRuntimeStatusFlow {
+  meta {
+    label zh "展示 Agent 运行状态"
+    label en "Show Agent Runtime Status Flow"
+    summary zh "管理员查询指定 Agent 的运行状态，并聚合生成管理端展示所需的运行状态视图。"
+    tag "admin"
+    tag "agent-status"
+    tag "runtime-view"
+  }
+
+  actor AdminOperator
+  trigger AdminShowAgentRuntimeStatus
+
+  depends AgentInstance, AgentRuntimeStatusView
+
+  step BuildRuntimeStatusView {
+    create AgentRuntimeStatusView {
+      agent_id = AdminShowAgentRuntimeStatus.agent_id
+      status = "online"
+    }
+  }
+}
+
+flow AdminGetAgentOverviewFlow {
+  meta {
+    label zh "获取 Agent 总览"
+    label en "Get Agent Overview Flow"
+    summary zh "管理员打开 WarpInsightAdmin 首页时，聚合 Agent 状态指标、最近上线注册 Agent 和异常 Agent 列表。"
+    tag "admin"
+    tag "agent-status"
+    tag "overview"
+    tag "homepage"
+  }
+
+  actor AdminOperator
+  trigger AdminGetAgentOverview
+
+  depends AgentInstance, AgentRuntimeStatusView
+
+  creates AgentOverviewMetrics
+  creates RecentOnlineRegisteredAgent
+  creates AgentOverview
+
+  step BuildAgentOverview {
+    create AgentOverviewMetrics {
+      total_agents = 9
+      online_agents = 7
+      unhealthy_agents = 2
+      last_seen_lag_seconds = 42
+    }
+
+    create RecentOnlineRegisteredAgent {
+      agent_id = "agent-recent-001"
+      instance_id = "agent-recent-001/boot-20260728"
+      version = "0.1.0"
+      registered_at = "2026-07-28T08:00:00Z"
+      online_since = "2026-07-28T08:05:00Z"
+      online_duration_seconds = 5400
+    }
+
+    create AgentOverview {
+      metrics = AgentOverviewMetrics
+      recent_online_agents = RecentOnlineRegisteredAgent
+      abnormal_agents = AgentRuntimeStatusView
+    }
+  }
+}
+
+flow AdminPauseAgentFlow {
+  meta {
+    label zh "提交暂停 Agent 指令"
+    label en "Submit Pause Agent Command Flow"
+    summary zh "管理员提交暂停 Agent 请求，控制指令编排生成暂停派发回执。"
+    tag "admin"
+    tag "agent-command"
+    tag "pause"
+  }
+
+  actor AdminOperator
+  trigger AdminPauseAgent
+
+  depends AgentInstance
+
+  creates AgentControlCommand
+  creates DispatchReceipt
+
+  step AcceptPauseRequest {
+    create AgentControlCommand {
+      command_id = "admin-pause-command"
+      agent_id = AdminPauseAgent.agent_id
+      command_kind = "pause"
+      requested_by = AdminPauseAgent.requested_by
+      issued_at = "now"
+    }
+
+    create DispatchReceipt {
+      agent_id = AdminPauseAgent.agent_id
+      command_id = "admin-pause-command"
+      dispatch_id = "admin-pause-dispatch"
+      status = "accepted"
+      created_at = "now"
+    }
+  }
+}
+
+flow AdminUpgradeAgentFlow {
+  meta {
+    label zh "提交升级 Agent 指令"
+    label en "Submit Upgrade Agent Command Flow"
+    summary zh "管理员提交远程升级 Agent 请求，控制指令编排生成升级派发回执。"
+    tag "admin"
+    tag "agent-command"
+    tag "upgrade"
+  }
+
+  actor AdminOperator
+  trigger AdminUpgradeAgent
+
+  depends AgentInstance
+
+  creates AgentControlCommand
+  creates DispatchReceipt
+
+  step AcceptUpgradeRequest {
+    create AgentControlCommand {
+      command_id = "admin-upgrade-command"
+      agent_id = AdminUpgradeAgent.agent_id
+      target_version = AdminUpgradeAgent.target_version
+      command_kind = "upgrade"
+      requested_by = AdminUpgradeAgent.requested_by
+      issued_at = "now"
+    }
+
+    create DispatchReceipt {
+      agent_id = AdminUpgradeAgent.agent_id
+      command_id = "admin-upgrade-command"
+      dispatch_id = "admin-upgrade-dispatch"
+      status = "accepted"
+      created_at = "now"
+    }
+  }
+}
+
+verify AdminGetAgentInstallCodeVerified for flow AdminGetAgentInstallCodeFlow {
+  given {
+  }
+
+  when AdminGetAgentInstallCode
+
+  expect {
+    AgentBootstrapBundle.bundle_id == "agent-bootstrap-default"
+    AgentInstallCode.bootstrap_bundle == "agent-bootstrap-default"
+  }
+}
+
+verify AdminGetAgentOverviewVerified for flow AdminGetAgentOverviewFlow {
+  given {
+    AdminGetAgentOverview.requested_by = "admin-operator"
+  }
+
+  when AdminGetAgentOverview
+
+  expect {
+    AgentOverviewMetrics.total_agents == 9
+    AgentOverviewMetrics.online_agents == 7
+    AgentOverviewMetrics.unhealthy_agents == 2
+    RecentOnlineRegisteredAgent.online_duration_seconds == 5400
+    AgentOverview.recent_online_agents == RecentOnlineRegisteredAgent
+    AgentOverview.abnormal_agents == AgentRuntimeStatusView
+  }
+}
+
+verify AdminPauseAgentDispatched for flow AdminPauseAgentFlow {
+  given {
+    AdminPauseAgent.agent_id = "agent-issued"
+    AdminPauseAgent.requested_by = "admin-operator"
+  }
+
+  when AdminPauseAgent
+
+  expect {
+    AgentControlCommand.command_kind == "pause"
+    DispatchReceipt.status == "accepted"
+  }
+}
+
+verify AdminUpgradeAgentDispatched for flow AdminUpgradeAgentFlow {
+  given {
+    AdminUpgradeAgent.agent_id = "agent-issued"
+    AdminUpgradeAgent.target_version = "v1.2.0"
+    AdminUpgradeAgent.requested_by = "admin-operator"
+  }
+
+  when AdminUpgradeAgent
+
+  expect {
+    AgentControlCommand.command_kind == "upgrade"
+    DispatchReceipt.status == "accepted"
+  }
+}

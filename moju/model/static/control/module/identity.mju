@@ -1,0 +1,26 @@
+module<service> Identity {
+  meta {
+    label zh "Agent 身份"
+    label en "Agent Identity"
+    summary zh "负责 Agent 身份、宿主机画像、证书凭据与身份生命周期。"
+    tag "control"
+    tag "identity"
+  }
+
+  layer Domain
+  owns AgentIdentity
+  owns AgentIdentityStatus
+  owns AgentHostProfile
+  owns AgentCredentialBundle
+  owns AgentControlAuthProfile
+  owns RenewAgentCredential
+  owns VerifyAgentCredential
+  owns AgentCredentialVerificationResult
+  owns AgentCredentialVerificationStatus
+  owns AgentCredentialIssued
+  owns AgentCredentialRevoked
+  owns AgentCredentialVerified
+  owns AgentCredentialRejected
+  owns VerifyAgentCredentialFlow
+  responsible_for "Agent 身份与凭据生命周期：agent_id、宿主机画像、通讯凭据签发、校验、续期和吊销"
+}

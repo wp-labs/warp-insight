@@ -1,0 +1,32 @@
+module<worker> Execute {
+  meta {
+    label zh "受控执行"
+    label en "Controlled Execution"
+    summary zh "负责远程 action 的本地队列、调度、执行、隔离、运行状态和进度记录。"
+    tag "agent"
+    tag "execution"
+  }
+
+  layer Domain
+  owns SchedulerRequest
+  owns SchedulerOutcome
+  owns DrainRequest
+  owns DrainOutcome
+  owns QueueHeadContext
+  owns QueueHeadDisposition
+  owns ExecutionQueueState
+  owns ExecutionQueueItem
+  owns ExecutionQueueItemBuilder
+  owns LocalExecRequest
+  owns LocalExecOutcome
+  owns ExitClassification
+  owns QuarantineRequest
+  owns RunningExecutionState
+  owns RunningExecutionStateBuilder
+  owns ProcessIdentityState
+  owns AgentRuntimeState
+  owns RuntimeMode
+  owns ExecRuntimeContext
+  owns ExecProgressState
+  responsible_for "Action 调度执行与状态管理：队列、子进程、运行时状态、执行进度"
+}

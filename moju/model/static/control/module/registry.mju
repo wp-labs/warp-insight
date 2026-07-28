@@ -1,0 +1,16 @@
+module<service> Registry {
+  meta {
+    label zh "Agent 登记簿"
+    label en "Agent Registry"
+    summary zh "负责 Agent 登记索引、能力索引、策略绑定和初始配置等控制域核心事实。"
+    tag "control"
+    tag "registry"
+  }
+
+  layer Domain
+  owns AgentRegistryEntry
+  owns AgentCapabilityIndex
+  owns AgentPolicyBinding
+  owns AgentInitialConfig
+  responsible_for "控制域登记簿：agent 登记索引、能力索引、策略绑定和初始配置；身份状态由 AgentIdentityStatus 表达。"
+}

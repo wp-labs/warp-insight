@@ -1,0 +1,27 @@
+module<pipeline> Pipeline {
+  meta {
+    label zh "上报管线"
+    label en "Reporting Pipeline"
+    summary zh "负责报告准备、检查、导出、执行历史、Daemon 主循环和运行状态编排。"
+    tag "reporting"
+    tag "pipeline"
+  }
+
+  layer Application
+  owns ReportingRequest
+  owns PreparedReport
+  owns PreparedReportOrigin
+  owns LocalReportIssue
+  owns LocalReportInspection
+  owns ReportingState
+  owns ExporterOutput
+  owns ExporterSource
+  owns ExportResult
+  owns DiscRowContext
+  owns ExecutionHistoryRecord
+  owns DaemonLoop
+  owns DiscoveryHealth
+  owns SignalRequestKind
+  owns RunningStateStatus
+  responsible_for "上报管线与编排：报告准备/检查/导出、执行历史、Daemon 主循环"
+}

@@ -1,117 +1,5 @@
 {
   "diagrams": {
-    "structure_graph_v2::module::Observed.Snapshot": {
-      "pan": {
-        "x": 0.0,
-        "y": -0.0
-      },
-      "nodes": {
-        "struct:Observed.DiscoverySnapshotContract": {
-          "x": 539.6133,
-          "y": -32.875
-        },
-        "struct:Observed.DiscoveryCacheMeta": {
-          "x": 889.21484,
-          "y": -283.59375
-        },
-        "struct:Observed.StringKeyValue": {
-          "x": 921.01953,
-          "y": -24.570312
-        },
-        "struct:Observed.DiscoveryOrigin": {
-          "x": 235.11328,
-          "y": -32.875
-        },
-        "struct:Observed.DiscoveredTarget": {
-          "x": 539.6133,
-          "y": -292.40234
-        },
-        "struct:Observed.CandidateCollectionTarget": {
-          "x": 235.11328,
-          "y": -514.9375
-        },
-        "struct:Observed.DiscoveredResource": {
-          "x": 235.11328,
-          "y": -283.59375
-        }
-      },
-      "sizes": {},
-      "scales": {},
-      "fills": {},
-      "options": {}
-    },
-    "structure_graph_v2::module::Control.Enrollment": {
-      "pan": {
-        "x": 0.0,
-        "y": -61.274178
-      },
-      "nodes": {
-        "struct:Control.AgentEnrollmentAuthProfile": {
-          "x": 914.52734,
-          "y": 315.28906
-        },
-        "struct:Control.AgentInstallCode": {
-          "x": 219.46875,
-          "y": 209.92969
-        },
-        "struct:Control.AgentEnrollmentResult": {
-          "x": 516.53516,
-          "y": 436.08203
-        },
-        "struct:Control.AgentBootstrapBundle": {
-          "x": 503.97656,
-          "y": 209.92969
-        },
-        "struct:Control.AgentEnrollmentToken": {
-          "x": 232.03516,
-          "y": 401.4453
-        },
-        "struct:Control.AgentEnrollmentResultStatus": {
-          "x": 855.59766,
-          "y": 505.66797
-        },
-        "struct:Control.AgentEnrollmentTokenStatus": {
-          "x": 545.21875,
-          "y": 608.0781
-        }
-      },
-      "sizes": {},
-      "scales": {},
-      "fills": {},
-      "options": {}
-    },
-    "structure_graph_v2::module::Control.Identity": {
-      "pan": {
-        "x": 0.0,
-        "y": -0.0
-      },
-      "nodes": {
-        "struct:Control.AgentCredentialBundle": {
-          "x": 218.60938,
-          "y": 202.58984
-        },
-        "struct:Control.AgentControlAuthProfile": {
-          "x": 495.0547,
-          "y": 361.65234
-        },
-        "struct:Control.AgentCredentialVerificationResult": {
-          "x": 201.16016,
-          "y": 458.5586
-        },
-        "struct:Control.AgentHostProfile": {
-          "x": 787.0156,
-          "y": 403.96484
-        },
-        "struct:Control.AgentIdentityStatus": {
-          "x": 495.0547,
-          "y": 75.65234
-        }
-      },
-      "sizes": {},
-      "scales": {},
-      "fills": {},
-      "options": {}
-    },
     "deployment_v2": {
       "pan": {
         "x": 0.0,
@@ -126,6 +14,10 @@
           "x": 812.0547,
           "y": 304.875
         },
+        "node:AgentHost2": {
+          "x": 865.6914,
+          "y": 442.3711
+        },
         "node:ManagementPlatformHost": {
           "x": 435.35547,
           "y": 364.96094
@@ -133,10 +25,6 @@
         "node:AgentHost1": {
           "x": 853.2461,
           "y": 226.99219
-        },
-        "node:AgentHost2": {
-          "x": 865.6914,
-          "y": 442.3711
         }
       },
       "sizes": {
@@ -145,199 +33,6 @@
           "y": 561.0586
         }
       },
-      "scales": {},
-      "fills": {},
-      "options": {}
-    },
-    "flow_v2:Observed.CreateSnapshotFlow": {
-      "pan": {
-        "x": 0.0,
-        "y": -7.1421986
-      },
-      "nodes": {},
-      "sizes": {},
-      "scales": {},
-      "fills": {},
-      "options": {}
-    },
-    "region_nested_v2": {
-      "pan": {
-        "x": 0.0,
-        "y": -0.0
-      },
-      "nodes": {},
-      "sizes": {
-        "region:System.WarpInsightAdmin.AdminHomePage/System.WarpInsightAdmin.AgentStatusFleetView/System.WarpInsightAdmin.AgentStatusDetailPanel": {
-          "x": 1014.8375,
-          "y": 652.3086
-        },
-        "region:System.WarpInsightAdmin.AdminHomePage/System.WarpInsightAdmin.AgentStatusFleetView/System.WarpInsightAdmin.AgentStatusDetailPanel/System.WarpInsightAdmin.AgentRuntimeStatusResult/System.WarpInsightAdmin.AgentInstanceText": {
-          "x": 827.2479,
-          "y": 105.921875
-        },
-        "region:System.WarpInsightAdmin.AdminHomePage/System.WarpInsightAdmin.AgentStatusFleetView/System.WarpInsightAdmin.AgentStatusFilterBar": {
-          "x": 1045.5938,
-          "y": 246.30078
-        }
-      },
-      "scales": {},
-      "fills": {},
-      "options": {}
-    },
-    "structure_graph_v2::module::Control.Protocol": {
-      "pan": {
-        "x": 0.0,
-        "y": 0.0
-      },
-      "nodes": {
-        "struct:Control.AgentUpstreamMessageType": {
-          "x": 160.0,
-          "y": 173.44531
-        }
-      },
-      "sizes": {},
-      "scales": {},
-      "fills": {},
-      "options": {}
-    },
-    "structure_graph_v2::module::Discovery.Collect": {
-      "pan": {
-        "x": 0.0,
-        "y": 3650.7566
-      },
-      "nodes": {
-        "struct:Discovery.FileRecordSink": {
-          "x": 692.82715,
-          "y": 335.1748
-        },
-        "struct:Discovery.LogCheckpointState": {
-          "x": 1068.4326,
-          "y": 579.3386
-        },
-        "struct:Discovery.FoldedLine": {
-          "x": 280.53223,
-          "y": 579.3386
-        },
-        "struct:Discovery.IfEmptyThen": {
-          "x": 692.82715,
-          "y": 571.01636
-        },
-        "struct:Discovery.MetricsSampleGroup": {
-          "x": 259.1504,
-          "y": 844.2405
-        },
-        "struct:Discovery.MetricsSampleRecord": {
-          "x": 661.83594,
-          "y": 1092.7874
-        },
-        "struct:Discovery.MetricsCollectionTargetSample": {
-          "x": 653.6865,
-          "y": 876.2405
-        },
-        "struct:Discovery.CollectedReadBatch": {
-          "x": 332.417,
-          "y": 59.058594
-        },
-        "struct:Discovery.MetricsCollectionOutcome": {
-          "x": 1035.669,
-          "y": 974.32837
-        },
-        "struct:Discovery.MetricsSamplesSnapshot": {
-          "x": 1035.669,
-          "y": 1133.5588
-        },
-        "struct:Discovery.FileInputConfig": {
-          "x": 1043.6182,
-          "y": 59.058594
-        },
-        "struct:Discovery.FoldResult": {
-          "x": 1051.748,
-          "y": 335.1748
-        },
-        "struct:Discovery.DeliveryOutcome": {
-          "x": 671.43066,
-          "y": 45.117188
-        },
-        "struct:Discovery.FileInputProcessor": {
-          "x": 299.6582,
-          "y": 335.1748
-        },
-        "struct:Discovery.MetricsRuntimeSnapshot": {
-          "x": 1035.669,
-          "y": 826.37036
-        }
-      },
-      "sizes": {},
-      "scales": {},
-      "fills": {},
-      "options": {}
-    },
-    "structure_graph_v2::module::Discovery.Execute": {
-      "pan": {
-        "x": 0.0,
-        "y": -5094.04
-      },
-      "nodes": {
-        "struct:Discovery.SchedulerRequest": {
-          "x": 537.3242,
-          "y": 3046.374
-        },
-        "struct:Discovery.RuntimeMode": {
-          "x": 537.3242,
-          "y": 2842.4844
-        },
-        "struct:Discovery.SchedulerOutcome": {
-          "x": 208.50586,
-          "y": 3059.0654
-        }
-      },
-      "sizes": {},
-      "scales": {},
-      "fills": {},
-      "options": {}
-    },
-    "layer_diagram_v2": {
-      "pan": {
-        "x": -1.0,
-        "y": 0.0
-      },
-      "nodes": {
-        "module:Control.AgentFacingInterface": {
-          "x": 729.2851,
-          "y": 176.09375
-        },
-        "layer:Domain": {
-          "x": 713.33203,
-          "y": 334.28125
-        },
-        "layer:Infra": {
-          "x": 713.33203,
-          "y": 524.1211
-        },
-        "module:Control.UserFacingInterface": {
-          "x": 1110.4062,
-          "y": 173.48047
-        }
-      },
-      "sizes": {},
-      "scales": {},
-      "fills": {},
-      "options": {
-        "layer_width": "1186.664"
-      }
-    },
-    "structure_graph_v2::module::Control.AgentdStatusManagement": {
-      "pan": {
-        "x": 0.0,
-        "y": 0.0
-      },
-      "nodes": {
-        "struct:Control.AgentRuntimeStatusView": {
-          "x": 541.63904,
-          "y": 101.03516
-        }
-      },
-      "sizes": {},
       "scales": {},
       "fills": {},
       "options": {}
@@ -362,12 +57,81 @@
       "fills": {},
       "options": {}
     },
-    "flow_v2:Control.AgentdRegistrationFlow": {
+    "structure_graph_v2::module::Control.AgentdStatusManagement": {
+      "pan": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "nodes": {
+        "struct:Control.AgentRuntimeStatusView": {
+          "x": 550.0,
+          "y": 416.26172
+        }
+      },
+      "sizes": {},
+      "scales": {},
+      "fills": {},
+      "options": {}
+    },
+    "events_v2": {
       "pan": {
         "x": 0.0,
         "y": -0.0
       },
-      "nodes": {},
+      "nodes": {
+        "event:Control.ControlCommandsReturned": {
+          "x": 190.98828,
+          "y": 208.17969
+        },
+        "event:Control.ControlLongPollTimedOut": {
+          "x": 181.7461,
+          "y": 569.02344
+        },
+        "event:Control.AgentEnrollmentAccepted": {
+          "x": 1074.5742,
+          "y": 1045.0
+        }
+      },
+      "sizes": {},
+      "scales": {},
+      "fills": {},
+      "options": {}
+    },
+    "structure_graph_v2::module::Observed.Snapshot": {
+      "pan": {
+        "x": 0.0,
+        "y": -0.0
+      },
+      "nodes": {
+        "struct:Observed.DiscoveredResource": {
+          "x": 235.11328,
+          "y": -283.59375
+        },
+        "struct:Observed.DiscoveryCacheMeta": {
+          "x": 889.21484,
+          "y": -283.59375
+        },
+        "struct:Observed.DiscoveryOrigin": {
+          "x": 235.11328,
+          "y": -32.875
+        },
+        "struct:Observed.DiscoverySnapshotContract": {
+          "x": 539.6133,
+          "y": -32.875
+        },
+        "struct:Observed.DiscoveredTarget": {
+          "x": 539.6133,
+          "y": -292.40234
+        },
+        "struct:Observed.StringKeyValue": {
+          "x": 921.01953,
+          "y": -24.570312
+        },
+        "struct:Observed.CandidateCollectionTarget": {
+          "x": 235.11328,
+          "y": -514.9375
+        }
+      },
       "sizes": {},
       "scales": {},
       "fills": {},
@@ -379,13 +143,13 @@
         "y": 0.0
       },
       "nodes": {
-        "usecase:System.WpAgent.RegisterWithManagementCenter": {
-          "x": 595.9531,
-          "y": 283.76953
-        },
         "usecase:System.WpAgent.CollectMetrics": {
           "x": 507.6836,
           "y": 106.08984
+        },
+        "usecase:System.WpAgent.RegisterWithManagementCenter": {
+          "x": 595.9531,
+          "y": 283.76953
         },
         "usecase:System.WpAgent.CollectLogs": {
           "x": 326.54688,
@@ -401,16 +165,516 @@
       "fills": {},
       "options": {}
     },
+    "flow_v2:Observed.CreateSnapshotFlow": {
+      "pan": {
+        "x": 0.0,
+        "y": -7.1421986
+      },
+      "nodes": {},
+      "sizes": {},
+      "scales": {},
+      "fills": {},
+      "options": {}
+    },
+    "flow_v2:Control.AgentdRegistrationFlow": {
+      "pan": {
+        "x": 0.0,
+        "y": -0.0
+      },
+      "nodes": {},
+      "sizes": {},
+      "scales": {},
+      "fills": {},
+      "options": {}
+    },
+    "structure_graph_v2::module::Control.AgentCommandControl": {
+      "pan": {
+        "x": 0.0,
+        "y": -0.0
+      },
+      "nodes": {
+        "struct:Control.AgentControlCommand": {
+          "x": 299.58203,
+          "y": 212.76562
+        },
+        "struct:Control.DispatchReceipt": {
+          "x": 567.8008,
+          "y": 246.21484
+        }
+      },
+      "sizes": {},
+      "scales": {},
+      "fills": {},
+      "options": {}
+    },
+    "region_nested_v2": {
+      "pan": {
+        "x": 0.0,
+        "y": -0.0
+      },
+      "nodes": {},
+      "sizes": {
+        "region:System.WarpInsightAdmin.AdminHomePage/System.WarpInsightAdmin.AgentStatusFleetView/System.WarpInsightAdmin.AgentStatusFilterBar": {
+          "x": 1045.5938,
+          "y": 246.30078
+        },
+        "region:System.WarpInsightAdmin.AdminHomePage/System.WarpInsightAdmin.AgentStatusFleetView/System.WarpInsightAdmin.AgentStatusDetailPanel/System.WarpInsightAdmin.AgentRuntimeStatusResult/System.WarpInsightAdmin.AgentInstanceText": {
+          "x": 827.2479,
+          "y": 105.921875
+        },
+        "region:System.WarpInsightAdmin.AdminHomePage/System.WarpInsightAdmin.AgentStatusFleetView/System.WarpInsightAdmin.AgentStatusDetailPanel": {
+          "x": 1014.8375,
+          "y": 652.3086
+        }
+      },
+      "scales": {},
+      "fills": {},
+      "options": {}
+    },
+    "structure_graph_v2::module::Control.Enrollment": {
+      "pan": {
+        "x": 0.0,
+        "y": -61.274178
+      },
+      "nodes": {
+        "struct:Control.AgentEnrollmentResult": {
+          "x": 516.53516,
+          "y": 436.08203
+        },
+        "struct:Control.AgentInstallCode": {
+          "x": 219.46875,
+          "y": 209.92969
+        },
+        "struct:Control.AgentEnrollmentTokenStatus": {
+          "x": 545.21875,
+          "y": 608.0781
+        },
+        "struct:Control.AgentEnrollmentToken": {
+          "x": 232.03516,
+          "y": 401.4453
+        },
+        "struct:Control.AgentEnrollmentAuthProfile": {
+          "x": 914.52734,
+          "y": 315.28906
+        },
+        "struct:Control.AgentBootstrapBundle": {
+          "x": 503.97656,
+          "y": 209.92969
+        },
+        "struct:Control.AgentEnrollmentResultStatus": {
+          "x": 855.59766,
+          "y": 505.66797
+        }
+      },
+      "sizes": {},
+      "scales": {},
+      "fills": {},
+      "options": {}
+    },
+    "structure_graph_v2::module::Discovery.Config": {
+      "pan": {
+        "x": 0.0,
+        "y": 518.6249
+      },
+      "nodes": {
+        "struct:Discovery.EnsuredConfigFile": {
+          "x": 228.99414,
+          "y": 1020.125
+        },
+        "struct:Discovery.ConfigError": {
+          "x": 540.625,
+          "y": 245.68945
+        },
+        "struct:Discovery.PathsSection": {
+          "x": 875.32227,
+          "y": 1772.6038
+        },
+        "struct:Discovery.DiscoverySection": {
+          "x": 517.4121,
+          "y": 404.5254
+        },
+        "struct:Discovery.LogFileInputSection": {
+          "x": 823.58887,
+          "y": 1069.1953
+        },
+        "struct:Discovery.LogsFileOutputSection": {
+          "x": 199.34082,
+          "y": 1648.8184
+        },
+        "struct:Discovery.LogsOutputSection": {
+          "x": 505.21973,
+          "y": 1648.8184
+        },
+        "struct:Discovery.LogsTcpOutputSection": {
+          "x": 532.2461,
+          "y": 1932.2874
+        },
+        "struct:Discovery.ControlPlaneSection": {
+          "x": 220.09766,
+          "y": 327.7002
+        },
+        "struct:Discovery.ExecutionSection": {
+          "x": 532.2461,
+          "y": 1043.2979
+        },
+        "struct:Discovery.AgentSection": {
+          "x": 540.625,
+          "y": 101.13962
+        },
+        "struct:Discovery.LogsSection": {
+          "x": 199.34082,
+          "y": 1813.1965
+        }
+      },
+      "sizes": {},
+      "scales": {},
+      "fills": {},
+      "options": {}
+    },
+    "actor_hierarchy_v2": {
+      "pan": {
+        "x": 0.0,
+        "y": -131.06125
+      },
+      "nodes": {
+        "command:Control.VerifyAgentCredential": {
+          "x": 542.5547,
+          "y": 621.1094
+        },
+        "actor:Control.OperationsEngineer": {
+          "x": 190.35938,
+          "y": 820.2422
+        },
+        "actor:Control.Agentd": {
+          "x": 181.96875,
+          "y": 510.91797
+        },
+        "flow:Control.VerifyAgentCredentialFlow": {
+          "x": 972.2617,
+          "y": 621.1094
+        },
+        "command:Control.AdminGetAgentInstallCode": {
+          "x": 563.85547,
+          "y": 820.2422
+        },
+        "flow:Control.AgentdRegistrationFlow": {
+          "x": 972.2617,
+          "y": 435.40234
+        },
+        "actor:Control.AdminOperator": {
+          "x": 181.96875,
+          "y": 232.91406
+        },
+        "flow:Control.AdminUpgradeAgentFlow": {
+          "x": 905.0,
+          "y": 49.87497
+        },
+        "command:Control.AdminGetAgentOverview": {
+          "x": 571.46875,
+          "y": 149.41406
+        },
+        "command:Control.AdminUpgradeAgent": {
+          "x": 571.46875,
+          "y": 49.87497
+        },
+        "flow:Control.AdminGetAgentOverviewFlow": {
+          "x": 905.0,
+          "y": 149.41406
+        },
+        "flow:Control.AdminGetAgentInstallCodeFlow": {
+          "x": 972.2617,
+          "y": 820.2422
+        },
+        "flow:Control.AdminPauseAgentFlow": {
+          "x": 905.0,
+          "y": 249.04688
+        },
+        "command:Control.PollControlCommands": {
+          "x": 542.5547,
+          "y": 521.5469
+        },
+        "flow:Control.AdminShowAgentRuntimeStatusFlow": {
+          "x": 905.0,
+          "y": 337.83594
+        },
+        "command:Control.AdminPauseAgent": {
+          "x": 571.46875,
+          "y": 249.04688
+        },
+        "flow:Control.PollControlCommandsFlow": {
+          "x": 972.2617,
+          "y": 521.5469
+        },
+        "command:Control.SubmitEnrollmentRequest": {
+          "x": 542.5547,
+          "y": 435.40234
+        },
+        "command:Control.AdminShowAgentRuntimeStatus": {
+          "x": 571.46875,
+          "y": 337.83594
+        }
+      },
+      "sizes": {},
+      "scales": {},
+      "fills": {},
+      "options": {}
+    },
+    "structure_graph_v2::module::Discovery.Collect": {
+      "pan": {
+        "x": 0.0,
+        "y": 3650.7566
+      },
+      "nodes": {
+        "struct:Discovery.MetricsSamplesSnapshot": {
+          "x": 1035.669,
+          "y": 1133.5588
+        },
+        "struct:Discovery.IfEmptyThen": {
+          "x": 692.82715,
+          "y": 571.01636
+        },
+        "struct:Discovery.MetricsCollectionTargetSample": {
+          "x": 653.6865,
+          "y": 876.2405
+        },
+        "struct:Discovery.FileInputProcessor": {
+          "x": 299.6582,
+          "y": 335.1748
+        },
+        "struct:Discovery.LogCheckpointState": {
+          "x": 1068.4326,
+          "y": 579.3386
+        },
+        "struct:Discovery.MetricsCollectionOutcome": {
+          "x": 1035.669,
+          "y": 974.32837
+        },
+        "struct:Discovery.MetricsRuntimeSnapshot": {
+          "x": 1035.669,
+          "y": 826.37036
+        },
+        "struct:Discovery.DeliveryOutcome": {
+          "x": 671.43066,
+          "y": 45.117188
+        },
+        "struct:Discovery.FileInputConfig": {
+          "x": 1043.6182,
+          "y": 59.058594
+        },
+        "struct:Discovery.MetricsSampleRecord": {
+          "x": 661.83594,
+          "y": 1092.7874
+        },
+        "struct:Discovery.FoldResult": {
+          "x": 1051.748,
+          "y": 335.1748
+        },
+        "struct:Discovery.MetricsSampleGroup": {
+          "x": 259.1504,
+          "y": 844.2405
+        },
+        "struct:Discovery.FileRecordSink": {
+          "x": 692.82715,
+          "y": 335.1748
+        },
+        "struct:Discovery.CollectedReadBatch": {
+          "x": 332.417,
+          "y": 59.058594
+        },
+        "struct:Discovery.FoldedLine": {
+          "x": 280.53223,
+          "y": 579.3386
+        }
+      },
+      "sizes": {},
+      "scales": {},
+      "fills": {},
+      "options": {}
+    },
+    "layer_diagram_v2": {
+      "pan": {
+        "x": -1.0,
+        "y": 0.0
+      },
+      "nodes": {
+        "layer:Domain": {
+          "x": 713.33203,
+          "y": 334.28125
+        },
+        "layer:Infra": {
+          "x": 713.33203,
+          "y": 524.1211
+        },
+        "module:Control.UserFacingInterface": {
+          "x": 1110.4062,
+          "y": 173.48047
+        },
+        "module:Control.AgentFacingInterface": {
+          "x": 729.2851,
+          "y": 176.09375
+        }
+      },
+      "sizes": {},
+      "scales": {},
+      "fills": {},
+      "options": {
+        "layer_width": "1186.664"
+      }
+    },
+    "structure_graph_v2::module::Control.Protocol": {
+      "pan": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "nodes": {
+        "struct:Control.AgentUpstreamMessageType": {
+          "x": 160.0,
+          "y": 173.44531
+        }
+      },
+      "sizes": {},
+      "scales": {},
+      "fills": {},
+      "options": {}
+    },
+    "interface_contract_scope_v3:Control.AgentFacingInterface": {
+      "pan": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "nodes": {
+        "interface:Control.WpAgentOnlineRegistrationInterface": {
+          "x": 413.64062,
+          "y": 356.09766
+        }
+      },
+      "sizes": {},
+      "scales": {},
+      "fills": {},
+      "options": {}
+    },
+    "usecase_v1:System.WarpInsightAdmin": {
+      "pan": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "nodes": {
+        "usecase:System.WarpInsightAdmin.UpgradeAgentRemotely": {
+          "x": 339.0,
+          "y": 339.5
+        },
+        "usecase:System.WarpInsightAdmin.GetAgentInstallCode": {
+          "x": 377.29297,
+          "y": 110.91797
+        },
+        "usecase:System.WarpInsightAdmin.ShowAgentRuntimeStatus": {
+          "x": 620.6719,
+          "y": 230.75
+        }
+      },
+      "sizes": {},
+      "scales": {},
+      "fills": {},
+      "options": {}
+    },
+    "structure_graph_v2::module::Observed.Entity": {
+      "pan": {
+        "x": 0.0,
+        "y": -0.0
+      },
+      "nodes": {
+        "struct:Observed.DiscoverySourceKind": {
+          "x": 534.0117,
+          "y": -437.32715
+        },
+        "struct:Observed.ObservedIpAddress": {
+          "x": 527.001,
+          "y": 37.80957
+        },
+        "struct:Observed.AddressFamily": {
+          "x": 202.27539,
+          "y": -310.92578
+        },
+        "struct:Observed.ObservedContainer": {
+          "x": 534.0117,
+          "y": -310.92578
+        },
+        "struct:Observed.ObservedNetworkInterface": {
+          "x": 518.65625,
+          "y": 196.83783
+        },
+        "struct:Observed.ObservedServiceEndpoint": {
+          "x": 534.0117,
+          "y": 1137.4803
+        },
+        "struct:Observed.ProcessSocketOwner": {
+          "x": 534.0117,
+          "y": 1509.0157
+        },
+        "struct:Observed.OciRuntimeSpec": {
+          "x": 534.0117,
+          "y": 1379.0626
+        },
+        "struct:Observed.OciLinuxSpec": {
+          "x": 534.0117,
+          "y": 1268.4845
+        },
+        "struct:Observed.ObservedFileIdentity": {
+          "x": 534.0117,
+          "y": -122.29883
+        },
+        "struct:Observed.ObservedProcess": {
+          "x": 518.65625,
+          "y": 355.4052
+        },
+        "struct:Observed.ContainerRuntimeRoot": {
+          "x": 191.6123,
+          "y": -437.32715
+        }
+      },
+      "sizes": {},
+      "scales": {},
+      "fills": {},
+      "options": {}
+    },
+    "structure_graph_v2::module::Control.Identity": {
+      "pan": {
+        "x": 0.0,
+        "y": -0.0
+      },
+      "nodes": {
+        "struct:Control.AgentCredentialBundle": {
+          "x": 218.60938,
+          "y": 202.58984
+        },
+        "struct:Control.AgentCredentialVerificationResult": {
+          "x": 201.16016,
+          "y": 458.5586
+        },
+        "struct:Control.AgentHostProfile": {
+          "x": 787.0156,
+          "y": 403.96484
+        },
+        "struct:Control.AgentControlAuthProfile": {
+          "x": 495.0547,
+          "y": 361.65234
+        },
+        "struct:Control.AgentIdentityStatus": {
+          "x": 495.0547,
+          "y": 75.65234
+        }
+      },
+      "sizes": {},
+      "scales": {},
+      "fills": {},
+      "options": {}
+    },
     "structure_graph_v2::module::Discovery.Probe": {
       "pan": {
         "x": 0.0,
         "y": 1960.303
       },
       "nodes": {
-        "struct:Discovery.DiscoveryProbe": {
-          "x": 218.05664,
-          "y": 624.4101
-        },
         "struct:Discovery.DiscoveryCacheLoadFailure": {
           "x": 516.8115,
           "y": 133.52142
@@ -426,6 +690,10 @@
         "struct:Discovery.DiscoveryCachePaths": {
           "x": 800.7422,
           "y": 133.52142
+        },
+        "struct:Discovery.DiscoveryProbe": {
+          "x": 218.05664,
+          "y": 624.4101
         }
       },
       "sizes": {},
@@ -433,207 +701,23 @@
       "fills": {},
       "options": {}
     },
-    "structure_graph_v2::module::Discovery.Config": {
+    "structure_graph_v2::module::Discovery.Execute": {
       "pan": {
         "x": 0.0,
-        "y": 518.6249
+        "y": -5094.04
       },
       "nodes": {
-        "struct:Discovery.ExecutionSection": {
-          "x": 532.2461,
-          "y": 1043.2979
+        "struct:Discovery.SchedulerRequest": {
+          "x": 537.3242,
+          "y": 3046.374
         },
-        "struct:Discovery.LogFileInputSection": {
-          "x": 823.58887,
-          "y": 1069.1953
+        "struct:Discovery.RuntimeMode": {
+          "x": 537.3242,
+          "y": 2842.4844
         },
-        "struct:Discovery.LogsFileOutputSection": {
-          "x": 199.34082,
-          "y": 1648.8184
-        },
-        "struct:Discovery.LogsSection": {
-          "x": 199.34082,
-          "y": 1813.1965
-        },
-        "struct:Discovery.AgentSection": {
-          "x": 540.625,
-          "y": 101.13962
-        },
-        "struct:Discovery.ConfigError": {
-          "x": 540.625,
-          "y": 245.68945
-        },
-        "struct:Discovery.DiscoverySection": {
-          "x": 517.4121,
-          "y": 404.5254
-        },
-        "struct:Discovery.LogsOutputSection": {
-          "x": 505.21973,
-          "y": 1648.8184
-        },
-        "struct:Discovery.PathsSection": {
-          "x": 875.32227,
-          "y": 1772.6038
-        },
-        "struct:Discovery.EnsuredConfigFile": {
-          "x": 228.99414,
-          "y": 1020.125
-        },
-        "struct:Discovery.LogsTcpOutputSection": {
-          "x": 532.2461,
-          "y": 1932.2874
-        },
-        "struct:Discovery.ControlPlaneSection": {
-          "x": 220.09766,
-          "y": 327.7002
-        }
-      },
-      "sizes": {},
-      "scales": {},
-      "fills": {},
-      "options": {}
-    },
-    "usecase_v1:System.WarpInsightAdmin": {
-      "pan": {
-        "x": 0.0,
-        "y": 0.0
-      },
-      "nodes": {
-        "usecase:System.WarpInsightAdmin.GetAgentInstallCode": {
-          "x": 377.29297,
-          "y": 110.91797
-        },
-        "usecase:System.WarpInsightAdmin.UpgradeAgentRemotely": {
-          "x": 339.0,
-          "y": 339.5
-        },
-        "usecase:System.WarpInsightAdmin.ShowAgentRuntimeStatus": {
-          "x": 620.6719,
-          "y": 230.75
-        }
-      },
-      "sizes": {},
-      "scales": {},
-      "fills": {},
-      "options": {}
-    },
-    "structure_graph_v2::module::Control.AgentCommandControl": {
-      "pan": {
-        "x": 0.0,
-        "y": 0.0
-      },
-      "nodes": {
-        "struct:Control.AgentControlCommand": {
-          "x": 315.0,
-          "y": 108.0
-        },
-        "struct:Control.DispatchReceipt": {
-          "x": 685.0,
-          "y": 108.0
-        }
-      },
-      "sizes": {},
-      "scales": {},
-      "fills": {},
-      "options": {}
-    },
-    "structure_graph_v2::module::Observed.Entity": {
-      "pan": {
-        "x": 0.0,
-        "y": -0.0
-      },
-      "nodes": {
-        "struct:Observed.ObservedIpAddress": {
-          "x": 527.001,
-          "y": 37.80957
-        },
-        "struct:Observed.AddressFamily": {
-          "x": 202.27539,
-          "y": -310.92578
-        },
-        "struct:Observed.ObservedNetworkInterface": {
-          "x": 518.65625,
-          "y": 196.83783
-        },
-        "struct:Observed.OciLinuxSpec": {
-          "x": 534.0117,
-          "y": 1268.4845
-        },
-        "struct:Observed.ObservedContainer": {
-          "x": 534.0117,
-          "y": -310.92578
-        },
-        "struct:Observed.ObservedServiceEndpoint": {
-          "x": 534.0117,
-          "y": 1137.4803
-        },
-        "struct:Observed.OciRuntimeSpec": {
-          "x": 534.0117,
-          "y": 1379.0626
-        },
-        "struct:Observed.ContainerRuntimeRoot": {
-          "x": 191.6123,
-          "y": -437.32715
-        },
-        "struct:Observed.DiscoverySourceKind": {
-          "x": 534.0117,
-          "y": -437.32715
-        },
-        "struct:Observed.ProcessSocketOwner": {
-          "x": 534.0117,
-          "y": 1509.0157
-        },
-        "struct:Observed.ObservedProcess": {
-          "x": 518.65625,
-          "y": 355.4052
-        },
-        "struct:Observed.ObservedFileIdentity": {
-          "x": 534.0117,
-          "y": -122.29883
-        }
-      },
-      "sizes": {},
-      "scales": {},
-      "fills": {},
-      "options": {}
-    },
-    "actor_hierarchy_v2": {
-      "pan": {
-        "x": 0.0,
-        "y": 0.0
-      },
-      "nodes": {
-        "actor:Control.Agentd": {
-          "x": 207.91797,
-          "y": 317.08203
-        },
-        "actor:Control.AdminOperator": {
-          "x": 220.0,
-          "y": 128.1289
-        },
-        "command:Control.SubmitEnrollmentRequest": {
-          "x": 555.0,
-          "y": 476.0586
-        },
-        "flow:Control.AgentdRegistrationFlow": {
-          "x": 846.9531,
-          "y": 476.0586
-        }
-      },
-      "sizes": {},
-      "scales": {},
-      "fills": {},
-      "options": {}
-    },
-    "events_v2": {
-      "pan": {
-        "x": 0.0,
-        "y": -220.42192
-      },
-      "nodes": {
-        "event:Control.AgentEnrollmentAccepted": {
-          "x": 184.42578,
-          "y": 176.92188
+        "struct:Discovery.SchedulerOutcome": {
+          "x": 208.50586,
+          "y": 3059.0654
         }
       },
       "sizes": {},

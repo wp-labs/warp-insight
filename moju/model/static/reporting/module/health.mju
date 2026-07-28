@@ -1,0 +1,24 @@
+module<service> Health {
+  meta {
+    label zh "Agent 健康"
+    label en "Agent Health"
+    summary zh "负责 Agent 自观测健康、发现健康、Metric 健康、运行时快照和故障计数。"
+    tag "reporting"
+    tag "health"
+  }
+
+  layer Domain
+  owns DiscoveryReadiness
+  owns DiscoveryProbeHealth
+  owns DiscoveryHealthSnapshot
+  owns MetricsHealthSnapshot
+  owns HealthState
+  owns RuntimeHealthSnapshot
+  owns MetricsTick
+  owns MetricsFailureKind
+  owns MetricsFailure
+  owns TelemetryTick
+  owns TelemetryFailureKind
+  owns TelemetryFailure
+  responsible_for "Agent 自观测与健康上报：发现健康、Metrics 健康、运行时快照、故障计数"
+}

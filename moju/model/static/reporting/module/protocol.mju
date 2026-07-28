@@ -1,0 +1,28 @@
+module<interface> Protocol {
+  meta {
+    label zh "上报协议"
+    label en "Reporting Protocol"
+    summary zh "负责 Agent hello、action 派发 ACK、执行结果上报、发现快照上报和 ingest ACK。"
+    tag "reporting"
+    tag "protocol"
+    tag "interface"
+  }
+
+  layer Application
+  owns AgentHello
+  owns AgentStatusAccepted
+  owns DispatchActionPlan
+  owns ActionPlanAck
+  owns AckStatus
+  owns ActionPlanAckBuilder
+  owns ReportActionResult
+  owns ActionResultAccepted
+  owns ActionResultReceipt
+  owns ResultAttestation
+  owns ReportDiscoverySnapshot
+  owns DiscoveryReportMode
+  owns DiscoveryIngestAck
+  owns DiscoveryIngestAckStatus
+  owns IngestHeadError
+  responsible_for "与控制面的通信协议：Gateway 握手/派发/ACK/上报 + Ingest 快照上报"
+}

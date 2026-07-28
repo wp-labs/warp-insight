@@ -1,0 +1,20 @@
+module<service> AgentdStatusManagement {
+  meta {
+    label zh "Agentd 状态管理"
+    label en "Agentd Status Management"
+    summary zh "负责 Agentd 实例、运行状态查询、在线状态视图和管理端状态展示所需的状态聚合。"
+    tag "control"
+    tag "agentd"
+    tag "status"
+  }
+
+  layer Domain
+  owns AgentInstance
+  owns ShowAgentRuntimeStatus
+  owns GetAgentOverview
+  owns AgentRuntimeStatusView
+  owns AgentOverviewMetrics
+  owns RecentOnlineRegisteredAgent
+  owns AgentOverview
+  responsible_for "Agentd 状态管理：实例、版本、最后在线时间、健康状态和运行状态视图。"
+}

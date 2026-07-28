@@ -1,0 +1,25 @@
+module Entity {
+  meta {
+    label zh "被观测实体"
+    label en "Observed Entity"
+    summary zh "负责进程、网络接口、IP、服务端点、容器、文件身份、socket owner 和运行时根等原始实体模型。"
+    tag "observed"
+    tag "entity"
+  }
+
+  layer Domain
+  owns ObservedProcess
+  owns ObservedNetworkInterface
+  owns ObservedIpAddress
+  owns ObservedServiceEndpoint
+  owns ObservedContainer
+  owns ObservedFileIdentity
+  owns OciRuntimeSpec
+  owns OciLinuxSpec
+  owns ContainerRuntimeRoot
+  owns ProcessSocketOwner
+  owns AddressFamily
+  owns SocketTableKind
+  owns DiscoverySourceKind
+  responsible_for "探针观测到的原始实体模型：进程、网络、容器、端点"
+}

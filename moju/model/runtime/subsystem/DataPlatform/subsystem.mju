@@ -1,0 +1,11 @@
+// 系统分解：顶层子系统边界
+
+subsystem DataPlatform {
+  meta {
+    label zh "数据平台"
+    summary zh "中心侧数据接入、遥测协议、健康状态、采集管线与报表数据处理能力。"
+    tag "data-plane"
+  }
+
+  uses module Reporting.Protocol, Reporting.Contract, Reporting.Health, Reporting.Pipeline
+}

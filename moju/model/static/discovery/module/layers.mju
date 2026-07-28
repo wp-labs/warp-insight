@@ -1,0 +1,11 @@
+// 发现采集域 architecture
+
+layer Application
+layer Domain
+layer Infra
+
+dependency_rule LayerDirection {
+  Application -> Domain
+  Domain -> Infra
+  Infra -> none_external
+}

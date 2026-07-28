@@ -1,0 +1,14 @@
+module<ui> AdminWebFrontend {
+  meta {
+    label zh "WarpInsightAdmin 前端 WEB"
+    label en "WarpInsightAdmin Web Frontend"
+    summary zh "WarpInsightAdmin 的浏览器端 WEB 前端，承载主界面、Agent 控制界面，并通过后端 WEB 服务接口完成管理操作。"
+    tag "admin"
+    tag "web"
+    tag "frontend"
+  }
+
+  layer Application
+  depends UserFacingInterface
+  responsible_for "WarpInsightAdmin 前端 WEB：主界面、Agent 控制界面、状态展示、安装代码复制操作和远程升级操作入口。"
+}

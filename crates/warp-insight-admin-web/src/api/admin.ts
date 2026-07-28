@@ -14,8 +14,18 @@ export interface AgentOverviewMetrics {
   lastSeenLagSeconds: number;
 }
 
+export interface RecentOnlineRegisteredAgent {
+  agentId: string;
+  instanceId: string;
+  version: string;
+  registeredAt: string;
+  onlineSince: string;
+  onlineDurationSeconds: number;
+}
+
 export interface AgentOverview {
   metrics: AgentOverviewMetrics;
+  recentOnlineAgents: RecentOnlineRegisteredAgent[];
   abnormalAgents: AgentRuntimeStatusView[];
 }
 
@@ -50,6 +60,32 @@ const mockOverview: AgentOverview = {
     unhealthyAgents: 2,
     lastSeenLagSeconds: 42,
   },
+  recentOnlineAgents: [
+    {
+      agentId: "agent-prod-017",
+      instanceId: "i-0842c71f",
+      version: "v0.3.2",
+      registeredAt: "2026-07-27T09:02:12+08:00",
+      onlineSince: "2026-07-27T09:08:24+08:00",
+      onlineDurationSeconds: 5400,
+    },
+    {
+      agentId: "agent-edge-021",
+      instanceId: "edge-node-021",
+      version: "v0.3.2",
+      registeredAt: "2026-07-27T08:44:09+08:00",
+      onlineSince: "2026-07-27T08:51:36+08:00",
+      onlineDurationSeconds: 6420,
+    },
+    {
+      agentId: "agent-prod-018",
+      instanceId: "i-0f93b42a",
+      version: "v0.3.1",
+      registeredAt: "2026-07-27T08:21:45+08:00",
+      onlineSince: "2026-07-27T08:29:01+08:00",
+      onlineDurationSeconds: 7770,
+    },
+  ],
   abnormalAgents: [
     {
       agentId: "agent-prod-001",
@@ -127,8 +163,22 @@ function normalizeRuntimeStatus(payload: any): AgentRuntimeStatusView {
   };
 }
 
+function normalizeRecentOnlineAgent(payload: any): RecentOnlineRegisteredAgent {
+  return {
+    agentId: payload.agent_id ?? payload.agentId,
+    instanceId: payload.instance_id ?? payload.instanceId,
+    version: payload.version,
+    registeredAt: payload.registered_at ?? payload.registeredAt,
+    onlineSince: payload.online_since ?? payload.onlineSince,
+    onlineDurationSeconds:
+      payload.online_duration_seconds ?? payload.onlineDurationSeconds ?? 0,
+  };
+}
+
 function normalizeOverview(payload: any): AgentOverview {
   const metrics = payload.metrics ?? {};
+  const recentOnlineAgents =
+    payload.recent_online_agents ?? payload.recentOnlineAgents ?? [];
   const abnormalAgents = payload.abnormal_agents ?? payload.abnormalAgents ?? [];
   return {
     metrics: {
@@ -138,6 +188,7 @@ function normalizeOverview(payload: any): AgentOverview {
       lastSeenLagSeconds:
         metrics.last_seen_lag_seconds ?? metrics.lastSeenLagSeconds ?? 0,
     },
+    recentOnlineAgents: recentOnlineAgents.map(normalizeRecentOnlineAgent),
     abnormalAgents: abnormalAgents.map(normalizeRuntimeStatus),
   };
 }

@@ -1,0 +1,15 @@
+// 系统分解：顶层子系统边界
+
+subsystem WarpInsightAdmin {
+  meta {
+    label zh "控制平台"
+    summary zh "中心侧控制、治理、编译、下发、跟踪与风险控制。"
+    tag "control-plane"
+  }
+
+  uses module Control.AdminWebFrontend
+  uses module Control.UserFacingInterface, Control.AgentFacingInterface
+  uses module Control.Enrollment, Control.Identity, Control.AgentdStatusManagement
+  uses module Control.AgentCommandControl
+  uses module Control.Protocol, Control.Registry
+}

@@ -1,0 +1,35 @@
+module Contract {
+  meta {
+    label zh "上报数据契约"
+    label en "Reporting Contract"
+    summary zh "负责 action 计划、执行结果、能力报告、资源使用、遥测记录等上报数据结构。"
+    tag "reporting"
+    tag "contract"
+  }
+
+  layer Domain
+  owns ActionPlanContract
+  owns ActionPlanMeta
+  owns ActionPlanTarget
+  owns ActionPlanConstraints
+  owns RiskLevel
+  owns ApprovalMode
+  owns ActionPlanProgram
+  owns ActionPlanStep
+  owns ActionResultContract
+  owns FinalStatus
+  owns StepActionRecord
+  owns StepStatus
+  owns ActionOutputs
+  owns ActionOutputItem
+  owns ExecutionResourceUsage
+  owns CapabilityReportContract
+  owns CapabilityReportSections
+  owns ExecCapabilities
+  owns MetricsCapabilities
+  owns LogsCapabilities
+  owns UpgradeCapabilities
+  owns CapabilityLimits
+  owns TelemetryRecordContract
+  responsible_for "业务数据契约：Action 计划/结果、能力上报、遥测记录"
+}

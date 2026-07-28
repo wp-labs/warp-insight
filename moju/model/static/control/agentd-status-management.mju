@@ -1,0 +1,96 @@
+// Module: AgentdStatusManagement — Agentd 状态管理
+
+struct AgentInstance {
+  meta {
+    label zh "Agentd 实例"
+    label en "Agentd Instance"
+    summary zh "一次 Agentd 运行实例的状态记录，包含 boot id、版本、启动时间和最后在线时间。"
+    tag "agentd"
+    tag "status"
+  }
+
+  unique instance_id: String
+  agent_id: String
+  boot_id: String
+  version: String
+  started_at: DateTime
+  last_seen_at: DateTime
+}
+
+command ShowAgentRuntimeStatus {
+  agent_id: String
+  requested_by: String
+}
+
+command GetAgentOverview {
+  requested_by: String
+}
+
+struct AgentRuntimeStatusView {
+  meta {
+    label zh "Agentd 运行状态视图"
+    label en "Agentd Runtime Status View"
+    summary zh "WarpInsightAdmin 展示 Agentd 在线状态、版本、健康状态和最后上报时间所需的聚合视图。"
+    tag "agentd"
+    tag "status-view"
+  }
+
+  agent_id: String
+  instance_id: String
+  version: String
+  status: String
+  last_seen_at: DateTime
+  health: String
+}
+
+struct AgentOverviewMetrics {
+  meta {
+    label zh "Agent 总览指标"
+    label en "Agent Overview Metrics"
+    summary zh "WarpInsightAdmin 首页展示所需的 Agent 聚合指标，包括总数、在线数、异常数和最近上报延迟。"
+    tag "agentd"
+    tag "status"
+    tag "overview"
+    tag "metrics"
+  }
+
+  total_agents: Int
+  online_agents: Int
+  unhealthy_agents: Int
+  last_seen_lag_seconds: Int
+}
+
+struct RecentOnlineRegisteredAgent {
+  meta {
+    label zh "最近上线注册 Agent"
+    label en "Recent Online Registered Agent"
+    summary zh "WarpInsightAdmin 首页展示的最近上线并完成注册的 Agent 摘要，包含上线时间和上线时长。"
+    tag "agentd"
+    tag "status"
+    tag "overview"
+    tag "recent-online"
+  }
+
+  agent_id: String
+  instance_id: String
+  version: String
+  registered_at: DateTime
+  online_since: DateTime
+  online_duration_seconds: Int
+}
+
+struct AgentOverview {
+  meta {
+    label zh "Agent 总览"
+    label en "Agent Overview"
+    summary zh "WarpInsightAdmin 首页所需的聚合视图，包含状态指标、最近上线注册 Agent 和需要管理员处理的异常 Agent 列表。"
+    tag "agentd"
+    tag "status"
+    tag "overview"
+    tag "admin-home"
+  }
+
+  metrics: AgentOverviewMetrics
+  recent_online_agents: List<RecentOnlineRegisteredAgent>
+  abnormal_agents: List<AgentRuntimeStatusView>
+}

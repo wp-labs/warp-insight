@@ -1,0 +1,27 @@
+module<service> Probe {
+  meta {
+    label zh "发现探针"
+    label en "Discovery Probe"
+    summary zh "负责主机、网络、端点、进程、容器和 K8s 资源发现，以及发现快照刷新和缓存。"
+    tag "agent"
+    tag "discovery"
+  }
+
+  layer Domain
+  owns DiscoveryProbe
+  owns HostDiscoveryProbe
+  owns NetworkDiscoveryProbe
+  owns EndpointDiscoveryProbe
+  owns ProcessDiscoveryProbe
+  owns ContainerDiscoveryProbe
+  owns K8sDiscoveryProbe
+  owns ProbeOutput
+  owns DiscoveryProbeError
+  owns DiscoveryRuntime
+  owns DiscoveryRefreshResult
+  owns SuccessfulProbeRefresh
+  owns DiscoveryStoreFailure
+  owns DiscoveryCachePaths
+  owns DiscoveryCacheLoadFailure
+  responsible_for "发现探针与运行时：探测、刷新、缓存、持久化"
+}

@@ -1,0 +1,18 @@
+module<adapter> Protocol {
+  meta {
+    label zh "控制消息协议"
+    label en "Control Protocol"
+    summary zh "负责管理节点与 Agentd 之间的上行/下行控制消息 envelope、消息类型和接收结果。"
+    tag "control"
+    tag "protocol"
+  }
+
+  layer Infra
+  owns AgentUpstreamMessage
+  owns AgentDownstreamMessage
+  owns AgentUpstreamMessageType
+  owns AgentDownstreamMessageType
+  owns ControlMessageAccepted
+  owns ControlMessageRejected
+  responsible_for "控制消息通道：HTTPS long polling、上行消息 envelope、下行消息 envelope、消息类型、消息接收或拒绝结果。"
+}

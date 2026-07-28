@@ -1081,6 +1081,11 @@
           "slot_fills": []
         },
         {
+          "region": "SubsystemRecentOnlineRegisteredAgentPanel",
+          "prop_name": "subsystemRecentOnlineRegisteredAgentPanel",
+          "slot_fills": []
+        },
+        {
           "region": "SubsystemAbnormalAgentPanel",
           "prop_name": "subsystemAbnormalAgentPanel",
           "slot_fills": []
@@ -1183,6 +1188,115 @@
       "layout_props": [
         "fillRemaining"
       ],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemRecentOnlineRegisteredAgentPanel",
+      "orientation": "grid",
+      "contains": [
+        {
+          "region": "SubsystemRecentOnlineRegisteredAgentCardGrid",
+          "prop_name": "subsystemRecentOnlineRegisteredAgentCardGrid",
+          "slot_fills": []
+        }
+      ],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemRecentOnlineRegisteredAgentCardGrid",
+      "orientation": "grid",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": {
+        "region": "SubsystemRecentOnlineRegisteredAgentCard",
+        "item": "agent",
+        "data_path": "recentOnlineRegisteredAgent",
+        "separator": null
+      }
+    },
+    {
+      "name": "SubsystemRecentOnlineRegisteredAgentCard",
+      "orientation": "grid",
+      "contains": [
+        {
+          "region": "SubsystemRecentOnlineAgentInstanceText",
+          "prop_name": "subsystemRecentOnlineAgentInstanceText",
+          "slot_fills": []
+        },
+        {
+          "region": "SubsystemRecentOnlineAgentVersionText",
+          "prop_name": "subsystemRecentOnlineAgentVersionText",
+          "slot_fills": []
+        },
+        {
+          "region": "SubsystemRecentOnlineAgentRegisteredAtText",
+          "prop_name": "subsystemRecentOnlineAgentRegisteredAtText",
+          "slot_fills": []
+        },
+        {
+          "region": "SubsystemRecentOnlineAgentOnlineSinceText",
+          "prop_name": "subsystemRecentOnlineAgentOnlineSinceText",
+          "slot_fills": []
+        },
+        {
+          "region": "SubsystemRecentOnlineAgentDurationText",
+          "prop_name": "subsystemRecentOnlineAgentDurationText",
+          "slot_fills": []
+        }
+      ],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemRecentOnlineAgentInstanceText",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemRecentOnlineAgentVersionText",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemRecentOnlineAgentRegisteredAtText",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemRecentOnlineAgentOnlineSinceText",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
+      "interactions": [],
+      "repeat": null
+    },
+    {
+      "name": "SubsystemRecentOnlineAgentDurationText",
+      "orientation": "vertical",
+      "contains": [],
+      "when": null,
+      "layout_props": [],
       "interactions": [],
       "repeat": null
     },

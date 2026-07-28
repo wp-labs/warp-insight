@@ -1,0 +1,104 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #cfdce9;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(33, 48, 73, 0.045);
+  gap: 12px;
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.identity {
+  min-width: 0;
+}
+
+.agentId {
+  overflow: hidden;
+  color: #172033;
+  font-size: 14px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.instance {
+  margin-top: 3px;
+  overflow: hidden;
+  color: #5f6f86;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #e9f7ef;
+  color: #187141;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.durationBlock {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d6e7f2;
+  border-radius: 6px;
+  background: #f5fafc;
+}
+
+.durationLabel {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.duration {
+  color: #12334d;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.item {
+  min-width: 0;
+}
+
+.label {
+  color: #718095;
+  font-size: 12px;
+}
+
+.value {
+  margin-top: 3px;
+  overflow: hidden;
+  color: #26364d;
+  font-size: 13px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .details {
+    grid-template-columns: 1fr;
+  }
+}

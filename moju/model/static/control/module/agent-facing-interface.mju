@@ -1,0 +1,28 @@
+module<interface> AgentFacingInterface {
+  meta {
+    label zh "Agent 侧服务接口"
+    label en "Agent Facing Service Interface"
+    summary zh "管理节点面向 WpAgent 暴露的 HTTP 接口，承载在线注册、状态提交、最新指令获取和任务执行结果提交。"
+    tag "agent-facing"
+    tag "agentd"
+    tag "registration"
+    tag "enrollment"
+    tag "backend"
+    tag "http"
+    tag "interface"
+  }
+
+  layer Application
+  owns WpAgentOnlineRegistrationInterface
+  owns SubmitEnrollmentRequest
+  owns AgentEnrollmentResultReturned
+  owns PollControlCommands
+  owns PollControlCommandsFlow
+  owns AgentControlCommandsReturned
+  provides WpAgentOnlineRegistrationInterface by protocol<http>
+  depends Enrollment
+  depends Identity
+  depends AgentCommandControl
+  depends Reporting.Protocol
+  responsible_for "Agent 侧服务接口：作为 WpAgent 的 Application 层入口，接收注册、状态、指令轮询和执行结果上报请求。"
+}

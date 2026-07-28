@@ -1,0 +1,12 @@
+// 系统分解：顶层子系统边界
+
+subsystem WpAgent {
+  meta {
+    label zh "wp-agent"
+    summary zh "边缘侧发现、采集、缓冲、上送、受控执行与升级辅助。"
+    tag "edge"
+  }
+
+  uses module Discovery.Config, Discovery.Probe, Discovery.Collect, Discovery.Execute
+  uses module Observed.Snapshot, Observed.Entity
+}

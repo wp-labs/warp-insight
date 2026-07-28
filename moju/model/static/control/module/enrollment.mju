@@ -1,0 +1,29 @@
+module<service> Enrollment {
+  meta {
+    label zh "注册与引导"
+    label en "Enrollment"
+    summary zh "负责 Agent 安装引导、注册 token、注册请求、注册结果与安装代码生成。"
+    tag "control"
+    tag "enrollment"
+  }
+
+  layer Application
+  owns AgentBootstrapBundle
+  owns ManagementEndpointTrustBundle
+  owns AgentEnrollmentToken
+  owns AgentEnrollmentTokenStatus
+  owns AgentEnrollmentTokenValidation
+  owns AgentEnrollmentTokenValidationStatus
+  owns AgentEnrollmentResult
+  owns AgentEnrollmentResultStatus
+  owns AgentEnrollmentTokenAccepted
+  owns AgentEnrollmentTokenRejected
+  owns AgentEnrollmentAccepted
+  owns AgentEnrollmentRejected
+  owns DuplicateRegistrationDetected
+  owns AgentEnrollmentAuthProfile
+  owns GetAgentInstallCode
+  owns AgentInstallCode
+  owns AgentdRegistrationFlow
+  responsible_for "自动注册用例：bootstrap 信息、注册 token、凭据申请、注册结果、重复注册处理"
+}

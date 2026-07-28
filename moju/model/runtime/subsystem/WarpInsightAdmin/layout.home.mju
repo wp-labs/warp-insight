@@ -1,0 +1,253 @@
+// WarpInsightAdmin home page layout regions
+
+region AgentStatusOverviewMetrics {
+  meta {
+    label zh "Agent 状态总览指标"
+    label en "Agent Status Overview Metrics"
+    summary zh "首页顶部的 Agent 状态概览，展示总 Agent 数、在线 Agent 数、异常 Agent 数和最近上报延迟；正常 Agent 只在指标中体现，不进入首页主体列表。"
+    tag "admin"
+    tag "agent-status"
+    tag "overview"
+    tag "normal-agent-summary-only"
+  }
+
+  orientation horizontal
+  contains TotalAgentMetric { slot_source: AgentOverviewMetrics, slot_field: total_agents }
+  contains OnlineAgentMetric { slot_source: AgentOverviewMetrics, slot_field: online_agents }
+  contains UnhealthyAgentMetric { slot_source: AgentOverviewMetrics, slot_field: unhealthy_agents }
+  contains LastSeenLagMetric { slot_source: AgentOverviewMetrics, slot_field: last_seen_lag_seconds }
+}
+
+region AbnormalAgentPanel {
+  meta {
+    label zh "异常 Agent 面板"
+    label en "Abnormal Agent Panel"
+    summary zh "首页主体区域，只承载存在异常的 Agent 卡片。客户 Agent 数通常为 20 到 50 个、上限 200 个，因此首页不需要展示正常 Agent 的全量列表。"
+    tag "admin"
+    tag "agent-status"
+    tag "abnormal-agent"
+    tag "homepage-primary"
+  }
+
+  orientation grid
+  contains AbnormalAgentCardGrid { area: abnormal_agent_card_grid, row: 1, col: 1, width: 100% }
+  contains NoAbnormalAgentPlaceholder { area: no_abnormal_agent_placeholder, row: 2, col: 1, width: 100% }
+  layout fill_remaining
+}
+
+region RecentOnlineRegisteredAgentPanel {
+  meta {
+    label zh "最近上线注册 Agent"
+    label en "Recent Online Registered Agents"
+    summary zh "首页在 Agent 状态总览指标之后展示最近上线并完成注册的 Agent 卡片，帮助管理员快速确认新接入主机。"
+    tag "admin"
+    tag "agent-status"
+    tag "recent-online"
+    tag "registered-agent"
+    tag "homepage-secondary"
+  }
+
+  orientation grid
+  contains RecentOnlineRegisteredAgentCardGrid { area: recent_online_registered_agent_card_grid, row: 1, col: 1, width: 100% }
+}
+
+region RecentOnlineRegisteredAgentCardGrid {
+  meta {
+    label zh "最近上线注册 Agent 卡片区"
+    label en "Recent Online Registered Agent Cards"
+    summary zh "按卡片展示最近上线并完成注册的 Agent，卡片中突出上线时长。"
+    tag "admin"
+    tag "agent-status"
+    tag "recent-online"
+    tag "card-grid"
+  }
+
+  orientation grid
+  repeat RecentOnlineRegisteredAgentCard for agent in RecentOnlineRegisteredAgent
+}
+
+region RecentOnlineRegisteredAgentCard {
+  meta {
+    label zh "最近上线注册 Agent 卡片"
+    label en "Recent Online Registered Agent Card"
+    summary zh "展示单个最近上线注册 Agent 的实例、版本、注册时间、上线时间和上线时长。"
+    tag "admin"
+    tag "agent-status"
+    tag "recent-online"
+    tag "card"
+  }
+
+  orientation grid
+  contains RecentOnlineAgentInstanceText { area: recent_online_agent_instance_text, row: 1, col: 1, width: 100%, slot_field: instance_id }
+  contains RecentOnlineAgentVersionText { area: recent_online_agent_version_text, row: 2, col: 1, width: 50%, slot_field: version }
+  contains RecentOnlineAgentRegisteredAtText { area: recent_online_agent_registered_at_text, row: 3, col: 1, width: 50%, slot_field: registered_at }
+  contains RecentOnlineAgentOnlineSinceText { area: recent_online_agent_online_since_text, row: 4, col: 1, width: 50%, slot_field: online_since }
+  contains RecentOnlineAgentDurationText { area: recent_online_agent_duration_text, row: 5, col: 1, width: 50%, slot_field: online_duration_seconds }
+}
+
+region RecentOnlineAgentInstanceText {
+  meta {
+    label zh "最近上线 Agent 实例"
+    label en "Recent Online Agent Instance"
+    summary zh "展示最近上线注册 Agent 的实例 ID。"
+    tag "admin"
+    tag "output"
+    tag "recent-online"
+  }
+
+  orientation vertical
+}
+
+region RecentOnlineAgentVersionText {
+  meta {
+    label zh "最近上线 Agent 版本"
+    label en "Recent Online Agent Version"
+    summary zh "展示最近上线注册 Agent 的运行版本。"
+    tag "admin"
+    tag "output"
+    tag "recent-online"
+  }
+
+  orientation vertical
+}
+
+region RecentOnlineAgentRegisteredAtText {
+  meta {
+    label zh "注册时间"
+    label en "Registered At"
+    summary zh "展示 Agent 完成注册的时间。"
+    tag "admin"
+    tag "output"
+    tag "recent-online"
+  }
+
+  orientation vertical
+}
+
+region RecentOnlineAgentOnlineSinceText {
+  meta {
+    label zh "上线时间"
+    label en "Online Since"
+    summary zh "展示 Agent 本次上线开始时间。"
+    tag "admin"
+    tag "output"
+    tag "recent-online"
+  }
+
+  orientation vertical
+}
+
+region RecentOnlineAgentDurationText {
+  meta {
+    label zh "上线时长"
+    label en "Online Duration"
+    summary zh "展示 Agent 自本次上线以来的持续在线时长。"
+    tag "admin"
+    tag "output"
+    tag "recent-online"
+  }
+
+  orientation vertical
+}
+
+region AbnormalAgentCardGrid {
+  meta {
+    label zh "异常 Agent 卡片区"
+    label en "Abnormal Agent Cards"
+    summary zh "按卡片展示当前异常 Agent。只重复渲染离线、健康异常、上报延迟或版本异常的 Agent；正常 Agent 不生成卡片。"
+    tag "admin"
+    tag "agent-status"
+    tag "abnormal-agent"
+    tag "card-grid"
+  }
+
+  orientation grid
+  repeat AbnormalAgentCard for agent in AgentRuntimeStatusView
+  layout fill_remaining
+  layout scrollable
+}
+
+region AbnormalAgentCard {
+  meta {
+    label zh "异常 Agent 卡片"
+    label en "Abnormal Agent Card"
+    summary zh "首页中单个异常 Agent 的摘要卡片，展示实例、版本、在线状态、健康状态和最后上报时间，用于快速定位需要处理的业务服务器。"
+    tag "admin"
+    tag "agent-status"
+    tag "abnormal-agent"
+    tag "card"
+  }
+
+  orientation grid
+  contains AgentInstanceText { area: agent_instance_text, row: 1, col: 1, width: 100%, slot_field: instance_id }
+  contains AgentVersionText { area: agent_version_text, row: 2, col: 1, width: 50%, slot_field: version }
+  contains AgentOnlineStatusBadge { area: agent_online_status_badge, row: 3, col: 1, width: 50%, slot_field: status }
+  contains AgentHealthBadge { area: agent_health_badge, row: 4, col: 1, width: 50%, slot_field: health }
+  contains AgentLastSeenAtText { area: agent_last_seen_at_text, row: 5, col: 1, width: 100%, slot_field: last_seen_at }
+}
+
+region NoAbnormalAgentPlaceholder {
+  meta {
+    label zh "无异常 Agent 提示"
+    label en "No Abnormal Agent Placeholder"
+    summary zh "当没有异常 Agent 时展示空状态提示；仍不展示正常 Agent 列表，正常 Agent 只通过首页指标反映。"
+    tag "admin"
+    tag "agent-status"
+    tag "empty-state"
+    tag "normal-agent-hidden"
+  }
+
+  orientation vertical
+}
+
+region TotalAgentMetric {
+  meta {
+    label zh "Agent 总数"
+    label en "Total Agent Metric"
+    summary zh "展示已接入管理平台的 Agent 总数。"
+    tag "admin"
+    tag "metric"
+    tag "agent-status"
+  }
+
+  orientation vertical
+}
+
+region OnlineAgentMetric {
+  meta {
+    label zh "在线 Agent 数"
+    label en "Online Agent Metric"
+    summary zh "展示当前在线 Agent 数量。"
+    tag "admin"
+    tag "metric"
+    tag "agent-status"
+  }
+
+  orientation vertical
+}
+
+region UnhealthyAgentMetric {
+  meta {
+    label zh "异常 Agent 数"
+    label en "Unhealthy Agent Metric"
+    summary zh "展示健康状态异常的 Agent 数量。"
+    tag "admin"
+    tag "metric"
+    tag "agent-status"
+  }
+
+  orientation vertical
+}
+
+region LastSeenLagMetric {
+  meta {
+    label zh "上报延迟"
+    label en "Last Seen Lag Metric"
+    summary zh "展示 Agent 最近上报时间的延迟情况。"
+    tag "admin"
+    tag "metric"
+    tag "agent-status"
+  }
+
+  orientation vertical
+}

@@ -1,0 +1,37 @@
+// Control domain actors
+
+actor Agentd {
+  access protocol<http>
+  can SubmitEnrollmentRequest
+  can VerifyAgentCredential
+  can PollControlCommands
+  can AgentUpstreamMessage
+  can Reporting.AgentHello
+  can Reporting.ReportActionResult
+}
+
+actor OperationsEngineer {
+  meta {
+    label zh "运维工程师"
+    label en "Operations Engineer"
+    summary zh "负责在目标服务器上获取并执行 Agent 安装代码的运维人员；该角色不等同于管理员控制操作权限。"
+    tag "ops"
+    tag "agent-install"
+  }
+
+  access protocol<http>
+  can GetAgentInstallCode
+  can AdminGetAgentInstallCode
+}
+
+actor AdminOperator {
+  access protocol<http>
+  can GetAgentOverview
+  can ShowAgentRuntimeStatus
+  can PauseAgent
+  can UpgradeAgent
+  can AdminGetAgentOverview
+  can AdminShowAgentRuntimeStatus
+  can AdminPauseAgent
+  can AdminUpgradeAgent
+}

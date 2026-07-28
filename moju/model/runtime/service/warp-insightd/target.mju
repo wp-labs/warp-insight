@@ -1,0 +1,9 @@
+// warp-insight 生成与部署目标
+
+target<bin> warp-insightd {
+  modules Control.AgentFacingInterface, Control.Enrollment, Control.Identity
+  modules Control.AgentCommandControl, Control.Protocol, Control.Registry
+  modules Discovery.Config, Discovery.Probe, Discovery.Collect, Discovery.Execute
+  modules Observed.Snapshot, Observed.Entity
+  modules Reporting.Protocol, Reporting.Contract, Reporting.Health, Reporting.Pipeline
+}

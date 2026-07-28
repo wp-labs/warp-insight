@@ -1,0 +1,26 @@
+module<service> Config {
+  meta {
+    label zh "Agent 配置"
+    label en "Agent Config"
+    summary zh "负责 Agent 配置契约、控制面地址、路径、执行参数、发现开关、遥测和日志输入配置。"
+    tag "agent"
+    tag "config"
+  }
+
+  layer Domain
+  owns AgentConfigContract
+  owns AgentSection
+  owns ControlPlaneSection
+  owns PathsSection
+  owns ExecutionSection
+  owns DiscoverySection
+  owns TelemetrySection
+  owns LogsSection
+  owns LogsOutputSection
+  owns LogsFileOutputSection
+  owns LogsTcpOutputSection
+  owns LogFileInputSection
+  owns EnsuredConfigFile
+  owns ConfigError
+  responsible_for "Agent 配置：发现开关、采集参数、路径、输出目标"
+}

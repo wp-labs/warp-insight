@@ -1,0 +1,5 @@
+// warp-insight 生成与部署目标
+
+target<site,web> warp-insight-admin-web {
+  modules Control.AdminWebFrontend
+}
