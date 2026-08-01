@@ -1,4 +1,6 @@
 use std::net::SocketAddr;
+use std::sync::Mutex;
+use std::time::SystemTime;
 
 use axum::{
     extract::{connect_info::ConnectInfo, Path, State},
@@ -21,6 +23,16 @@ const INSTALL_SCRIPT_TEMPLATE: &str = include_str!("install.sh");
 const ENROLLMENT_TOKEN_RESERVATION_TTL_SECONDS: i64 = 60;
 const BOOTSTRAP_AUTH_SCOPE: &str = "bootstrap";
 const NO_STORE: &str = "no-store";
+
+/// Cache the agent package sha256 keyed by the package file's mtime/size so the
+/// unauthenticated install endpoints do not read the whole package per request.
+struct PackageHashCacheEntry {
+    modified: SystemTime,
+    len: u64,
+    hash: String,
+}
+
+static PACKAGE_HASH_CACHE: Mutex<Option<PackageHashCacheEntry>> = Mutex::new(None);
 
 pub async fn get_agent_install_code(
     State(state): State<ApiState>,
@@ -178,12 +190,9 @@ pub async fn download_agent_package(
             bytes,
         )
             .into_response(),
-        Err(err) => (
+        Err(_) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!(
-                "failed to read agent package {}: {err}",
-                state.config.agent_package_file.display()
-            ),
+            "failed to read agent package",
         )
             .into_response(),
     }
@@ -301,11 +310,15 @@ pub(crate) fn install_script_signature(
 }
 
 pub fn agent_initial_config_toml(config: &AdminConfig, enrollment_token: &str) -> String {
+    // Give each install a unique instance_name derived from its bootstrap token so
+    // cloned machines (shared machine-id) still derive distinct agent identities.
+    let instance_name = format!("host-{}", short_token_id(enrollment_token));
     format!(
         r#"schema_version = "v1"
 
 [agent]
 environment_id = "{environment_id}"
+instance_name = "{instance_name}"
 
 [control_plane]
 enabled = true
@@ -340,6 +353,7 @@ process_enabled = true
 container_enabled = false
 "#,
         environment_id = toml_escape(&config.environment_id),
+        instance_name = toml_escape(&instance_name),
         endpoint = toml_escape(&config.public_base_url),
         enrollment_token = toml_escape(enrollment_token),
         tls_mode = toml_escape(tls_mode_for_endpoint(&config.public_base_url)),
@@ -388,8 +402,26 @@ pub fn validate_bootstrap_token_for_config(
 }
 
 pub fn agent_package_sha256(config: &AdminConfig) -> Result<String, String> {
-    let bytes = std::fs::read(&config.agent_package_file).map_err(|err| err.to_string())?;
-    Ok(bytes_sha256_hex(&bytes))
+    let path = &config.agent_package_file;
+    let metadata = std::fs::metadata(path).map_err(|err| err.to_string())?;
+    let modified = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+    let len = metadata.len();
+    let mut cache = PACKAGE_HASH_CACHE
+        .lock()
+        .map_err(|_| "package hash cache poisoned".to_string())?;
+    if let Some(entry) = cache.as_ref() {
+        if entry.modified == modified && entry.len == len {
+            return Ok(entry.hash.clone());
+        }
+    }
+    let bytes = std::fs::read(path).map_err(|err| err.to_string())?;
+    let hash = bytes_sha256_hex(&bytes);
+    *cache = Some(PackageHashCacheEntry {
+        modified,
+        len,
+        hash: hash.clone(),
+    });
+    Ok(hash)
 }
 
 fn tls_mode_for_endpoint(endpoint: &str) -> &'static str {

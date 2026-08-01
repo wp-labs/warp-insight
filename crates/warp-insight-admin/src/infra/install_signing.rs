@@ -1,5 +1,7 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use ring::signature::{Ed25519KeyPair, KeyPair};
@@ -9,6 +11,11 @@ const PEM_END_PRIVATE_KEY: &str = "-----END PRIVATE KEY-----";
 const ED25519_PUBLIC_KEY_SPKI_PREFIX: [u8; 12] = [
     0x30, 0x2A, 0x30, 0x05, 0x06, 0x03, 0x2B, 0x65, 0x70, 0x03, 0x21, 0x00,
 ];
+
+/// Cache the decoded signing key pair keyed by the key file's mtime/size, so the
+/// public install endpoints do not re-read and re-parse the PEM on every request.
+static SIGNING_KEY_CACHE: Mutex<Option<(PathBuf, SystemTime, u64, Arc<Ed25519KeyPair>)>> =
+    Mutex::new(None);
 
 pub fn load_install_script_public_key_pem(path: &Path) -> Result<String, String> {
     let key_pair = load_install_script_signing_key_pair(path)?;
@@ -20,7 +27,26 @@ pub fn sign_install_script(path: &Path, script: &[u8]) -> Result<Vec<u8>, String
     Ok(key_pair.sign(script).as_ref().to_vec())
 }
 
-fn load_install_script_signing_key_pair(path: &Path) -> Result<Ed25519KeyPair, String> {
+fn load_install_script_signing_key_pair(path: &Path) -> Result<Arc<Ed25519KeyPair>, String> {
+    let metadata = std::fs::metadata(path).map_err(|err| {
+        format!(
+            "failed to stat install script signing key {}: {err}",
+            path.display()
+        )
+    })?;
+    let modified = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+    let len = metadata.len();
+    {
+        let cache = SIGNING_KEY_CACHE
+            .lock()
+            .map_err(|_| "install script signing key cache poisoned".to_string())?;
+        if let Some((cached_path, cached_modified, cached_len, key)) = cache.as_ref() {
+            if cached_path == path && *cached_modified == modified && *cached_len == len {
+                return Ok(Arc::clone(key));
+            }
+        }
+    }
+
     let pem = fs::read_to_string(path).map_err(|err| {
         format!(
             "failed to read install script signing key {}: {err}",
@@ -28,12 +54,18 @@ fn load_install_script_signing_key_pair(path: &Path) -> Result<Ed25519KeyPair, S
         )
     })?;
     let der = decode_private_key_pem(&pem)?;
-    Ed25519KeyPair::from_pkcs8_maybe_unchecked(&der).map_err(|err| {
+    let key_pair = Ed25519KeyPair::from_pkcs8_maybe_unchecked(&der).map_err(|err| {
         format!(
             "invalid install script signing key {}: {err}",
             path.display()
         )
-    })
+    })?;
+    let key_pair = Arc::new(key_pair);
+    let mut cache = SIGNING_KEY_CACHE
+        .lock()
+        .map_err(|_| "install script signing key cache poisoned".to_string())?;
+    *cache = Some((path.to_path_buf(), modified, len, Arc::clone(&key_pair)));
+    Ok(key_pair)
 }
 
 fn decode_private_key_pem(pem: &str) -> Result<Vec<u8>, String> {

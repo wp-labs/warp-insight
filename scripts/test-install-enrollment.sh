@@ -407,12 +407,14 @@ for line in lines:
         inside_agent = True
         output.append(line)
         continue
-    if inside_agent and line.startswith("[") and line.strip().endswith("]"):
+    if inside_agent and not inserted and line.startswith("[") and line.strip().endswith("]"):
         output.append(f'instance_name = "{instance_name}"')
         inserted = True
         inside_agent = False
     if inside_agent and line.strip().startswith("instance_name"):
+        output.append(f'instance_name = "{instance_name}"')
         inserted = True
+        continue
     output.append(line)
 if inside_agent and not inserted:
     output.append(f'instance_name = "{instance_name}"')

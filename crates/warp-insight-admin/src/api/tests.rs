@@ -225,6 +225,25 @@ fn initial_config_is_valid_agent_config_contract_with_scoped_token() {
 }
 
 #[test]
+fn initial_config_includes_unique_instance_name_per_token() {
+    let env = TestEnv::new();
+    let first = agent_initial_config_toml(&env.config, "install-token-a");
+    let second = agent_initial_config_toml(&env.config, "install-token-b");
+
+    let extract = |text: &str| {
+        text.lines()
+            .find_map(|line| line.strip_prefix("instance_name = \""))
+            .expect("instance_name line")
+            .trim_end_matches('"')
+            .to_string()
+    };
+    let first_name = extract(&first);
+    let second_name = extract(&second);
+    assert!(first_name.starts_with("host-"));
+    assert_ne!(first_name, second_name);
+}
+
+#[test]
 fn initial_config_preserves_multiline_trust_bundle_as_valid_toml() {
     let mut env = TestEnv::new();
     let trust_bundle =

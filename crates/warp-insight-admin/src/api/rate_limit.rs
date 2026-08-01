@@ -13,6 +13,9 @@ use super::ApiState;
 const MAX_FAILURES_PER_WINDOW: u32 = 5;
 const FAILURE_WINDOW: Duration = Duration::from_secs(60);
 const BLOCK_DURATION: Duration = Duration::from_secs(60);
+/// Upper bound on tracked buckets so a rotating-IP attacker cannot grow the map
+/// without limit. Oldest-first eviction keeps the bound while retaining fresh buckets.
+const MAX_BUCKETS: usize = 10_000;
 
 #[derive(Debug, Default)]
 pub struct RateLimitState {
@@ -75,6 +78,9 @@ pub fn record_auth_failure(state: &ApiState, client_key: &str, scope: &str) {
     let Ok(mut limits) = state.rate_limits.lock() else {
         return;
     };
+    if !limits.buckets.contains_key(&key) && limits.buckets.len() >= MAX_BUCKETS {
+        evict_oldest_bucket(&mut limits.buckets);
+    }
     let bucket = limits.buckets.entry(key).or_insert(RateLimitBucket {
         failures: 0,
         first_failure_at: now,
@@ -101,4 +107,46 @@ pub fn clear_auth_failures(state: &ApiState, client_key: &str, scope: &str) {
 
 fn rate_limit_key(client_key: &str, scope: &str) -> String {
     format!("{scope}:{client_key}")
+}
+
+fn evict_oldest_bucket(buckets: &mut HashMap<String, RateLimitBucket>) {
+    if let Some((oldest_key, _)) = buckets
+        .iter()
+        .min_by_key(|(_, bucket)| bucket.first_failure_at)
+    {
+        let oldest_key = oldest_key.clone();
+        buckets.remove(&oldest_key);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rate_limit_buckets_are_capped_and_evict_oldest() {
+        let now = Instant::now();
+        let mut buckets = HashMap::new();
+        for index in 0..(MAX_BUCKETS + 50) {
+            let key = format!("client-{index}");
+            if !buckets.contains_key(&key) && buckets.len() >= MAX_BUCKETS {
+                evict_oldest_bucket(&mut buckets);
+            }
+            buckets.insert(
+                key,
+                RateLimitBucket {
+                    failures: 1,
+                    first_failure_at: now - Duration::from_secs((MAX_BUCKETS + 50 - index) as u64),
+                    blocked_until: None,
+                },
+            );
+        }
+        assert_eq!(buckets.len(), MAX_BUCKETS);
+        // The 50 oldest entries (smallest first_failure_at) were evicted first;
+        // the survivors are numeric indices 50..=10049.
+        assert!(!buckets.contains_key("client-0"));
+        assert!(!buckets.contains_key("client-49"));
+        assert!(buckets.contains_key("client-50"));
+        assert!(buckets.contains_key("client-10049"));
+    }
 }
