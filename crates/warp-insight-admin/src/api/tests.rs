@@ -1152,17 +1152,13 @@ async fn enrollment_route_uses_no_store_and_rate_limits_rejections() {
 }
 
 #[tokio::test]
-async fn agent_overview_uses_example_cards_before_enrollment() {
+async fn agent_overview_is_empty_before_enrollment() {
     let state = test_state();
     let overview = agent_overview(&state);
 
     assert_eq!(overview.metrics.total_agents, 0);
     assert_eq!(overview.metrics.online_agents, 0);
-    assert_eq!(overview.recent_online_agents.len(), 3);
-    assert!(overview
-        .recent_online_agents
-        .iter()
-        .all(|agent| agent.source == RecentOnlineRegisteredAgentSource::Example));
+    assert!(overview.recent_online_agents.is_empty());
     assert!(overview.abnormal_agents.is_empty());
 }
 
@@ -1178,7 +1174,7 @@ async fn agent_overview_reflects_successful_enrollment() {
 
     assert_eq!(overview.metrics.total_agents, 1);
     assert_eq!(overview.metrics.online_agents, 1);
-    assert_eq!(overview.recent_online_agents.len(), 3);
+    assert_eq!(overview.recent_online_agents.len(), 1);
     assert_eq!(overview.recent_online_agents[0].agent_id, "agent-node-a");
     assert_eq!(overview.recent_online_agents[0].instance_id, "node-a");
     assert_eq!(overview.recent_online_agents[0].version, "v0.9.1");
@@ -1186,9 +1182,6 @@ async fn agent_overview_reflects_successful_enrollment() {
         overview.recent_online_agents[0].source,
         RecentOnlineRegisteredAgentSource::Real
     );
-    assert!(overview.recent_online_agents[1..]
-        .iter()
-        .all(|agent| agent.source == RecentOnlineRegisteredAgentSource::Example));
 }
 
 fn enrollment_request(token: &str) -> SubmitEnrollmentRequest {

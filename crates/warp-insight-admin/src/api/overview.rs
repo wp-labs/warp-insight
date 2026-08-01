@@ -62,11 +62,13 @@ pub async fn get_agent_overview(
     Json(agent_overview(&state)).into_response()
 }
 
+const ONLINE_WINDOW_SECONDS: i64 = 300;
+
 pub fn agent_overview(state: &ApiState) -> AgentOverview {
     let stored_agents = state
         .store
         .load()
-        .map(|snapshot| recent_online_agents_from_store(snapshot.agents.into_values().collect()))
+        .map(|snapshot| snapshot.agents.into_values().collect::<Vec<_>>())
         .unwrap_or_default();
     let memory_agents = state
         .runtime
@@ -74,18 +76,42 @@ pub fn agent_overview(state: &ApiState) -> AgentOverview {
         .expect("runtime state poisoned")
         .recent_online_agents
         .clone();
-    let recent_online_agents = merge_recent_online_agents(stored_agents, memory_agents);
+    let mut recent_online_agents = recent_online_agents_from_store(stored_agents);
+    for agent in memory_agents {
+        if !recent_online_agents
+            .iter()
+            .any(|existing| existing.agent_id == agent.agent_id)
+        {
+            recent_online_agents.push(agent);
+        }
+    }
+    recent_online_agents.sort_by(|left, right| right.registered_at.cmp(&left.registered_at));
+    recent_online_agents.truncate(6);
+
+    let now = DateTime::now();
     let total_agents = recent_online_agents.len() as i64;
-    let display_recent_online_agents = display_recent_online_agents(recent_online_agents);
+    let online_agents = recent_online_agents
+        .iter()
+        .filter(|agent| {
+            let lag = agent.online_since.seconds_until(&now);
+            (0..=ONLINE_WINDOW_SECONDS).contains(&lag)
+        })
+        .count() as i64;
+    let last_seen_lag_seconds = recent_online_agents
+        .iter()
+        .map(|agent| agent.online_since.seconds_until(&now))
+        .max()
+        .unwrap_or(0)
+        .max(0);
 
     AgentOverview {
         metrics: AgentOverviewMetrics {
             total_agents,
-            online_agents: total_agents,
+            online_agents,
             unhealthy_agents: 0,
-            last_seen_lag_seconds: 0,
+            last_seen_lag_seconds,
         },
-        recent_online_agents: display_recent_online_agents,
+        recent_online_agents,
         abnormal_agents: Vec::new(),
     }
 }
@@ -113,22 +139,6 @@ fn recent_online_agents_from_store(
             )
         })
         .collect()
-}
-
-fn merge_recent_online_agents(
-    stored_agents: Vec<RecentOnlineRegisteredAgent>,
-    memory_agents: Vec<RecentOnlineRegisteredAgent>,
-) -> Vec<RecentOnlineRegisteredAgent> {
-    let mut merged = memory_agents;
-    for agent in stored_agents {
-        if !merged
-            .iter()
-            .any(|existing| existing.agent_id == agent.agent_id)
-        {
-            merged.push(agent);
-        }
-    }
-    merged
 }
 
 pub fn record_recent_online_agent(
@@ -178,51 +188,3 @@ fn recent_online_registered_agent_at(
     }
 }
 
-fn display_recent_online_agents(
-    mut real_agents: Vec<RecentOnlineRegisteredAgent>,
-) -> Vec<RecentOnlineRegisteredAgent> {
-    let target_count = 3;
-    if real_agents.len() >= target_count {
-        real_agents.truncate(target_count);
-        return real_agents;
-    }
-
-    let existing_agent_ids: std::collections::HashSet<String> = real_agents
-        .iter()
-        .map(|agent| agent.agent_id.clone())
-        .collect();
-    let needed = target_count - real_agents.len();
-    real_agents.extend(
-        example_recent_online_agents()
-            .into_iter()
-            .filter(|agent| !existing_agent_ids.contains(&agent.agent_id))
-            .take(needed),
-    );
-    real_agents
-}
-
-fn example_recent_online_agents() -> Vec<RecentOnlineRegisteredAgent> {
-    vec![
-        example_recent_online_agent("example-agent-control-01", "control-node-01", "v0.1.0", 930),
-        example_recent_online_agent("example-agent-edge-02", "edge-node-02", "v0.1.0", 1_860),
-        example_recent_online_agent("example-agent-build-03", "build-node-03", "v0.1.0", 3_420),
-    ]
-}
-
-fn example_recent_online_agent(
-    agent_id: &str,
-    instance_id: &str,
-    version: &str,
-    online_duration_seconds: i64,
-) -> RecentOnlineRegisteredAgent {
-    let now = DateTime::now();
-    recent_online_registered_agent_at(
-        agent_id,
-        instance_id,
-        version,
-        now.clone(),
-        now,
-        online_duration_seconds,
-        RecentOnlineRegisteredAgentSource::Example,
-    )
-}

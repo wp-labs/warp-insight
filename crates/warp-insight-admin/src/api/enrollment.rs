@@ -55,6 +55,22 @@ pub async fn enroll_agent(
     } else {
         rate_limit::record_auth_failure(&state, &client_key, ENROLLMENT_AUTH_SCOPE);
     }
+    match result.status {
+        AgentEnrollmentResultStatus::Accepted => eprintln!(
+            "audit enrollment_accepted agent_id={} instance_id={} version={}",
+            result.agent_id.as_deref().unwrap_or("unknown"),
+            result.instance_id.as_deref().unwrap_or("unknown"),
+            version,
+        ),
+        AgentEnrollmentResultStatus::Rejected => eprintln!(
+            "audit enrollment_rejected reason={} agent_id={}",
+            result.reason_code.as_deref().unwrap_or("unknown"),
+            result.agent_id.as_deref().unwrap_or("unknown"),
+        ),
+        AgentEnrollmentResultStatus::PendingReview => {
+            eprintln!("audit enrollment_pending_review");
+        }
+    }
 
     (
         StatusCode::CREATED,

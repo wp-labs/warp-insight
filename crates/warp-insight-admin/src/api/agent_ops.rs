@@ -156,13 +156,19 @@ pub async fn renew_agent_credential(
         true
     });
     match update_result {
-        Ok(true) => (
-            StatusCode::OK,
-            Json(AgentCredentialRenewed {
-                credential_bundle: bundle,
-            }),
-        )
-            .into_response(),
+        Ok(true) => {
+            eprintln!(
+                "audit credential_renewed agent_id={} instance_id={}",
+                agent.agent_id, agent.instance_id,
+            );
+            (
+                StatusCode::OK,
+                Json(AgentCredentialRenewed {
+                    credential_bundle: bundle,
+                }),
+            )
+                .into_response()
+        }
         Ok(false) => (StatusCode::UNAUTHORIZED, "invalid agent credential").into_response(),
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,

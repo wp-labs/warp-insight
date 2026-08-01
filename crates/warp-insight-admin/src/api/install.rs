@@ -44,11 +44,19 @@ pub async fn get_agent_install_code(
         return response;
     }
     match issue_agent_install_code(&state.config, &state.store) {
-        Ok(install_code) => (
-            [(header::CACHE_CONTROL, NO_STORE)],
-            Json(AdminAgentInstallCodeReturned { install_code }),
-        )
-            .into_response(),
+        Ok(install_code) => {
+            eprintln!(
+                "audit install_code_issued tenant={} environment={} bundle={}",
+                state.config.tenant_id,
+                state.config.environment_id,
+                install_code.bootstrap_bundle.bundle_id,
+            );
+            (
+                [(header::CACHE_CONTROL, NO_STORE)],
+                Json(AdminAgentInstallCodeReturned { install_code }),
+            )
+                .into_response()
+        }
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("failed to issue install code: {err}"),
@@ -367,8 +375,11 @@ pub fn validate_bootstrap_token_for_config(
     token: &str,
 ) -> Result<(), String> {
     let token_hash = token_hash(token);
+    // Use `update` (always persists) rather than `update_result` (rolls back on
+    // Err) so status transitions — marking an expired token, recovering an
+    // expired reservation — are actually written to the store.
     let validation = store
-        .update_result(|snapshot| {
+        .update(|snapshot| -> Result<(), String> {
             let Some(stored) = snapshot.enrollment_tokens.get_mut(&token_hash) else {
                 return Err("unknown enrollment token".to_string());
             };

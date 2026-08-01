@@ -37,8 +37,31 @@ pub async fn get_agent_runtime_status(
     if let Err(response) = require_admin_bearer(&state, &headers, &client_key) {
         return response;
     }
+    let snapshot = match state.store.load() {
+        Ok(snapshot) => snapshot,
+        Err(err) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("failed to load agent store: {err}"),
+            )
+                .into_response();
+        }
+    };
+    let Some(agent) = snapshot.agents.get(&agent_id).cloned() else {
+        return (
+            StatusCode::NOT_FOUND,
+            format!("unknown agent {agent_id}"),
+        )
+            .into_response();
+    };
     Json(AdminAgentRuntimeStatusReturned {
-        status: runtime_status(&agent_id, "i-stub-runtime", "v0.3.1", "online", "healthy"),
+        status: runtime_status(
+            &agent.agent_id,
+            &agent.instance_id,
+            &agent.version,
+            "online",
+            "healthy",
+        ),
     })
     .into_response()
 }
@@ -52,6 +75,9 @@ pub async fn pause_agent(
 ) -> Response {
     let client_key = rate_limit::client_key(client);
     if let Err(response) = require_admin_bearer(&state, &headers, &client_key) {
+        return response;
+    }
+    if let Some(response) = agent_not_found_response(&state, &agent_id) {
         return response;
     }
     let requested_by = input
@@ -77,6 +103,9 @@ pub async fn upgrade_agent(
     if let Err(response) = require_admin_bearer(&state, &headers, &client_key) {
         return response;
     }
+    if let Some(response) = agent_not_found_response(&state, &agent_id) {
+        return response;
+    }
     let requested_by = input
         .requested_by
         .unwrap_or_else(|| "admin-operator".to_string());
@@ -92,6 +121,26 @@ pub async fn upgrade_agent(
         }),
     )
         .into_response()
+}
+
+fn agent_not_found_response(state: &ApiState, agent_id: &str) -> Option<Response> {
+    match state.store.load() {
+        Ok(snapshot) if snapshot.agents.contains_key(agent_id) => None,
+        Ok(_) => Some(
+            (
+                StatusCode::NOT_FOUND,
+                format!("unknown agent {agent_id}"),
+            )
+                .into_response(),
+        ),
+        Err(err) => Some(
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("failed to load agent store: {err}"),
+            )
+                .into_response(),
+        ),
+    }
 }
 
 fn runtime_status(

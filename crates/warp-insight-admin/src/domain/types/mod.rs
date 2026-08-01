@@ -20,7 +20,9 @@ pub type AgentEnrollmentTokenValidationStatus = String;
 pub type AgentIdentityStatus = String;
 pub type HealthState = String;
 
-#[derive(Clone, ::serde::Serialize, ::serde::Deserialize)]
+#[derive(
+    Clone, PartialEq, Eq, PartialOrd, Ord, ::serde::Serialize, ::serde::Deserialize,
+)]
 pub struct DateTime(chrono::DateTime<chrono::Utc>);
 
 impl DateTime {
