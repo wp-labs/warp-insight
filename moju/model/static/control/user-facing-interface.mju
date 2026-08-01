@@ -45,10 +45,10 @@ message<response> AdminUpgradeAgentDispatchReturned {
 
 interface WarpInsightAdminPublicInstallInterface {
   meta {
-    label zh "WarpInsightAdmin 公开安装接口"
-    label en "WarpInsightAdmin Public Install Interface"
-    summary zh "无需管理员身份权限即可读取 Agent 安装代码的公开引导接口，仅用于安装脚本复制和 bootstrap 引导。"
-    tag "public"
+    label zh "WarpInsightAdmin 运维安装接口"
+    label en "WarpInsightAdmin Operations Install Interface"
+    summary zh "运维工程师通过管理员 bearer 身份获取 Agent 安装代码；接口只负责安装脚本复制和 bootstrap 引导，不面向未认证访问者开放。"
+    tag "authenticated"
     tag "bootstrap"
     tag "agent-install"
     tag "web"
@@ -102,33 +102,51 @@ flow AdminGetAgentInstallCodeFlow {
   meta {
     label zh "获取 Agent 安装代码"
     label en "Get Agent Install Code Flow"
-    summary zh "公开安装调用方获取可复制执行的 Agent 安装代码，返回 X86-Linux 和 Arm-Linux 两类安装命令。"
+    summary zh "已认证的运维工程师获取可复制执行的 Agent 安装代码；管理端同时生成短期一次性 enrollment token，并在安装脚本中绑定包摘要和初始配置获取资格。"
     tag "admin"
     tag "agent-install"
-    tag "public"
+    tag "authenticated"
   }
 
   actor OperationsEngineer
   trigger AdminGetAgentInstallCode
 
   creates AgentBootstrapBundle
+  creates AgentEnrollmentToken
   creates AgentInstallCode
+
+  step IssueEnrollmentToken {
+    create AgentEnrollmentToken {
+      token_id = "install-token-001"
+      token_hash = "sha256:token-hash"
+      tenant_id = "tenant-default"
+      environment_id = "env-default"
+      max_uses = 1
+      used_count = 0
+      issued_by = "operations-engineer"
+      issued_at = "2026-07-04T00:00:00Z"
+      expires_at = "2026-07-04T00:15:00Z"
+      status = "active"
+    }
+  }
 
   step BuildInstallCode {
     create AgentBootstrapBundle {
-      bundle_id = "agent-bootstrap-default"
-      install_script_url = "https://warp-insight-admin/x86/install.sh"
+      bundle_id = "agent-bootstrap-install-token-001"
+      install_script_url = "https://warp-insight-admin/api/v1/agent/install/x86/install.sh?token=install-token-001"
+      agent_package_url = "https://warp-insight-admin/api/v1/agent/packages/current"
+      agent_package_sha256 = "sha256:package-digest"
       control_endpoint = "https://warp-insight-admin"
       trust_bundle = "internal-ca"
       tenant_id = "tenant-default"
       environment_id = "env-default"
-      expires_at = "2026-07-05T00:00:00Z"
+      expires_at = "2026-07-04T00:15:00Z"
     }
 
     create AgentInstallCode {
-      x86_linux_install_code = "https://warp-insight-admin/x86/install.sh | bash"
-      arm_linux_install_code = "https://warp-insight-admin/arm/install.sh | bash"
-      bootstrap_bundle = "agent-bootstrap-default"
+      x86_linux_install_code = "curl -fsSL https://warp-insight-admin/api/v1/agent/install/x86/install.sh?token=install-token-001 | bash"
+      arm_linux_install_code = "curl -fsSL https://warp-insight-admin/api/v1/agent/install/arm/install.sh?token=install-token-001 | bash"
+      bootstrap_bundle = "agent-bootstrap-install-token-001"
     }
   }
 }
@@ -283,8 +301,9 @@ verify AdminGetAgentInstallCodeVerified for flow AdminGetAgentInstallCodeFlow {
   when AdminGetAgentInstallCode
 
   expect {
-    AgentBootstrapBundle.bundle_id == "agent-bootstrap-default"
-    AgentInstallCode.bootstrap_bundle == "agent-bootstrap-default"
+    AgentEnrollmentToken.max_uses == 1
+    AgentBootstrapBundle.bundle_id == "agent-bootstrap-install-token-001"
+    AgentInstallCode.bootstrap_bundle == "agent-bootstrap-install-token-001"
   }
 }
 

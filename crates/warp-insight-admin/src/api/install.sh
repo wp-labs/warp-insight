@@ -1,0 +1,64 @@
+#!/usr/bin/env sh
+set -eu
+
+ARCH="{{ARCH}}"
+AGENT_PACKAGE_SHA256="{{AGENT_PACKAGE_SHA256}}"
+if [ -z "${WARP_INSIGHT_ENROLLMENT_TOKEN:-}" ]; then
+  if [ -r /dev/tty ]; then
+    printf "Enrollment token: " >/dev/tty
+    stty -echo </dev/tty 2>/dev/null || true
+    IFS= read -r WARP_INSIGHT_ENROLLMENT_TOKEN </dev/tty
+    stty echo </dev/tty 2>/dev/null || true
+    printf "\n" >/dev/tty
+  fi
+fi
+if [ -z "${WARP_INSIGHT_ENROLLMENT_TOKEN:-}" ]; then
+  echo "missing WARP_INSIGHT_ENROLLMENT_TOKEN" >&2
+  exit 1
+fi
+if [ -z "${WARP_INSIGHT_HOME:-}" ]; then
+  OS_NAME="$(uname -s 2>/dev/null || echo unknown)"
+  if [ "$(id -u)" = "0" ]; then
+    case "$OS_NAME" in
+      Darwin) WARP_INSIGHT_HOME="/usr/local/warp-insight" ;;
+      *) WARP_INSIGHT_HOME="/opt/warp-insight" ;;
+    esac
+  else
+    WARP_INSIGHT_HOME="$HOME/.warp-insight"
+  fi
+fi
+BIN_DIR="$WARP_INSIGHT_HOME/bin"
+CONFIG_DIR="$WARP_INSIGHT_HOME/.warp-insightd"
+
+umask 077
+mkdir -p "$BIN_DIR" "$CONFIG_DIR"
+chmod 0700 "$CONFIG_DIR"
+
+curl -fsSL -H "authorization: Bearer $WARP_INSIGHT_ENROLLMENT_TOKEN" "{{AGENT_PACKAGE_URL}}" -o "$BIN_DIR/warp-insightd"
+if [ -n "$AGENT_PACKAGE_SHA256" ]; then
+  if command -v sha256sum >/dev/null 2>&1; then
+    ACTUAL_SHA256="$(sha256sum "$BIN_DIR/warp-insightd" | awk '{print $1}')"
+  elif command -v shasum >/dev/null 2>&1; then
+    ACTUAL_SHA256="$(shasum -a 256 "$BIN_DIR/warp-insightd" | awk '{print $1}')"
+  else
+    echo "missing sha256sum or shasum for package verification" >&2
+    exit 1
+  fi
+  if [ "$ACTUAL_SHA256" != "$AGENT_PACKAGE_SHA256" ]; then
+    echo "agent package sha256 mismatch: expected $AGENT_PACKAGE_SHA256 got $ACTUAL_SHA256" >&2
+    exit 1
+  fi
+fi
+chmod 0755 "$BIN_DIR/warp-insightd"
+
+curl -fsSL -H "authorization: Bearer $WARP_INSIGHT_ENROLLMENT_TOKEN" "{{AGENT_INITIAL_CONFIG_URL}}" -o "$CONFIG_DIR/insightd.toml"
+chmod 0600 "$CONFIG_DIR/insightd.toml"
+
+echo "warp-insightd installed for $ARCH"
+echo "binary: $BIN_DIR/warp-insightd"
+echo "config: $CONFIG_DIR/insightd.toml"
+echo "start:  $BIN_DIR/warp-insightd --config-dir $CONFIG_DIR"
+
+if [ "${WARP_INSIGHT_START:-0}" = "1" ]; then
+  exec "$BIN_DIR/warp-insightd" --config-dir "$CONFIG_DIR"
+fi

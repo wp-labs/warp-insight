@@ -12,5 +12,6 @@ pub struct AgentBootstrapBundle {
     pub bundle_id: String,
     pub install_script_url: String,
     pub agent_package_url: String,
+    pub agent_package_sha256: String,
     pub trust_bundle: String,
 }

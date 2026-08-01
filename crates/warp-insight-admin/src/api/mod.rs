@@ -1,6 +1,23 @@
 // @moju generated
 // @moju hash=2ff63c2da808b5ca
 
+use std::sync::{Arc, Mutex};
+
+use axum::{
+    routing::{get, post},
+    Router,
+};
+
+use crate::infra::{AdminConfig, AdminStore};
+
+mod admin_auth;
+mod admin_ops;
+mod agent_ops;
+mod enrollment;
+mod install;
+mod overview;
+mod rate_limit;
+
 pub mod warp_insight_admin_public_install_interface;
 pub use warp_insight_admin_public_install_interface::*;
 pub mod warp_insight_admin_management_interface;
@@ -8,52 +25,61 @@ pub use warp_insight_admin_management_interface::*;
 pub mod wp_agent_online_registration_interface;
 pub use wp_agent_online_registration_interface::*;
 
-use axum::{
-    extract::Path,
-    http::StatusCode,
-    routing::{get, post},
-    Json, Router,
+use admin_ops::{get_agent_runtime_status, pause_agent, upgrade_agent};
+use agent_ops::{
+    poll_control_commands, renew_agent_credential, report_action_result, submit_agent_status,
 };
-use serde::{Deserialize, Serialize};
-
-use crate::domain::messages::{
-    AdminAgentInstallCodeReturned, AdminAgentRuntimeStatusReturned,
-    AdminPauseAgentDispatchReturned, AdminUpgradeAgentDispatchReturned,
+use enrollment::enroll_agent;
+use install::{
+    download_agent_package, get_agent_initial_config_with_token, get_agent_install_code,
+    get_agent_install_script, get_agent_install_script_signature,
 };
-use crate::domain::types::{
-    AgentBootstrapBundle, AgentInstallCode, AgentRuntimeStatusView, DateTime, DispatchReceipt,
-};
+use overview::{get_agent_overview, RecentOnlineRegisteredAgent};
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AgentOverviewMetrics {
-    pub total_agents: i64,
-    pub online_agents: i64,
-    pub unhealthy_agents: i64,
-    pub last_seen_lag_seconds: i64,
+#[derive(Debug, Clone)]
+pub struct ApiState {
+    pub config: AdminConfig,
+    pub store: AdminStore,
+    pub runtime: Arc<Mutex<AdminRuntimeState>>,
+    pub rate_limits: Arc<Mutex<rate_limit::RateLimitState>>,
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AgentOverview {
-    pub metrics: AgentOverviewMetrics,
-    pub abnormal_agents: Vec<AgentRuntimeStatusView>,
+#[derive(Debug, Default)]
+pub struct AdminRuntimeState {
+    pub recent_online_agents: Vec<RecentOnlineRegisteredAgent>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct PauseAgentRequest {
-    pub requested_by: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct UpgradeAgentRequest {
-    pub requested_by: Option<String>,
-    pub target_version: Option<String>,
-}
-
-pub fn router() -> Router {
+pub fn router(config: AdminConfig) -> Router {
+    let store = AdminStore::new(config.store_file.clone());
     Router::new()
         .route("/api/v1/agent/install-code", get(get_agent_install_code))
+        .route(
+            "/api/v1/agent/install/:arch/install.sh",
+            get(get_agent_install_script),
+        )
+        .route(
+            "/api/v1/agent/install/:arch/install.sh.sig",
+            get(get_agent_install_script_signature),
+        )
+        .route(
+            "/api/v1/agent/initial-config",
+            get(get_agent_initial_config_with_token),
+        )
+        .route(
+            "/api/v1/agent/packages/current",
+            get(download_agent_package),
+        )
+        .route("/api/v1/agent/enroll", post(enroll_agent))
+        .route("/api/v1/agent/status", post(submit_agent_status))
+        .route(
+            "/api/v1/agent/credentials:renew",
+            post(renew_agent_credential),
+        )
+        .route(
+            "/api/v1/agent/control-commands:poll",
+            post(poll_control_commands),
+        )
+        .route("/api/v1/agent/action-results", post(report_action_result))
         .route("/api/v1/admin/agents/overview", get(get_agent_overview))
         .route(
             "/api/v1/admin/agents/:agent_id/runtime-status",
@@ -64,126 +90,13 @@ pub fn router() -> Router {
             "/api/v1/admin/agents/:agent_id/upgrade",
             post(upgrade_agent),
         )
+        .with_state(ApiState {
+            config,
+            store,
+            runtime: Arc::new(Mutex::new(AdminRuntimeState::default())),
+            rate_limits: Arc::new(Mutex::new(rate_limit::RateLimitState::default())),
+        })
 }
 
-async fn get_agent_install_code() -> Json<AdminAgentInstallCodeReturned> {
-    Json(AdminAgentInstallCodeReturned {
-        install_code: AgentInstallCode {
-            x86_linux_install_code:
-                "curl -fsSL http://127.0.0.1:3000/api/v1/agent/install/x86/install.sh | bash"
-                    .to_string(),
-            arm_linux_install_code:
-                "curl -fsSL http://127.0.0.1:3000/api/v1/agent/install/arm/install.sh | bash"
-                    .to_string(),
-            bootstrap_bundle: AgentBootstrapBundle {
-                bundle_id: "agent-bootstrap-default".to_string(),
-                install_script_url: "http://127.0.0.1:3000/api/v1/agent/install/x86/install.sh"
-                    .to_string(),
-                agent_package_url: "http://127.0.0.1:3000/api/v1/agent/packages/current"
-                    .to_string(),
-                control_endpoint: "http://127.0.0.1:3000".to_string(),
-                trust_bundle: "internal-ca-stub".to_string(),
-                tenant_id: "tenant-default".to_string(),
-                environment_id: "env-default".to_string(),
-                expires_at: DateTime::now(),
-            },
-        },
-    })
-}
-
-async fn get_agent_overview() -> Json<AgentOverview> {
-    Json(AgentOverview {
-        metrics: AgentOverviewMetrics {
-            total_agents: 9,
-            online_agents: 7,
-            unhealthy_agents: 2,
-            last_seen_lag_seconds: 42,
-        },
-        abnormal_agents: vec![
-            runtime_status(
-                "agent-prod-001",
-                "i-0a12c9f8",
-                "v0.3.1",
-                "online",
-                "degraded",
-            ),
-            runtime_status(
-                "agent-edge-014",
-                "edge-node-014",
-                "v0.2.8",
-                "offline",
-                "unhealthy",
-            ),
-        ],
-    })
-}
-
-async fn get_agent_runtime_status(
-    Path(agent_id): Path<String>,
-) -> Json<AdminAgentRuntimeStatusReturned> {
-    Json(AdminAgentRuntimeStatusReturned {
-        status: runtime_status(&agent_id, "i-stub-runtime", "v0.3.1", "online", "healthy"),
-    })
-}
-
-async fn pause_agent(
-    Path(agent_id): Path<String>,
-    Json(input): Json<PauseAgentRequest>,
-) -> (StatusCode, Json<AdminPauseAgentDispatchReturned>) {
-    let requested_by = input
-        .requested_by
-        .unwrap_or_else(|| "admin-operator".to_string());
-    (
-        StatusCode::ACCEPTED,
-        Json(AdminPauseAgentDispatchReturned {
-            result: dispatch_receipt(&agent_id, "pause", &requested_by),
-        }),
-    )
-}
-
-async fn upgrade_agent(
-    Path(agent_id): Path<String>,
-    Json(input): Json<UpgradeAgentRequest>,
-) -> (StatusCode, Json<AdminUpgradeAgentDispatchReturned>) {
-    let requested_by = input
-        .requested_by
-        .unwrap_or_else(|| "admin-operator".to_string());
-    let target_version = input.target_version.unwrap_or_else(|| "v0.3.2".to_string());
-    (
-        StatusCode::ACCEPTED,
-        Json(AdminUpgradeAgentDispatchReturned {
-            result: dispatch_receipt(
-                &agent_id,
-                &format!("upgrade-{target_version}"),
-                &requested_by,
-            ),
-        }),
-    )
-}
-
-fn runtime_status(
-    agent_id: &str,
-    instance_id: &str,
-    version: &str,
-    status: &str,
-    health: &str,
-) -> AgentRuntimeStatusView {
-    AgentRuntimeStatusView {
-        agent_id: agent_id.to_string(),
-        instance_id: instance_id.to_string(),
-        version: version.to_string(),
-        status: status.to_string(),
-        health: health.to_string(),
-        last_seen_at: DateTime::now(),
-    }
-}
-
-fn dispatch_receipt(agent_id: &str, kind: &str, requested_by: &str) -> DispatchReceipt {
-    DispatchReceipt {
-        agent_id: agent_id.to_string(),
-        command_id: format!("admin-{kind}-command-{requested_by}"),
-        dispatch_id: format!("admin-{kind}-dispatch"),
-        status: "accepted".to_string(),
-        created_at: DateTime::now(),
-    }
-}
+#[cfg(test)]
+mod tests;

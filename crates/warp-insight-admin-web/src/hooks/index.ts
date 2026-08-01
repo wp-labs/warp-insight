@@ -12,6 +12,7 @@ export function useAgentOverview() {
   return useQuery({
     queryKey: ["agent-overview"],
     queryFn: fetchAgentOverview,
+    refetchInterval: 5_000,
   });
 }
 

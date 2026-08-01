@@ -11,15 +11,31 @@ interface SubsystemAgentInstallCodeListProps {
   children?: React.ReactNode;
 }
 
-export function SubsystemAgentInstallCodeList({ installCode, loading }: SubsystemAgentInstallCodeListProps) {
+export function SubsystemAgentInstallCodeList({
+  installCode,
+  loading,
+}: SubsystemAgentInstallCodeListProps) {
   return (
     <div className={styles.container}>
       <SubsystemX86LinuxAgentInstallCode>
-        <SubsystemX86LinuxInstallCode command={installCode?.x86LinuxInstallCode} loading={loading} />
+        <SubsystemX86LinuxInstallCode
+          command={installCode?.x86LinuxInstallCode}
+          loading={loading}
+        />
       </SubsystemX86LinuxAgentInstallCode>
       <SubsystemArmLinuxAgentInstallCode>
-        <SubsystemArmLinuxInstallCode command={installCode?.armLinuxInstallCode} loading={loading} />
+        <SubsystemArmLinuxInstallCode
+          command={installCode?.armLinuxInstallCode}
+          loading={loading}
+        />
       </SubsystemArmLinuxAgentInstallCode>
+      <SubsystemX86LinuxAgentInstallCode>
+        <SubsystemX86LinuxInstallCode
+          command={installCode?.bootstrapEnrollmentToken}
+          loading={loading}
+          label="Bootstrap Token"
+        />
+      </SubsystemX86LinuxAgentInstallCode>
     </div>
   );
 }

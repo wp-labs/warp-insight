@@ -27,6 +27,7 @@ function formatDuration(seconds: number): string {
 export function SubsystemRecentOnlineRegisteredAgentCard({
   agent,
 }: SubsystemRecentOnlineRegisteredAgentCardProps) {
+  const sourceLabel = agent.source === "real" ? "真实" : "示例";
   return (
     <article className={styles.container}>
       <div className={styles.top}>
@@ -34,7 +35,12 @@ export function SubsystemRecentOnlineRegisteredAgentCard({
           <div className={styles.agentId}>{agent.agentId}</div>
           <div className={styles.instance}>{agent.instanceId}</div>
         </div>
-        <span className={styles.badge}>在线</span>
+        <div className={styles.badges}>
+          <span className={styles.badge}>在线</span>
+          <span className={agent.source === "real" ? styles.realBadge : styles.exampleBadge}>
+            {sourceLabel}
+          </span>
+        </div>
       </div>
       <div className={styles.durationBlock}>
         <span className={styles.durationLabel}>上线时长</span>

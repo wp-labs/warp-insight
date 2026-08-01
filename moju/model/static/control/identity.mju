@@ -65,6 +65,8 @@ struct AgentCredentialBundle {
   unique credential_id: String
   agent_id: String
   instance_id: String
+  auth_scheme: String
+  bearer_token: Secret
   certificate: String
   private_key_ref: String
   ca_bundle: String
@@ -85,10 +87,22 @@ struct AgentControlAuthProfile {
   server_tls_required: Bool
   agent_credential_required: Bool
   mtls_client_certificate_allowed: Bool
+  credential_expiration_enforced: Bool
   enrollment_token_rejected: Bool
 }
 
-command RenewAgentCredential {
+message<command> RenewAgentCredential {
+  meta {
+    label zh "续期 Agent 通讯凭据"
+    label en "Renew Agent Credential"
+    summary zh "Agentd 使用当前有效 bearer 凭据申请新的通讯凭据，管理端签发新凭据并使旧凭据失效。"
+    tag "agentd"
+    tag "credential"
+    tag "renewal"
+  }
+
+  api_version: String
+  kind: String
   agent_id: String
   instance_id: String
   credential_request: String

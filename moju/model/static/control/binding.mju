@@ -3,7 +3,8 @@
 bind WarpInsightAdminPublicInstallInterface {
   entry AdminGetAgentInstallCode {
     route GET "/api/v1/agent/install-code"
-    auth none
+    auth bearer
+    actor_identity OperationsEngineer.id from token.sub
     status AdminAgentInstallCodeReturned 200
     outcome AdminAgentInstallCodeReturned on AgentInstallCode
   }
@@ -57,6 +58,14 @@ bind WpAgentOnlineRegistrationInterface {
     actor_identity Agentd.id from credential.agent_id
     status Reporting.AgentStatusAccepted 202
     outcome Reporting.AgentStatusAccepted on Reporting.AgentStatusAccepted
+  }
+
+  entry RenewAgentCredential {
+    route POST "/api/v1/agent/credentials:renew"
+    auth bearer
+    actor_identity Agentd.id from credential.agent_id
+    status AgentCredentialRenewed 200
+    outcome AgentCredentialRenewed on AgentCredentialBundle
   }
 
   entry PollControlCommands {

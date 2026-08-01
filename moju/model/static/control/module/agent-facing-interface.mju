@@ -16,6 +16,8 @@ module<interface> AgentFacingInterface {
   owns WpAgentOnlineRegistrationInterface
   owns SubmitEnrollmentRequest
   owns AgentEnrollmentResultReturned
+  owns AgentCredentialRenewed
+  owns RenewAgentCredentialFlow
   owns PollControlCommands
   owns PollControlCommandsFlow
   owns AgentControlCommandsReturned

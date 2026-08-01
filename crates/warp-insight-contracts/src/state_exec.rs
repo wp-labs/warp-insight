@@ -11,6 +11,12 @@ pub struct AgentRuntimeState {
     pub agent_id: String,
     pub instance_id: String,
     pub version: String,
+    #[serde(default)]
+    pub credential_id: Option<String>,
+    #[serde(default)]
+    pub bearer_token: Option<String>,
+    #[serde(default)]
+    pub credential_expires_at: Option<String>,
     pub mode: RuntimeMode,
     pub updated_at: String,
 }
@@ -28,6 +34,9 @@ impl AgentRuntimeState {
             agent_id,
             instance_id,
             version,
+            credential_id: None,
+            bearer_token: None,
+            credential_expires_at: None,
             mode,
             updated_at,
         }

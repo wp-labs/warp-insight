@@ -27,6 +27,16 @@ impl DateTime {
     pub fn now() -> Self {
         Self(chrono::Utc::now())
     }
+
+    pub fn from_rfc3339(value: &str) -> Option<Self> {
+        chrono::DateTime::parse_from_rfc3339(value)
+            .ok()
+            .map(|value| Self(value.with_timezone(&chrono::Utc)))
+    }
+
+    pub fn seconds_until(&self, later: &Self) -> i64 {
+        later.0.signed_duration_since(self.0).num_seconds().max(0)
+    }
 }
 
 impl std::fmt::Debug for DateTime {

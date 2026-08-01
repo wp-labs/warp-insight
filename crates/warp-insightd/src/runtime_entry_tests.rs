@@ -419,7 +419,11 @@ fn sync_runtime_identity_prefers_config_identity_when_present() {
             endpoint: None,
             enrollment_token: None,
             credential_request: None,
+            credential_id: None,
+            bearer_token: None,
+            credential_expires_at: None,
             tls_mode: None,
+            trust_bundle: None,
             auth_mode: None,
         },
         PathsSection {

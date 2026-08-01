@@ -176,7 +176,9 @@ async fn run_daemon(
     let log_dir = PathBuf::from(&config.paths.log_dir);
 
     crate::bootstrap::initialize(&root_dir, &run_dir, &state_dir, &log_dir)?;
-    crate::enrollment::ensure_enrolled(&mut config, &state_dir).await?;
+    let config_path = crate::config_runtime::resolve_config_path(&config_root);
+    crate::enrollment::ensure_enrolled_with_config_path(&mut config, &state_dir, &config_path)
+        .await?;
     initialize_runtime_state(&state_dir, &config)?;
     self_observability::register();
     let exec_bin = resolve_exec_bin()?;

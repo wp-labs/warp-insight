@@ -29,3 +29,10 @@ vite.config.js
 
 # MoJu draft files (AI-generated, awaiting review)
 moju/draft/
+
+# MoJu tooling artifacts (diff baselines, generation manifests)
+.moju-baseline/
+.moju-gen.json
+
+# Local agent runtime data directory (may contain credentials)
+/warp-insightd/

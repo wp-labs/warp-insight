@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use warp_insight_contracts::state_exec::AgentRuntimeState;
 use warp_insight_contracts::state_exec::RuntimeMode;
-use warp_insight_shared::fs::{read_json, write_json_atomic};
+use warp_insight_shared::fs::{read_json, write_json_private_atomic};
 use warp_insight_shared::paths::AGENT_RUNTIME_FILE;
 use warp_insight_shared::time::now_rfc3339;
 
@@ -32,7 +32,7 @@ pub fn load_or_default(path: &Path) -> io::Result<AgentRuntimeState> {
 }
 
 pub fn store(path: &Path, state: &AgentRuntimeState) -> io::Result<()> {
-    write_json_atomic(path, state)
+    write_json_private_atomic(path, state)
 }
 
 fn default_instance_id() -> String {
@@ -72,7 +72,9 @@ fn hostname_from_file() -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::default_instance_id_from_sources;
+    use super::{default_instance_id_from_sources, path_for, store};
+    use std::time::{SystemTime, UNIX_EPOCH};
+    use warp_insight_contracts::state_exec::{AgentRuntimeState, RuntimeMode};
 
     #[test]
     fn default_instance_id_prefers_hostname_env() {
@@ -96,5 +98,49 @@ mod tests {
             default_instance_id_from_sources(None, None, None),
             "local-instance"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn store_writes_private_runtime_state_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let state_dir = std::env::temp_dir().join(format!(
+            "warp-insightd-agent-runtime-perms-{}",
+            unique_suffix()
+        ));
+        let path = path_for(&state_dir);
+        let mut state = AgentRuntimeState::new(
+            "agent-a".to_string(),
+            "instance-a".to_string(),
+            "v0.1.0".to_string(),
+            RuntimeMode::Normal,
+            "2026-07-29T00:00:00Z".to_string(),
+        );
+        state.bearer_token = Some("bearer-secret".to_string());
+
+        store(&path, &state).expect("store runtime state");
+
+        let dir_mode = std::fs::metadata(&state_dir)
+            .expect("state dir metadata")
+            .permissions()
+            .mode()
+            & 0o777;
+        let file_mode = std::fs::metadata(&path)
+            .expect("runtime file metadata")
+            .permissions()
+            .mode()
+            & 0o777;
+        assert_eq!(dir_mode, 0o700);
+        assert_eq!(file_mode, 0o600);
+
+        let _ = std::fs::remove_dir_all(state_dir);
+    }
+
+    fn unique_suffix() -> u128 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("time")
+            .as_nanos()
     }
 }

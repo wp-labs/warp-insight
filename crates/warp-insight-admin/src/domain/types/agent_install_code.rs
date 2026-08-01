@@ -5,6 +5,7 @@
 #[moju(kind = "struct", domain = "Control")]
 pub struct AgentInstallCode {
     pub x86_linux_install_code: String,
+    pub bootstrap_enrollment_token: String,
     pub bootstrap_bundle: crate::domain::types::AgentBootstrapBundle,
     pub arm_linux_install_code: String,
 }

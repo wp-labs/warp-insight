@@ -12,6 +12,7 @@ struct AgentBootstrapBundle {
   unique bundle_id: String
   install_script_url: String
   agent_package_url: String
+  agent_package_sha256: String
   control_endpoint: String
   trust_bundle: String
   tenant_id: String
@@ -73,6 +74,7 @@ variant AgentEnrollmentTokenStatus {
   Active
   Expired
   Revoked
+  Used
   Exhausted
 }
 
@@ -214,7 +216,7 @@ flow AgentdRegistrationFlow {
   meta {
     label zh "Agentd 注册管理中心"
     label en "Agentd Registration Flow"
-    summary zh "Agentd 使用安装代码拉取安装脚本，并通过脚本中的 enrollment token 向 WarpInsight 管理节点提交注册请求；管理侧校验 token 后签发 agent identity 和通讯凭据，并返回初始配置、策略绑定和注册结果。"
+    summary zh "Agentd 使用安装代码拉取安装脚本，并通过脚本中的 enrollment token 向 WarpInsight 管理节点提交注册请求；管理侧在同一次持久化更新中校验并消费 token，拒绝重复 agent identity 后才签发通讯凭据。"
     tag "agentd"
     tag "registration"
     tag "enrollment"
@@ -242,6 +244,9 @@ flow AgentdRegistrationFlow {
 
   }
 
+  step CheckDuplicateRegistration {
+  }
+
   step IssueAgentIdentity {
     create AgentIdentity {
       agent_id = "agent-issued"
@@ -255,6 +260,8 @@ flow AgentdRegistrationFlow {
       credential_id = "credential-issued"
       agent_id = "agent-issued"
       instance_id = "instance-issued"
+      auth_scheme = "bearer"
+      bearer_token = "credential-secret"
       issued_at = SubmitEnrollmentRequest.requested_at
     }
 

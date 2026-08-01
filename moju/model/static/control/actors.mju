@@ -3,6 +3,7 @@
 actor Agentd {
   access protocol<http>
   can SubmitEnrollmentRequest
+  can RenewAgentCredential
   can VerifyAgentCredential
   can PollControlCommands
   can AgentUpstreamMessage

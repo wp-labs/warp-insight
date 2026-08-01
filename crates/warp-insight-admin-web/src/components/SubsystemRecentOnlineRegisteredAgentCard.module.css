@@ -39,14 +39,37 @@
   white-space: nowrap;
 }
 
-.badge {
+.badges {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge,
+.realBadge,
+.exampleBadge {
   padding: 4px 9px;
   border-radius: 999px;
-  background: #e9f7ef;
-  color: #187141;
   font-size: 12px;
   font-weight: 750;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.badge {
+  background: #e9f7ef;
+  color: #187141;
+}
+
+.realBadge {
+  background: #e7f0ff;
+  color: #2452a3;
+}
+
+.exampleBadge {
+  background: #f4f0e8;
+  color: #7a5a1f;
 }
 
 .durationBlock {

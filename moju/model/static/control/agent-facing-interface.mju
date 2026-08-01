@@ -20,6 +20,10 @@ message<response> AgentEnrollmentResultReturned {
   result: AgentEnrollmentResult
 }
 
+message<response> AgentCredentialRenewed {
+  credential_bundle: AgentCredentialBundle
+}
+
 message<response> AgentControlCommandsReturned {
   agent_id: String
   instance_id: String
@@ -53,6 +57,12 @@ interface WpAgentOnlineRegistrationInterface {
     calls Reporting.AgentHelloFlow
   }
 
+  entry RenewAgentCredential {
+    actor Agentd
+    output AgentCredentialRenewed
+    calls RenewAgentCredentialFlow
+  }
+
   entry PollControlCommands {
     actor Agentd
     output AgentControlCommandsReturned
@@ -81,5 +91,26 @@ flow PollControlCommandsFlow {
   trigger PollControlCommands
 
   step ReturnLatestCommands {
+  }
+}
+
+flow RenewAgentCredentialFlow {
+  meta {
+    label zh "续期 Agent 通讯凭据"
+    label en "Renew Agent Credential Flow"
+    summary zh "Agentd 使用当前有效通讯凭据申请新的 bearer 凭据；管理端轮换凭据哈希后旧凭据立即失效。"
+    tag "agentd"
+    tag "credential"
+    tag "renewal"
+  }
+
+  actor Agentd
+  trigger RenewAgentCredential
+
+  depends AgentIdentity, AgentCredentialBundle, AgentControlAuthProfile
+
+  creates AgentCredentialBundle
+
+  step IssueRenewedCredential {
   }
 }

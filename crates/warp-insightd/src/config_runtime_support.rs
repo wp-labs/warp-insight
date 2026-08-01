@@ -39,6 +39,7 @@ container_enabled = false
 # endpoint = "https://10.0.1.1"
 # enrollment_token = "${WARP_INSIGHT_ENROLLMENT_TOKEN}"
 # tls_mode = "https"
+# trust_bundle = ""
 # auth_mode = "enrollment_token"
 #
 # 可选：
@@ -80,7 +81,12 @@ pub(super) fn expand_env_contract(
     config.control_plane.enrollment_token = expand_optional(config.control_plane.enrollment_token)?;
     config.control_plane.credential_request =
         expand_optional(config.control_plane.credential_request)?;
+    config.control_plane.credential_id = expand_optional(config.control_plane.credential_id)?;
+    config.control_plane.bearer_token = expand_optional(config.control_plane.bearer_token)?;
+    config.control_plane.credential_expires_at =
+        expand_optional(config.control_plane.credential_expires_at)?;
     config.control_plane.tls_mode = expand_optional(config.control_plane.tls_mode)?;
+    config.control_plane.trust_bundle = expand_optional(config.control_plane.trust_bundle)?;
     config.control_plane.auth_mode = expand_optional(config.control_plane.auth_mode)?;
     config.paths.root_dir = expand_string(config.paths.root_dir)?;
     config.paths.run_dir = expand_string(config.paths.run_dir)?;

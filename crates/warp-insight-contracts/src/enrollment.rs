@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::API_VERSION_V1;
 
 pub const SUBMIT_ENROLLMENT_REQUEST_KIND: &str = "submit_enrollment_request";
+pub const RENEW_AGENT_CREDENTIAL_KIND: &str = "renew_agent_credential";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -111,12 +112,49 @@ pub struct AgentCredentialBundle {
     pub credential_id: String,
     pub agent_id: String,
     pub instance_id: String,
+    pub auth_scheme: Option<String>,
+    pub bearer_token: Option<String>,
     pub certificate: Option<String>,
     pub private_key_ref: Option<String>,
     pub ca_bundle: Option<String>,
     pub issued_at: String,
     pub not_before: Option<String>,
     pub not_after: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RenewAgentCredential {
+    pub api_version: String,
+    pub kind: String,
+    pub agent_id: String,
+    pub instance_id: String,
+    pub credential_request: String,
+    pub requested_at: String,
+}
+
+impl RenewAgentCredential {
+    pub fn new(
+        agent_id: String,
+        instance_id: String,
+        credential_request: String,
+        requested_at: String,
+    ) -> Self {
+        Self {
+            api_version: API_VERSION_V1.to_string(),
+            kind: RENEW_AGENT_CREDENTIAL_KIND.to_string(),
+            agent_id,
+            instance_id,
+            credential_request,
+            requested_at,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentCredentialRenewed {
+    pub credential_bundle: AgentCredentialBundle,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -142,6 +180,7 @@ pub struct AgentPolicyBinding {
 mod tests {
     use super::{
         AgentEnrollmentResult, AgentEnrollmentResultReturned, AgentEnrollmentResultStatus,
+        RENEW_AGENT_CREDENTIAL_KIND, RenewAgentCredential,
     };
 
     #[test]
@@ -165,5 +204,22 @@ mod tests {
         .expect("encode");
 
         assert!(encoded.contains("\"pending_review\""));
+    }
+
+    #[test]
+    fn renew_agent_credential_uses_stable_wire_kind() {
+        let request = RenewAgentCredential::new(
+            "agent-a".to_string(),
+            "instance-a".to_string(),
+            "bearer".to_string(),
+            "2026-07-29T00:00:00Z".to_string(),
+        );
+        let encoded = serde_json::to_string(&request).expect("encode");
+
+        assert!(encoded.contains(&format!("\"kind\":\"{RENEW_AGENT_CREDENTIAL_KIND}\"")));
+
+        let decoded: RenewAgentCredential = serde_json::from_str(&encoded).expect("decode");
+        assert_eq!(decoded.api_version, "v1");
+        assert_eq!(decoded.kind, RENEW_AGENT_CREDENTIAL_KIND);
     }
 }

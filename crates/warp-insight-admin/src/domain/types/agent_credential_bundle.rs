@@ -7,6 +7,8 @@ pub struct AgentCredentialBundle {
     pub not_before: crate::domain::types::DateTime,
     pub not_after: crate::domain::types::DateTime,
     pub certificate: String,
+    pub auth_scheme: String,
+    pub bearer_token: String,
     pub ca_bundle: String,
     pub instance_id: String,
     pub issued_at: crate::domain::types::DateTime,
