@@ -38,6 +38,7 @@ pub enum EnrollmentError {
     },
     InvalidAcceptedResult(&'static str),
     UnsupportedCredentialScheme(String),
+    InvalidTlsMode(String),
 }
 
 impl fmt::Display for EnrollmentError {
@@ -69,6 +70,9 @@ impl fmt::Display for EnrollmentError {
             }
             Self::UnsupportedCredentialScheme(scheme) => {
                 write!(f, "unsupported credential auth_scheme: {scheme}")
+            }
+            Self::InvalidTlsMode(mode) => {
+                write!(f, "invalid control_plane.tls_mode: {mode}")
             }
         }
     }
@@ -254,13 +258,32 @@ fn enrollment_http_client(
 ) -> Result<reqwest::Client, EnrollmentError> {
     let mut builder = reqwest::Client::builder();
     let endpoint = config.control_plane.endpoint.as_deref().unwrap_or_default();
+    let effective_mode = match config.control_plane.tls_mode.as_deref() {
+        Some(mode) => mode,
+        None if endpoint.starts_with("https://") => "https",
+        None => "http",
+    };
     let mut loaded_trust_bundle = false;
-    if endpoint.starts_with("https://") {
-        if let Some(trust_bundle) = required_option(config.control_plane.trust_bundle.as_deref()) {
-            let certificate = reqwest::Certificate::from_pem(trust_bundle.as_bytes())
-                .map_err(|err| EnrollmentError::InvalidTrustBundle(err.to_string()))?;
-            builder = builder.add_root_certificate(certificate);
-            loaded_trust_bundle = true;
+    match effective_mode {
+        // Verify the control-plane certificate; use trust_bundle when provided,
+        // otherwise fall back to the platform root store.
+        "https" | "verify" => {
+            if let Some(trust_bundle) = required_option(config.control_plane.trust_bundle.as_deref())
+            {
+                let certificate = reqwest::Certificate::from_pem(trust_bundle.as_bytes())
+                    .map_err(|err| EnrollmentError::InvalidTrustBundle(err.to_string()))?;
+                builder = builder.add_root_certificate(certificate);
+                loaded_trust_bundle = true;
+            }
+        }
+        // Explicitly disable TLS certificate verification (lab / self-signed only).
+        "none" => {
+            builder = builder.danger_accept_invalid_certs(true);
+        }
+        // Plain HTTP, no TLS.
+        "http" => {}
+        other => {
+            return Err(EnrollmentError::InvalidTlsMode(other.to_string()));
         }
     }
     builder.build().map_err(|err| {
@@ -364,7 +387,7 @@ fn apply_enrollment_result(
     Ok(())
 }
 
-fn is_registered_agent_id(value: &str) -> bool {
+pub(crate) fn is_registered_agent_id(value: &str) -> bool {
     let normalized = value.trim();
     !normalized.is_empty()
         && !matches!(
@@ -423,16 +446,29 @@ fn machine_id_from_file() -> Option<String> {
 }
 
 fn scrub_enrollment_token_from_config_file(path: &Path) -> Result<(), EnrollmentError> {
-    let text = fs::read_to_string(path)?;
+    let text = match fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(err) => return Err(err.into()),
+    };
     let scrubbed: Vec<&str> = text
         .lines()
-        .filter(|line| !line.trim_start().starts_with("enrollment_token"))
+        .filter(|line| !is_enrollment_scoped_line(line))
         .collect();
     if scrubbed.len() == text.lines().count() {
         return Ok(());
     }
     write_bytes_private_atomic(path, scrubbed.join("\n").as_bytes())?;
     Ok(())
+}
+
+/// True for lines that must be removed once enrollment completes: the bootstrap
+/// `enrollment_token` itself and a stale `auth_mode = "enrollment_token"` that the
+/// runtime overrides with `bearer` on every startup.
+fn is_enrollment_scoped_line(line: &str) -> bool {
+    let trimmed = line.trim_start();
+    trimmed.starts_with("enrollment_token")
+        || (trimmed.starts_with("auth_mode") && trimmed.contains("enrollment_token"))
 }
 
 #[cfg(test)]
@@ -542,6 +578,40 @@ mod tests {
         config.control_plane.trust_bundle = Some("not a pem certificate".to_string());
 
         enrollment_http_client(&config).expect("http client");
+    }
+
+    #[test]
+    fn tls_mode_none_disables_verification_even_for_https_endpoint() {
+        let mut config = config();
+        config.control_plane.endpoint = Some("https://control.example".to_string());
+        config.control_plane.tls_mode = Some("none".to_string());
+        config.control_plane.trust_bundle = Some("not a valid certificate".to_string());
+
+        enrollment_http_client(&config).expect("tls_mode none client");
+    }
+
+    #[test]
+    fn tls_mode_verify_still_requires_a_valid_trust_bundle() {
+        let mut config = config();
+        config.control_plane.endpoint = Some("https://control.example".to_string());
+        config.control_plane.tls_mode = Some("verify".to_string());
+        config.control_plane.trust_bundle = Some(
+            "-----BEGIN CERTIFICATE-----\nnot-base64\n-----END CERTIFICATE-----\n".to_string(),
+        );
+
+        let err = enrollment_http_client(&config).expect_err("invalid trust bundle");
+
+        assert!(matches!(err, EnrollmentError::InvalidTrustBundle(_)));
+    }
+
+    #[test]
+    fn tls_mode_invalid_value_is_rejected() {
+        let mut config = config();
+        config.control_plane.tls_mode = Some("mutual".to_string());
+
+        let err = enrollment_http_client(&config).expect_err("unsupported mode");
+
+        assert!(matches!(err, EnrollmentError::InvalidTlsMode(_)));
     }
 
     #[tokio::test]

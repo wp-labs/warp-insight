@@ -440,8 +440,55 @@ fn sync_runtime_identity_prefers_config_identity_when_present() {
         },
     );
 
-    sync_runtime_identity(&mut runtime, &config);
+    sync_runtime_identity(&mut runtime, &config).expect("sync identity");
 
     assert_eq!(runtime.agent_id, "agent-from-config");
     assert_eq!(runtime.instance_id, "instance-from-config");
+}
+
+#[test]
+fn sync_runtime_identity_rejects_config_agent_id_conflicting_with_enrolled_identity() {
+    let mut runtime = AgentRuntimeState::new(
+        "agent-a".to_string(),
+        "instance-a".to_string(),
+        "0.1.0".to_string(),
+        RuntimeMode::Normal,
+        "2026-04-12T10:00:00Z".to_string(),
+    );
+    let config = AgentConfigContract::new(
+        AgentSection {
+            agent_id: Some("agent-b".to_string()),
+            environment_id: None,
+            instance_name: Some("instance-from-config".to_string()),
+        },
+        ControlPlaneSection {
+            enabled: false,
+            endpoint: None,
+            enrollment_token: None,
+            credential_request: None,
+            credential_id: None,
+            bearer_token: None,
+            credential_expires_at: None,
+            tls_mode: None,
+            trust_bundle: None,
+            auth_mode: None,
+        },
+        PathsSection {
+            root_dir: ".".to_string(),
+            run_dir: "run".to_string(),
+            state_dir: "state".to_string(),
+            log_dir: "log".to_string(),
+        },
+        ExecutionSection {
+            max_running_actions: 1,
+            cancel_grace_ms: 5_000,
+            default_stdout_limit_bytes: 1,
+            default_stderr_limit_bytes: 1,
+        },
+    );
+
+    let err = sync_runtime_identity(&mut runtime, &config).expect_err("conflict rejected");
+
+    assert!(err.to_string().contains("conflicts"));
+    assert_eq!(runtime.agent_id, "agent-a");
 }

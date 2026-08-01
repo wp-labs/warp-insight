@@ -3,6 +3,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use crate::daemon;
+use crate::enrollment::is_registered_agent_id;
 use crate::self_observability;
 use crate::state_store;
 use warp_insight_shared::paths::{INSIGHTD_CONFIG_FILE, LEGACY_AGENT_CONFIG_FILE};
@@ -267,7 +268,7 @@ fn initialize_runtime_state(
 ) -> io::Result<()> {
     let runtime_path = state_store::agent_runtime::path_for(state_dir);
     let mut runtime_state = state_store::agent_runtime::load_or_default(&runtime_path)?;
-    sync_runtime_identity(&mut runtime_state, config);
+    sync_runtime_identity(&mut runtime_state, config)?;
     state_store::agent_runtime::store(&runtime_path, &runtime_state)?;
 
     let queue_path = state_store::execution_queue::path_for(state_dir);
@@ -342,23 +343,38 @@ fn validate_exec_bin(path: PathBuf, origin: &str) -> io::Result<PathBuf> {
 fn sync_runtime_identity(
     runtime_state: &mut warp_insight_contracts::state_exec::AgentRuntimeState,
     config: &warp_insight_contracts::agent_config::AgentConfigContract,
-) {
+) -> io::Result<()> {
     if let Some(agent_id) = config
         .agent
         .agent_id
         .as_deref()
-        .filter(|value| !value.trim().is_empty())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
     {
+        // Never silently rebind an already-enrolled identity to a different
+        // config id while keeping its credentials — that would let state carry
+        // a cross-agent credential. Fail loudly and ask the operator to resolve.
+        if is_registered_agent_id(&runtime_state.agent_id) && runtime_state.agent_id != agent_id {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "config agent.agent_id ({agent_id}) conflicts with enrolled runtime identity {}; remove agent.agent_id or clear the agent state to re-enroll",
+                    runtime_state.agent_id
+                ),
+            ));
+        }
         runtime_state.agent_id = agent_id.to_string();
     }
     if let Some(instance_id) = config
         .agent
         .instance_name
         .as_deref()
-        .filter(|value| !value.trim().is_empty())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
     {
         runtime_state.instance_id = instance_id.to_string();
     }
+    Ok(())
 }
 
 #[cfg(test)]
