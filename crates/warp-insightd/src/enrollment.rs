@@ -5,17 +5,24 @@ use std::fmt;
 use std::fs;
 use std::io;
 use std::path::Path;
+use std::time::Duration;
 
 use warp_insight_contracts::agent_config::AgentConfigContract;
 use warp_insight_contracts::enrollment::{
-    AgentEnrollmentResult, AgentEnrollmentResultReturned, AgentEnrollmentResultStatus,
-    AgentHostProfile, SubmitEnrollmentRequest,
+    AgentCredentialRenewed, AgentEnrollmentResult, AgentEnrollmentResultReturned,
+    AgentEnrollmentResultStatus, AgentHostProfile, RenewAgentCredential, SubmitEnrollmentRequest,
 };
 use warp_insight_contracts::state_exec::{AgentRuntimeState, RuntimeMode};
 use warp_insight_shared::fs::write_bytes_private_atomic;
 use warp_insight_shared::time::now_rfc3339;
 
 use crate::state_store;
+
+const ENROLLMENT_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+const ENROLLMENT_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
+const ENROLLMENT_MAX_ATTEMPTS: u32 = 3;
+/// Renew proactively once the credential is inside this window of its expiry.
+const CREDENTIAL_RENEWAL_WINDOW: time::Duration = time::Duration::days(7);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EnrollmentDecision {
@@ -130,6 +137,7 @@ async fn ensure_enrolled_with_optional_config_path(
         return Ok(EnrollmentDecision::ExistingConfigIdentity);
     }
     if load_state_identity(config, state_dir)? {
+        renew_state_credential_if_needed(config, state_dir).await;
         if let Some(config_path) = config_path {
             scrub_enrollment_token_from_config_file(config_path)?;
         }
@@ -247,19 +255,120 @@ async fn post_enrollment(
 ) -> Result<AgentEnrollmentResultReturned, EnrollmentError> {
     let url = format!("{}/api/v1/agent/enroll", endpoint.trim_end_matches('/'));
     let client = enrollment_http_client(config)?;
-    let response = client
-        .post(url)
-        .json(request)
-        .send()
-        .await?
-        .error_for_status()?;
-    Ok(response.json::<AgentEnrollmentResultReturned>().await?)
+    let response = send_with_retry(&client, |client| client.post(&url).json(request)).await?;
+    let response = response.error_for_status().map_err(EnrollmentError::Http)?;
+    Ok(response
+        .json::<AgentEnrollmentResultReturned>()
+        .await
+        .map_err(EnrollmentError::Http)?)
+}
+
+/// Send the request with bounded retries on transport errors (connect refused,
+/// DNS, timeout). HTTP status outcomes (4xx/5xx, rejected) are returned to the
+/// caller without retry so single-use bootstrap tokens are not double-spent.
+async fn send_with_retry(
+    client: &reqwest::Client,
+    build: impl Fn(&reqwest::Client) -> reqwest::RequestBuilder,
+) -> Result<reqwest::Response, EnrollmentError> {
+    for attempt in 0..ENROLLMENT_MAX_ATTEMPTS {
+        match build(client).send().await {
+            Ok(response) => return Ok(response),
+            Err(_) if attempt + 1 < ENROLLMENT_MAX_ATTEMPTS => {
+                tokio::time::sleep(retry_backoff(attempt)).await;
+            }
+            Err(err) => return Err(EnrollmentError::Http(err)),
+        }
+    }
+    unreachable!("send_with_retry loop always returns")
+}
+
+fn retry_backoff(attempt: u32) -> Duration {
+    Duration::from_millis(200 * 2u64.pow(attempt))
+}
+
+/// Best-effort credential rotation when the restored credential is expired or
+/// within [`CREDENTIAL_RENEWAL_WINDOW`] of expiry. Failures are logged and the
+/// existing credential is kept so the daemon still starts.
+async fn renew_state_credential_if_needed(
+    config: &mut AgentConfigContract,
+    state_dir: &Path,
+) {
+    let Some(expires_at) = config.control_plane.credential_expires_at.as_deref() else {
+        return;
+    };
+    let Ok(expires_at) = time::OffsetDateTime::parse(
+        expires_at,
+        &time::format_description::well_known::Rfc3339,
+    ) else {
+        return;
+    };
+    if time::OffsetDateTime::now_utc() + CREDENTIAL_RENEWAL_WINDOW < expires_at {
+        return;
+    }
+    if let Err(err) = renew_credential(config, state_dir).await {
+        eprintln!(
+            "warp-insightd credential renewal failed (continuing with existing credential): {err}"
+        );
+    }
+}
+
+async fn renew_credential(
+    config: &mut AgentConfigContract,
+    state_dir: &Path,
+) -> Result<(), EnrollmentError> {
+    let Some(endpoint) = required_option(config.control_plane.endpoint.as_deref()) else {
+        return Err(EnrollmentError::MissingEndpoint);
+    };
+    let Some(bearer_token) = required_option(config.control_plane.bearer_token.as_deref()) else {
+        return Ok(());
+    };
+    let Some(agent_id) = required_option(config.agent.agent_id.as_deref()) else {
+        return Ok(());
+    };
+    let instance_id = required_option(config.agent.instance_name.as_deref())
+        .unwrap_or_default()
+        .to_string();
+    let request = RenewAgentCredential::new(
+        agent_id.to_string(),
+        instance_id,
+        config
+            .control_plane
+            .credential_request
+            .clone()
+            .unwrap_or_else(|| "bearer".to_string()),
+        now_rfc3339(),
+    );
+    let client = enrollment_http_client(config)?;
+    let url = format!(
+        "{}/api/v1/agent/credentials:renew",
+        endpoint.trim_end_matches('/')
+    );
+    let response = send_with_retry(&client, |client| {
+        client
+            .post(&url)
+            .bearer_auth(bearer_token)
+            .json(&request)
+    })
+    .await?;
+    let response = response.error_for_status().map_err(EnrollmentError::Http)?;
+    let renewed: AgentCredentialRenewed =
+        response.json().await.map_err(EnrollmentError::Http)?;
+    let credential = renewed.credential_bundle;
+
+    apply_credential_to_config(config, &credential)?;
+    let runtime_path = state_store::agent_runtime::path_for(state_dir);
+    let mut runtime_state = state_store::agent_runtime::load_or_default(&runtime_path)?;
+    apply_credential_to_runtime_state(&mut runtime_state, credential);
+    state_store::agent_runtime::store(&runtime_path, &runtime_state)?;
+    Ok(())
 }
 
 fn enrollment_http_client(
     config: &AgentConfigContract,
 ) -> Result<reqwest::Client, EnrollmentError> {
-    let mut builder = reqwest::Client::builder();
+    let mut builder = reqwest::Client::builder()
+        .connect_timeout(ENROLLMENT_CONNECT_TIMEOUT)
+        .timeout(ENROLLMENT_REQUEST_TIMEOUT);
     let endpoint = config.control_plane.endpoint.as_deref().unwrap_or_default();
     let effective_mode = match config.control_plane.tls_mode.as_deref() {
         Some(mode) => mode,
@@ -336,32 +445,7 @@ fn apply_enrollment_result(
     }
     let issued_credential = result.credential_bundle.clone();
     if let Some(credential) = issued_credential.as_ref() {
-        config.control_plane.credential_id = Some(credential.credential_id.clone());
-        match credential.auth_scheme.as_deref() {
-            Some("bearer") | None => {
-                let token = credential
-                    .bearer_token
-                    .as_deref()
-                    .map(str::trim)
-                    .filter(|value| !value.is_empty());
-                let Some(token) = token else {
-                    return Err(EnrollmentError::InvalidAcceptedResult(
-                        "credential bearer_token",
-                    ));
-                };
-                config.control_plane.bearer_token = Some(token.to_string());
-                config.control_plane.auth_mode = Some("bearer".to_string());
-                config.control_plane.enrollment_token = None;
-            }
-            Some(scheme) => {
-                return Err(EnrollmentError::UnsupportedCredentialScheme(
-                    scheme.to_string(),
-                ));
-            }
-        }
-        if let Some(expires_at) = credential.not_after.as_ref() {
-            config.control_plane.credential_expires_at = Some(expires_at.clone());
-        }
+        apply_credential_to_config(config, credential)?;
     }
     config.agent.agent_id = Some(agent_id.clone());
     config.agent.instance_name = Some(instance_id.clone());
@@ -375,19 +459,62 @@ fn apply_enrollment_result(
         now_rfc3339(),
     );
     if let Some(credential) = issued_credential {
-        runtime_state.credential_id = Some(credential.credential_id);
-        match credential.auth_scheme.as_deref() {
-            Some("bearer") | None => {
-                runtime_state.bearer_token = credential.bearer_token;
-                runtime_state.credential_expires_at = credential.not_after;
-            }
-            Some(_) => {
-                // Unsupported scheme: config-side validation rejected this earlier.
-            }
-        }
+        apply_credential_to_runtime_state(&mut runtime_state, credential);
     }
     state_store::agent_runtime::store(&runtime_path, &runtime_state)?;
     Ok(())
+}
+
+/// Apply an issued credential bundle to the in-memory agent config. Both the
+/// enrollment and renewal paths share this so the auth_scheme handling stays
+/// consistent.
+fn apply_credential_to_config(
+    config: &mut AgentConfigContract,
+    credential: &warp_insight_contracts::enrollment::AgentCredentialBundle,
+) -> Result<(), EnrollmentError> {
+    config.control_plane.credential_id = Some(credential.credential_id.clone());
+    match credential.auth_scheme.as_deref() {
+        Some("bearer") | None => {
+            let token = credential
+                .bearer_token
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty());
+            let Some(token) = token else {
+                return Err(EnrollmentError::InvalidAcceptedResult(
+                    "credential bearer_token",
+                ));
+            };
+            config.control_plane.bearer_token = Some(token.to_string());
+            config.control_plane.auth_mode = Some("bearer".to_string());
+            config.control_plane.enrollment_token = None;
+        }
+        Some(scheme) => {
+            return Err(EnrollmentError::UnsupportedCredentialScheme(
+                scheme.to_string(),
+            ));
+        }
+    }
+    if let Some(expires_at) = credential.not_after.as_ref() {
+        config.control_plane.credential_expires_at = Some(expires_at.clone());
+    }
+    Ok(())
+}
+
+fn apply_credential_to_runtime_state(
+    runtime_state: &mut AgentRuntimeState,
+    credential: warp_insight_contracts::enrollment::AgentCredentialBundle,
+) {
+    runtime_state.credential_id = Some(credential.credential_id);
+    match credential.auth_scheme.as_deref() {
+        Some("bearer") | None => {
+            runtime_state.bearer_token = credential.bearer_token;
+            runtime_state.credential_expires_at = credential.not_after;
+        }
+        Some(_) => {
+            // Unsupported scheme: apply_credential_to_config rejected this earlier.
+        }
+    }
 }
 
 pub(crate) fn is_registered_agent_id(value: &str) -> bool {
@@ -491,7 +618,8 @@ mod tests {
 
     use super::{
         EnrollmentDecision, EnrollmentError, build_enrollment_request, enrollment_http_client,
-        ensure_enrolled, ensure_enrolled_with_config_path, hostname_from_sources,
+        ensure_enrolled, ensure_enrolled_with_config_path, hostname_from_sources, post_enrollment,
+        renew_credential,
     };
 
     fn config() -> AgentConfigContract {
@@ -615,6 +743,91 @@ mod tests {
         let err = enrollment_http_client(&config).expect_err("unsupported mode");
 
         assert!(matches!(err, EnrollmentError::InvalidTlsMode(_)));
+    }
+
+    #[tokio::test]
+    async fn post_enrollment_to_unreachable_endpoint_returns_error() {
+        let mut config = config();
+        config.control_plane.endpoint = Some("http://127.0.0.1:1".to_string());
+        let request = build_enrollment_request(&config, "token-a".to_string());
+
+        let err = post_enrollment(&config, "http://127.0.0.1:1", &request)
+            .await
+            .expect_err("unreachable endpoint");
+
+        assert!(matches!(err, EnrollmentError::Http(_)));
+    }
+
+    #[tokio::test]
+    async fn renew_credential_rotates_bearer_and_updates_state() {
+        let state_dir = temp_dir("renew-credential");
+        let runtime_path = crate::state_store::agent_runtime::path_for(&state_dir);
+        let mut runtime = warp_insight_contracts::state_exec::AgentRuntimeState::new(
+            "agent-x".to_string(),
+            "instance-x".to_string(),
+            "0.1.0".to_string(),
+            warp_insight_contracts::state_exec::RuntimeMode::Normal,
+            "2026-07-01T00:00:00Z".to_string(),
+        );
+        runtime.credential_id = Some("cred-old".to_string());
+        runtime.bearer_token = Some("wic_old_token".to_string());
+        runtime.credential_expires_at = Some("2026-08-01T00:00:00Z".to_string());
+        crate::state_store::agent_runtime::store(&runtime_path, &runtime).expect("store state");
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let endpoint = format!("http://{}", listener.local_addr().expect("addr"));
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.expect("accept");
+            let mut request_bytes = Vec::new();
+            loop {
+                let mut chunk = [0u8; 1024];
+                let read = socket.read(&mut chunk).await.expect("read");
+                if read == 0 {
+                    break;
+                }
+                request_bytes.extend_from_slice(&chunk[..read]);
+                if request_is_complete(&request_bytes) {
+                    break;
+                }
+            }
+            let request = String::from_utf8_lossy(&request_bytes);
+            assert!(request.contains("credentials:renew"));
+            assert!(request
+                .to_lowercase()
+                .contains("authorization: bearer wic_old_token"));
+            let body = r#"{"credential_bundle":{"credential_id":"cred-new","agent_id":"agent-x","instance_id":"instance-x","auth_scheme":"bearer","bearer_token":"wic_new_token","certificate":null,"private_key_ref":null,"ca_bundle":null,"issued_at":"2026-08-01T00:00:00Z","not_before":"2026-08-01T00:00:00Z","not_after":"2026-09-01T00:00:00Z"}}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            socket
+                .write_all(response.as_bytes())
+                .await
+                .expect("write response");
+        });
+        let mut config = config();
+        config.agent.agent_id = Some("agent-x".to_string());
+        config.control_plane.endpoint = Some(endpoint);
+        config.control_plane.bearer_token = Some("wic_old_token".to_string());
+        config.control_plane.credential_id = Some("cred-old".to_string());
+        config.control_plane.credential_expires_at = Some("2026-08-01T00:00:00Z".to_string());
+
+        renew_credential(&mut config, &state_dir).await.expect("renew");
+        server.await.expect("server task");
+
+        assert_eq!(
+            config.control_plane.bearer_token.as_deref(),
+            Some("wic_new_token")
+        );
+        assert_eq!(
+            config.control_plane.credential_id.as_deref(),
+            Some("cred-new")
+        );
+        let runtime =
+            crate::state_store::agent_runtime::load_or_default(&runtime_path).expect("load runtime");
+        assert_eq!(runtime.bearer_token.as_deref(), Some("wic_new_token"));
+        assert_eq!(runtime.credential_id.as_deref(), Some("cred-new"));
     }
 
     #[tokio::test]
