@@ -11,8 +11,9 @@ use super::runtime::{MetricsCollectionOutcome, MetricsRuntimeSnapshot};
 
 static METRICS_BATCH_SEQ: AtomicU64 = AtomicU64::new(0);
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ::moju_derive::MoJu)]
 #[serde(deny_unknown_fields)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub struct MetricsSamplesSnapshot {
     pub batch_seq: u64,
     pub collected_at: String,
@@ -20,8 +21,9 @@ pub struct MetricsSamplesSnapshot {
     pub groups: Vec<MetricsSampleGroup>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ::moju_derive::MoJu)]
 #[serde(deny_unknown_fields)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub struct MetricsSampleGroup {
     pub kind: String,
     pub target_ref: String,
@@ -31,8 +33,9 @@ pub struct MetricsSampleGroup {
     pub samples: Vec<MetricsSampleRecord>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ::moju_derive::MoJu)]
 #[serde(deny_unknown_fields)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub struct MetricsSampleRecord {
     pub name: String,
     pub value: Value,

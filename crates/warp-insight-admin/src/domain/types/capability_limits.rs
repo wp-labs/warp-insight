@@ -2,7 +2,7 @@
 // @moju hash=60aa6a4fb865dc14
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "struct", domain = "Reporting")]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Contract")]
 pub struct CapabilityLimits {
     pub max_duration_ms: String,
     pub max_stderr_bytes: String,

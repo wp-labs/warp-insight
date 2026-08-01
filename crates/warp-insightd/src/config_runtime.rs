@@ -15,7 +15,8 @@ mod support;
 
 use support::{default_file_config_text, expand_env_contract, resolve_paths};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Config")]
 pub struct EnsuredConfigFile {
     pub path: PathBuf,
     pub created: bool,

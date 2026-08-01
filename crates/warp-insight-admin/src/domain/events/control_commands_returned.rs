@@ -2,7 +2,7 @@
 // @moju hash=8761d16131530fe3
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "event", domain = "Control")]
+#[moju(kind = "event", domain = "Control", module = "Control.AgentCommandControl")]
 pub struct ControlCommandsReturned {
     pub agent_id: String,
     pub instance_id: String,

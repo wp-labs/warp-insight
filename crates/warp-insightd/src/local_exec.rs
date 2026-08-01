@@ -29,7 +29,8 @@ use support::{
     wait_for_child, write_exec_state, write_timed_out_result,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Execute")]
 pub struct LocalExecRequest {
     pub execution_id: String,
     pub run_dir: PathBuf,
@@ -43,7 +44,8 @@ pub struct LocalExecRequest {
     pub plan: ActionPlanContract,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Execute")]
 pub struct LocalExecOutcome {
     pub execution_id: String,
     pub workdir: PathBuf,

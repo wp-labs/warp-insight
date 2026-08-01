@@ -9,6 +9,8 @@ use warp_insight_shared::time::now_rfc3339;
 
 use super::{DiscoveryProbe, DiscoveryProbeError, DiscoverySourceKind, ProbeOutput};
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Probe")]
 pub struct HostDiscoveryProbe;
 
 impl DiscoveryProbe for HostDiscoveryProbe {

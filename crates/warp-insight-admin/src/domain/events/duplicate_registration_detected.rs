@@ -2,7 +2,7 @@
 // @moju hash=49d4bd67c642a1a3
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "event", domain = "Control")]
+#[moju(kind = "event", domain = "Control", module = "Control.Enrollment")]
 pub struct DuplicateRegistrationDetected {
     pub node_id: String,
     pub existing_agent_id: String,

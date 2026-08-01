@@ -8,8 +8,9 @@ use warp_insight_contracts::SCHEMA_VERSION_V1;
 use warp_insight_shared::fs::{read_json, write_json_atomic};
 use warp_insight_shared::time::now_rfc3339;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ::moju_derive::MoJu)]
 #[serde(deny_unknown_fields)]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Pipeline")]
 pub struct ExecutionHistoryRecord {
     pub schema_version: String,
     pub execution_id: String,

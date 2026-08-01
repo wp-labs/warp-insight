@@ -125,6 +125,8 @@ fn write_jsonl(path: &Path, rows: &[serde_json::Value]) -> io::Result<()> {
     write_bytes_atomic(path, buf.as_bytes())
 }
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Pipeline")]
 struct DiscRowContext<'a> {
     source: &'a ExporterSource,
     probe: &'a str,

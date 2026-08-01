@@ -2,7 +2,7 @@
 // @moju hash=2dd655e756f626e2
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "event", domain = "Reporting")]
+#[moju(kind = "event", domain = "Reporting", module = "Reporting.Protocol")]
 pub struct DiscoveryIngestAck {
     pub report_id: String,
     pub status: String,

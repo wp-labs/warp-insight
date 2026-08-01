@@ -30,7 +30,8 @@ pub struct AdminConfig {
     pub environment_id: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Config")]
 pub struct ConfigError(String);
 
 impl ConfigError {

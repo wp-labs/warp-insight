@@ -2,7 +2,7 @@
 // @moju hash=73408617c9281b26
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "struct", domain = "Reporting")]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Contract")]
 pub struct ActionPlanConstraints {
     pub approval_mode: String,
     pub step_timeout_default_ms: String,

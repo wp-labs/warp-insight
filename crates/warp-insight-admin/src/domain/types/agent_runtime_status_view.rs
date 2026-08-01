@@ -2,7 +2,7 @@
 // @moju hash=b505b229ad05d5d4
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "struct", domain = "Control")]
+#[moju(kind = "struct", domain = "Control", module = "Control.AgentdStatusManagement")]
 pub struct AgentRuntimeStatusView {
     pub version: String,
     pub health: String,

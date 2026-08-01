@@ -2,6 +2,8 @@
 
 use super::{DiscoveryProbe, DiscoveryProbeError, DiscoverySourceKind, ProbeOutput};
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Probe")]
 pub struct K8sDiscoveryProbe;
 
 impl DiscoveryProbe for K8sDiscoveryProbe {

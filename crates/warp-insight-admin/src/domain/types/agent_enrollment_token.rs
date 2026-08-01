@@ -2,7 +2,7 @@
 // @moju hash=776b3eddfe95851e
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "struct", domain = "Control")]
+#[moju(kind = "struct", domain = "Control", module = "Control.Enrollment")]
 pub struct AgentEnrollmentToken {
     pub revoked_at: crate::domain::types::DateTime,
     pub allowed_node_selector: String,

@@ -9,16 +9,18 @@ use warp_insight_shared::fs::write_json_atomic;
 
 use crate::state_store::planner_candidates;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ::moju_derive::MoJu)]
 #[serde(deny_unknown_fields)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub struct MetricsTargetView {
     pub generated_at: String,
     #[serde(default)]
     pub targets: Vec<MetricsTargetViewEntry>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ::moju_derive::MoJu)]
 #[serde(deny_unknown_fields)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub struct MetricsTargetViewEntry {
     pub candidate_id: String,
     pub collection_kind: String,

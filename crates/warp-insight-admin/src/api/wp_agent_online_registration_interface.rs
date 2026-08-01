@@ -3,6 +3,8 @@
 
 use crate::domain::messages::SubmitEnrollmentRequest;
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "interface", domain = "Control", module = "Control.AgentFacingInterface")]
 pub struct WpAgentOnlineRegistrationInterface;
 
 impl WpAgentOnlineRegistrationInterface {

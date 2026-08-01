@@ -13,7 +13,8 @@ pub enum StartupPosition {
     Tail,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub struct ResumeDecision {
     pub start_offset: u64,
     pub rotated_from_path: Option<String>,

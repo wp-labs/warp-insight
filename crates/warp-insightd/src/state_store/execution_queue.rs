@@ -9,8 +9,9 @@ use warp_insight_shared::fs::{read_json, write_json_atomic};
 use warp_insight_shared::paths::EXECUTION_QUEUE_FILE;
 use warp_insight_shared::time::now_rfc3339;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ::moju_derive::MoJu)]
 #[serde(deny_unknown_fields)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Execute")]
 pub struct ExecutionQueueState {
     pub schema_version: String,
     pub updated_at: String,
@@ -51,8 +52,9 @@ impl Default for ExecutionQueueState {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ::moju_derive::MoJu)]
 #[serde(deny_unknown_fields)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Execute")]
 pub struct ExecutionQueueItem {
     pub execution_id: String,
     pub action_id: String,
@@ -87,7 +89,8 @@ impl ExecutionQueueItem {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Execute")]
 pub struct ExecutionQueueItemBuilder {
     execution_id: String,
     action_id: String,

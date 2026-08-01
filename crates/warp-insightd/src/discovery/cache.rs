@@ -11,7 +11,8 @@ pub const DISCOVERY_RESOURCES_FILE: &str = "resources.json";
 pub const DISCOVERY_TARGETS_FILE: &str = "targets.json";
 pub const DISCOVERY_META_FILE: &str = "meta.json";
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Probe")]
 pub struct DiscoveryCachePaths {
     pub root: PathBuf,
     pub resources: PathBuf,
@@ -31,7 +32,8 @@ impl DiscoveryCachePaths {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Probe")]
 pub struct DiscoveryCacheLoadFailure {
     pub phase: &'static str,
     pub detail: String,

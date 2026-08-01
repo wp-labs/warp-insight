@@ -1566,6 +1566,8 @@ name = "warp-insightd"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "moju-core",
+ "moju-derive 0.1.2",
  "reqwest",
  "serde",
  "serde_json",

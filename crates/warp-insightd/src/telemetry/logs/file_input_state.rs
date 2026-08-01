@@ -6,7 +6,8 @@ use crate::state_store::log_checkpoint_state::{LogCheckpointState, PendingMultil
 use crate::telemetry::logs::file_reader::ObservedFileIdentity;
 use crate::telemetry::logs::file_watcher::ResumeDecision;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub(super) struct PendingCheckpoint {
     pub(super) source_path: PathBuf,
     pub(super) identity: ObservedFileIdentity,
@@ -14,6 +15,8 @@ pub(super) struct PendingCheckpoint {
     pub(super) rotated_from_path: Option<String>,
 }
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub(super) struct RuntimeState {
     pub(super) checkpoint_path: PathBuf,
     pub(super) log_state: LogCheckpointState,
@@ -21,6 +24,8 @@ pub(super) struct RuntimeState {
     pub(super) replayed_spool: usize,
 }
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub(super) struct CollectedReadBatch {
     pub(super) records: Vec<TelemetryRecordContract>,
     pub(super) pending_multiline: Option<PendingMultilineState>,
@@ -41,6 +46,8 @@ impl CollectedReadBatch {
     }
 }
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub(super) struct DeliveryOutcome {
     pub(super) records_processed: usize,
     pub(super) emitted_directly: usize,

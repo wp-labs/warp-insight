@@ -48,6 +48,8 @@ use runtime_state_support::{
 };
 use telemetry_support::process_telemetry_inputs;
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Pipeline")]
 pub struct DaemonLoop<'a> {
     pub config: &'a AgentConfigContract,
     pub exec_bin: &'a Path,
@@ -159,6 +161,8 @@ async fn run_once_with_failure_cache(
     Ok(health)
 }
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Pipeline")]
 struct DiscoveryHealth {
     snapshot: DiscoveryHealthSnapshot,
 }

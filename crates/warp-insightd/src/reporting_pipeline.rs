@@ -18,7 +18,8 @@ use support::{
     LocalReportInspection, build_report_envelope, inspect_local_report, sync_reporting_state,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Pipeline")]
 pub struct ReportingRequest<'a> {
     pub state_dir: &'a Path,
     pub execution_id: &'a str,
@@ -32,7 +33,8 @@ pub struct ReportingRequest<'a> {
     pub result: &'a ActionResultContract,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Pipeline")]
 pub struct PreparedReport {
     pub envelope_path: PathBuf,
     pub envelope: ReportActionResult,

@@ -11,6 +11,8 @@ use super::cache::{
     DiscoveryCacheLoadFailure, DiscoveryCachePaths, load_meta, load_snapshot, store_snapshot,
 };
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Probe")]
 pub struct DiscoveryRuntime {
     probes: Vec<Box<dyn DiscoveryProbe + Send + Sync>>,
     latest_snapshot: Option<DiscoverySnapshotContract>,
@@ -154,6 +156,8 @@ impl DiscoveryRuntime {
     }
 }
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Probe")]
 pub struct DiscoveryRefreshResult {
     pub refreshed_snapshot: DiscoverySnapshotContract,
     pub persisted_snapshot: DiscoverySnapshotContract,
@@ -166,6 +170,8 @@ pub struct DiscoveryRefreshResult {
     pub store_failure: Option<DiscoveryStoreFailure>,
 }
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Probe")]
 pub struct SuccessfulProbeRefresh {
     pub probe: String,
     pub source: super::DiscoverySourceKind,
@@ -173,6 +179,8 @@ pub struct SuccessfulProbeRefresh {
     pub target_count: usize,
 }
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Probe")]
 pub struct DiscoveryStoreFailure {
     pub phase: &'static str,
     pub detail: String,

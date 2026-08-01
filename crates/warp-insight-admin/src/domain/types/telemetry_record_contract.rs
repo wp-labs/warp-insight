@@ -2,7 +2,7 @@
 // @moju hash=be7967fcf278dc28
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "struct", domain = "Reporting")]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Contract")]
 pub struct TelemetryRecordContract {
     pub kind: String,
     #[moju(unique)]

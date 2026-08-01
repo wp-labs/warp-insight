@@ -2,7 +2,7 @@
 // @moju hash=d829890b1e8302c4
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "message", role = "command", domain = "Control")]
+#[moju(kind = "message", role = "command", domain = "Control", module = "Control.AgentFacingInterface")]
 pub struct PollControlCommands {
     pub requested_at: crate::domain::types::DateTime,
     pub last_seen_sequence: i64,

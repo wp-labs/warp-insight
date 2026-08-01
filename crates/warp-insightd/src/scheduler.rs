@@ -17,20 +17,23 @@ mod queue_head_support;
 
 use queue_head_support::{QueueHeadDisposition, handle_queue_head_async};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Execute")]
 pub struct SchedulerRequest {
     pub run_dir: PathBuf,
     pub state_dir: PathBuf,
     pub plan: ActionPlanContract,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Execute")]
 pub struct SchedulerOutcome {
     pub execution_id: String,
     pub plan_digest: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Execute")]
 pub struct DrainRequest {
     pub run_dir: PathBuf,
     pub state_dir: PathBuf,
@@ -41,7 +44,8 @@ pub struct DrainRequest {
     pub stderr_limit_bytes: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Execute")]
 pub struct DrainOutcome {
     pub execution_id: String,
     pub plan_digest: String,

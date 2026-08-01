@@ -2,7 +2,7 @@
 // @moju hash=2415f01850f0b5fe
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "struct", domain = "Reporting")]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Protocol")]
 pub struct ActionPlanAckBuilder {
     pub reason_message: String,
     pub dispatch_id: String,

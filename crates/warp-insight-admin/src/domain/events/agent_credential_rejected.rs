@@ -2,7 +2,7 @@
 // @moju hash=a1b7cd54c5a25543
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "event", domain = "Control")]
+#[moju(kind = "event", domain = "Control", module = "Control.Identity")]
 pub struct AgentCredentialRejected {
     pub agent_id: String,
     pub instance_id: String,

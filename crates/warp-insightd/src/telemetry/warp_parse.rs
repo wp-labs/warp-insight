@@ -57,7 +57,8 @@ impl TelemetryRecordSink {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub(crate) struct FileRecordSink {
     path: PathBuf,
 }
@@ -109,7 +110,8 @@ impl TcpFraming {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub(crate) struct TcpRecordSink {
     target_addr: String,
     framing: TcpFraming,

@@ -3,6 +3,8 @@
 
 use crate::domain::messages::AdminGetAgentInstallCode;
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "interface", domain = "Control", module = "Control.UserFacingInterface")]
 pub struct WarpInsightAdminPublicInstallInterface;
 
 impl WarpInsightAdminPublicInstallInterface {

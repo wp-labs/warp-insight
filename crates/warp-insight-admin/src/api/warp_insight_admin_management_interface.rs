@@ -3,6 +3,8 @@
 
 use crate::domain::messages::AdminShowAgentRuntimeStatus;
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "interface", domain = "Control", module = "Control.UserFacingInterface")]
 pub struct WarpInsightAdminManagementInterface;
 
 impl WarpInsightAdminManagementInterface {

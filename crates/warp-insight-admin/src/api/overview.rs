@@ -14,8 +14,9 @@ use crate::infra::StoredAgentRegistration;
 use super::admin_auth::require_admin_bearer;
 use super::{rate_limit, AdminRuntimeState, ApiState};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ::moju_derive::MoJu)]
 #[serde(rename_all = "camelCase")]
+#[moju(kind = "struct", domain = "Control", module = "Control.AgentdStatusManagement")]
 pub struct AgentOverviewMetrics {
     pub total_agents: i64,
     pub online_agents: i64,
@@ -23,8 +24,9 @@ pub struct AgentOverviewMetrics {
     pub last_seen_lag_seconds: i64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ::moju_derive::MoJu)]
 #[serde(rename_all = "camelCase")]
+#[moju(kind = "struct", domain = "Control", module = "Control.AgentdStatusManagement")]
 pub struct RecentOnlineRegisteredAgent {
     pub agent_id: String,
     pub instance_id: String,
@@ -42,8 +44,9 @@ pub enum RecentOnlineRegisteredAgentSource {
     Example,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ::moju_derive::MoJu)]
 #[serde(rename_all = "camelCase")]
+#[moju(kind = "struct", domain = "Control", module = "Control.AgentdStatusManagement")]
 pub struct AgentOverview {
     pub metrics: AgentOverviewMetrics,
     pub recent_online_agents: Vec<RecentOnlineRegisteredAgent>,

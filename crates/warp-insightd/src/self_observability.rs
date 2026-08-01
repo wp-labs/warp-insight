@@ -7,7 +7,8 @@ pub enum DiscoveryReadiness {
     Ready,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Health")]
 pub struct DiscoveryProbeHealth {
     pub source: String,
     pub probe: String,
@@ -18,7 +19,8 @@ pub struct DiscoveryProbeHealth {
     pub error: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Health")]
 pub struct DiscoveryHealthSnapshot {
     pub readiness: DiscoveryReadiness,
     pub cached_snapshot_loaded: bool,
@@ -31,7 +33,8 @@ pub struct DiscoveryHealthSnapshot {
     pub probes: Vec<DiscoveryProbeHealth>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Health")]
 pub struct MetricsHealthSnapshot {
     pub target_view_loaded: bool,
     pub used_cached_snapshot: bool,
@@ -53,7 +56,8 @@ pub enum HealthState {
     Active,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Health")]
 pub struct RuntimeHealthSnapshot {
     pub state: HealthState,
     pub queue_depth: usize,

@@ -10,6 +10,8 @@ use crate::telemetry::metrics::{
     target_view::{self, MetricsTargetView},
 };
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Health")]
 pub(super) struct MetricsTick {
     pub(super) snapshot: Option<MetricsRuntimeSnapshot>,
     pub(super) failures: Vec<MetricsFailure>,
@@ -24,7 +26,8 @@ pub(super) enum MetricsFailureKind {
     RuntimeSnapshotStore,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Health")]
 pub(super) struct MetricsFailure {
     pub(super) kind: MetricsFailureKind,
     pub(super) phase: String,

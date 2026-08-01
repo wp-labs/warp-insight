@@ -6,7 +6,8 @@ use std::path::{Path, PathBuf};
 
 const CHECKPOINT_PROBE_BYTES: usize = 16;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Observed", module = "Observed.Entity")]
 pub struct ObservedFileIdentity {
     pub device_id: Option<u64>,
     pub inode: Option<u64>,
@@ -14,14 +15,16 @@ pub struct ObservedFileIdentity {
     pub file_len: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub struct RawFileLine {
     pub text: String,
     pub start_offset: u64,
     pub end_offset: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub struct ReadFromOffset {
     pub identity: ObservedFileIdentity,
     pub lines: Vec<RawFileLine>,

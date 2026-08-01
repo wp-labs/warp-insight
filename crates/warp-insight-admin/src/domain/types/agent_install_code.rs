@@ -2,7 +2,7 @@
 // @moju hash=ac6a7c4539bc6948
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "struct", domain = "Control")]
+#[moju(kind = "struct", domain = "Control", module = "Control.Enrollment")]
 pub struct AgentInstallCode {
     pub x86_linux_install_code: String,
     pub bootstrap_enrollment_token: String,

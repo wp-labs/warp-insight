@@ -2,7 +2,7 @@
 // @moju hash=426210233649fc5b
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "struct", domain = "Reporting")]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Protocol")]
 pub struct ResultAttestation {
     pub issued_by: String,
     pub attested_at: crate::domain::types::DateTime,

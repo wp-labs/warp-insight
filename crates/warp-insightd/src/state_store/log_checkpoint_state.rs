@@ -3,8 +3,9 @@
 use serde::{Deserialize, Serialize};
 use warp_insight_contracts::SCHEMA_VERSION_V1;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ::moju_derive::MoJu)]
 #[serde(deny_unknown_fields)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub(crate) struct LogCheckpointState {
     pub schema_version: String,
     pub input_id: String,
@@ -26,8 +27,9 @@ impl LogCheckpointState {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ::moju_derive::MoJu)]
 #[serde(deny_unknown_fields)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub(crate) struct PendingMultilineState {
     pub source_path: String,
     pub body: String,
@@ -36,8 +38,9 @@ pub(crate) struct PendingMultilineState {
     pub last_updated_at: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ::moju_derive::MoJu)]
 #[serde(deny_unknown_fields)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub(crate) struct TrackedFileCheckpoint {
     pub file_id: String,
     pub path: String,

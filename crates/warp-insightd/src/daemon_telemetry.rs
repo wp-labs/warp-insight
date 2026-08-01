@@ -14,6 +14,8 @@ use support::{
     processing_failure, replay_spool_only,
 };
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Health")]
 pub(super) struct TelemetryTick {
     pub(super) outcomes: Vec<ProcessOutcome>,
     pub(super) failures: Vec<TelemetryFailure>,
@@ -26,7 +28,8 @@ pub(super) enum TelemetryFailureKind {
     InvalidOutput,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Health")]
 pub(super) struct TelemetryFailure {
     pub(super) kind: TelemetryFailureKind,
     pub(super) input_id: String,

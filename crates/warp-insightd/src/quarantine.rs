@@ -9,6 +9,8 @@ use crate::state_store::execution_queue::ExecutionQueueItem;
 use crate::state_store::running::RunningExecutionState;
 use crate::state_store::{execution_queue, history, running};
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Execute")]
 pub struct QuarantineRequest<'a> {
     pub state_dir: &'a Path,
     pub execution_id: &'a str,

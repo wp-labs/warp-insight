@@ -16,6 +16,8 @@ use crate::process_control::process_identity;
 use super::host::default_host_id;
 use super::{DiscoveryProbe, DiscoveryProbeError, DiscoverySourceKind, ProbeOutput};
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Probe")]
 pub struct ProcessDiscoveryProbe;
 
 impl DiscoveryProbe for ProcessDiscoveryProbe {
@@ -109,7 +111,8 @@ impl DiscoveryProbe for ProcessDiscoveryProbe {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Observed", module = "Observed.Entity")]
 struct ObservedProcess {
     pid: u32,
     identity: Option<String>,

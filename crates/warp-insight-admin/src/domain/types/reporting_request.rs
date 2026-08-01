@@ -2,7 +2,7 @@
 // @moju hash=c1dd2de3c508b773
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "struct", domain = "Reporting")]
+#[moju(kind = "struct", domain = "Reporting", module = "Reporting.Pipeline")]
 pub struct ReportingRequest {
     pub instance_id: String,
     pub agent_id: String,

@@ -2,7 +2,7 @@
 // @moju hash=dc6752475e7ec954
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "struct", domain = "Control")]
+#[moju(kind = "struct", domain = "Control", module = "Control.Enrollment")]
 pub struct ManagementEndpointTrustBundle {
     pub control_endpoint: String,
     pub expires_at: crate::domain::types::DateTime,

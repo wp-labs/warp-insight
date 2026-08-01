@@ -16,8 +16,9 @@ use super::target_view::{MetricsTargetView, MetricsTargetViewEntry};
 #[cfg(test)]
 use warp_insight_shared::fs::read_json;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ::moju_derive::MoJu)]
 #[serde(deny_unknown_fields)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub struct MetricsRuntimeSnapshot {
     pub generated_at: String,
     pub total_targets: usize,
@@ -28,8 +29,9 @@ pub struct MetricsRuntimeSnapshot {
     pub outcomes: Vec<MetricsCollectionOutcome>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ::moju_derive::MoJu)]
 #[serde(deny_unknown_fields)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub struct MetricsCollectionOutcome {
     pub collection_kind: String,
     pub status: String,
@@ -43,8 +45,9 @@ pub struct MetricsCollectionOutcome {
     pub sample_targets: Vec<MetricsCollectionTargetSample>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ::moju_derive::MoJu)]
 #[serde(deny_unknown_fields)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub struct MetricsCollectionTargetSample {
     pub candidate_id: String,
     pub target_ref: String,

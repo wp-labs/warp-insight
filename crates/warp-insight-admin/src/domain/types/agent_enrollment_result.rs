@@ -2,7 +2,7 @@
 // @moju hash=c75502bb722a32ca
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize, ::moju_derive::MoJu)]
-#[moju(kind = "struct", domain = "Control")]
+#[moju(kind = "struct", domain = "Control", module = "Control.Enrollment")]
 pub struct AgentEnrollmentResult {
     pub credential_bundle: crate::domain::types::AgentCredentialBundle,
     pub initial_config: crate::domain::types::AgentInitialConfig,

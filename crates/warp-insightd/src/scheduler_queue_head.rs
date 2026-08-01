@@ -18,6 +18,8 @@ mod reporting_support;
 
 use reporting_support::{read_queued_plan, reconcile_completed_execution, recover_stale_execution};
 
+#[derive(::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Execute")]
 pub(super) struct QueueHeadContext {
     workdir: PathBuf,
     running_path: PathBuf,

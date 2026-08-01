@@ -10,14 +10,16 @@ pub enum MultilineMode {
     IndentedContinuation,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub struct FoldedLine {
     pub body: String,
     pub start_offset: u64,
     pub end_offset: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, ::moju_derive::MoJu)]
+#[moju(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub struct FoldResult {
     pub emitted: Vec<FoldedLine>,
     pub pending: Option<PendingMultilineState>,
