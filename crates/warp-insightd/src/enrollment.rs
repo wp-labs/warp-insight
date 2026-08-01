@@ -124,6 +124,9 @@ async fn ensure_enrolled_with_optional_config_path(
     config_path: Option<&Path>,
 ) -> Result<EnrollmentDecision, EnrollmentError> {
     if has_config_identity(config) {
+        if let Some(config_path) = config_path {
+            scrub_enrollment_token_from_config_file(config_path)?;
+        }
         return Ok(EnrollmentDecision::ExistingConfigIdentity);
     }
     if load_state_identity(config, state_dir)? {
@@ -931,6 +934,41 @@ credential_request = "bearer"
         assert_eq!(decision, EnrollmentDecision::ExistingStateIdentity);
         let text = fs::read_to_string(&config_path).expect("read config");
         assert!(!text.contains("enrollment_token"));
+    }
+
+    #[tokio::test]
+    async fn ensure_enrolled_config_identity_scrubs_leftover_token_from_config() {
+        let state_dir = temp_dir("config-identity-scrub");
+        let config_path = state_dir.join("insightd.toml");
+        fs::write(
+            &config_path,
+            r#"schema_version = "v1"
+
+[agent]
+agent_id = "pre-provisioned-agent"
+
+[control_plane]
+enabled = false
+endpoint = "http://127.0.0.1:3000"
+enrollment_token = "leftover-token"
+credential_request = "bearer"
+auth_mode = "enrollment_token"
+"#,
+        )
+        .expect("write config");
+        let mut config = config();
+        config.agent.agent_id = Some("pre-provisioned-agent".to_string());
+        config.control_plane.enabled = false;
+
+        let decision =
+            ensure_enrolled_with_config_path(&mut config, &state_dir, &config_path)
+                .await
+                .expect("ensure");
+
+        assert_eq!(decision, EnrollmentDecision::ExistingConfigIdentity);
+        let text = fs::read_to_string(&config_path).expect("read config");
+        assert!(!text.contains("enrollment_token"));
+        assert!(!text.contains("auth_mode"));
     }
 
     #[test]

@@ -52,14 +52,21 @@ pub async fn get_agent_install_script(
     let Ok(arch) = supported_agent_arch(&arch) else {
         return unknown_arch_response();
     };
-    (
-        [
-            (header::CONTENT_TYPE, "text/x-shellscript; charset=utf-8"),
-            (header::CACHE_CONTROL, NO_STORE),
-        ],
-        install_script(&state.config, arch),
-    )
-        .into_response()
+    match install_script(&state.config, arch) {
+        Ok(script) => (
+            [
+                (header::CONTENT_TYPE, "text/x-shellscript; charset=utf-8"),
+                (header::CACHE_CONTROL, NO_STORE),
+            ],
+            script,
+        )
+            .into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("failed to render install script: {err}"),
+        )
+            .into_response(),
+    }
 }
 
 pub async fn get_agent_install_script_signature(
@@ -215,17 +222,18 @@ pub fn issue_agent_install_code(
             snapshot.enrollment_tokens.insert(token_hash, stored);
         })
         .map_err(|err| err.to_string())?;
-    Ok(agent_install_code(config, &token, expires_at))
+    Ok(agent_install_code(config, &token, expires_at)?)
 }
 
 pub fn agent_install_code(
     config: &AdminConfig,
     token: &str,
     expires_at: chrono::DateTime<chrono::Utc>,
-) -> AgentInstallCode {
+) -> Result<AgentInstallCode, String> {
+    let package_sha256 = agent_package_sha256(config)?;
     let x86_install_script_url = config.install_script_url("x86");
     let arm_install_script_url = config.install_script_url("arm");
-    AgentInstallCode {
+    Ok(AgentInstallCode {
         x86_linux_install_code: install_command(config, &x86_install_script_url),
         bootstrap_enrollment_token: token.to_string(),
         arm_linux_install_code: install_command(config, &arm_install_script_url),
@@ -233,7 +241,7 @@ pub fn agent_install_code(
             bundle_id: format!("agent-bootstrap-{}", short_token_id(token)),
             install_script_url: x86_install_script_url,
             agent_package_url: config.agent_package_url(),
-            agent_package_sha256: agent_package_sha256(config).unwrap_or_default(),
+            agent_package_sha256: package_sha256,
             control_endpoint: config.public_base_url.clone(),
             trust_bundle: config.trust_bundle.clone(),
             tenant_id: config.tenant_id.clone(),
@@ -241,21 +249,19 @@ pub fn agent_install_code(
             expires_at: DateTime::from_rfc3339(&expires_at.to_rfc3339())
                 .unwrap_or_else(DateTime::now),
         },
-    }
+    })
 }
 
-pub fn install_script(config: &AdminConfig, arch: &str) -> String {
-    INSTALL_SCRIPT_TEMPLATE
+pub fn install_script(config: &AdminConfig, arch: &str) -> Result<String, String> {
+    let package_sha256 = agent_package_sha256(config)?;
+    Ok(INSTALL_SCRIPT_TEMPLATE
         .replace("{{ARCH}}", arch)
         .replace("{{AGENT_PACKAGE_URL}}", &config.agent_package_url())
         .replace(
             "{{AGENT_INITIAL_CONFIG_URL}}",
             &config.agent_initial_config_url(),
         )
-        .replace(
-            "{{AGENT_PACKAGE_SHA256}}",
-            &agent_package_sha256(config).unwrap_or_default(),
-        )
+        .replace("{{AGENT_PACKAGE_SHA256}}", &package_sha256))
 }
 
 fn install_command(config: &AdminConfig, script_url: &str) -> String {
@@ -287,7 +293,7 @@ pub(crate) fn install_script_signature(
     config: &AdminConfig,
     arch: &str,
 ) -> Result<Vec<u8>, String> {
-    let script = install_script(config, arch);
+    let script = install_script(config, arch)?;
     sign_install_script(
         &config.install_script_signing_private_key_file,
         script.as_bytes(),

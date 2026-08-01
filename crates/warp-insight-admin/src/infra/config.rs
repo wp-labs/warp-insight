@@ -258,12 +258,44 @@ fn require_non_empty(field: &str, value: &str) -> Result<(), ConfigError> {
 
 fn require_https_url(field: &str, value: &str) -> Result<(), ConfigError> {
     require_non_empty(field, value)?;
-    if value.starts_with("https://") {
-        return Ok(());
+    if !value.starts_with("https://") {
+        return Err(ConfigError::new(format!(
+            "{field} must start with https://"
+        )));
     }
-    Err(ConfigError::new(format!(
-        "{field} must start with https://"
-    )))
+    if contains_shell_metacharacters(value) {
+        return Err(ConfigError::new(format!(
+            "{field} contains characters that are unsafe in generated install scripts"
+        )));
+    }
+    Ok(())
+}
+
+/// The value is embedded verbatim into install scripts that run under `sh` on
+/// target hosts (inside double-quoted URLs). Reject characters that would break
+/// out of that context or that are never valid in a control-plane base URL.
+fn contains_shell_metacharacters(value: &str) -> bool {
+    value.chars().any(|ch| {
+        matches!(
+            ch,
+            '"' | '\\'
+                | '$'
+                | '`'
+                | ';'
+                | '|'
+                | '&'
+                | '<'
+                | '>'
+                | '('
+                | ')'
+                | ' '
+                | '\''
+                | '!'
+                | '\n'
+                | '\r'
+                | '\t'
+        )
+    })
 }
 
 fn require_positive_seconds(field: &str, value: i64) -> Result<(), ConfigError> {
@@ -577,6 +609,31 @@ environment_id = "env-default"
         let config = AdminConfig::load_from_path(&path).expect("https config loads");
 
         assert_eq!(config.public_base_url, "https://localhost:3000");
+        let _ = fs::remove_file(path);
+        let _ = fs::remove_file(package_file);
+    }
+
+    #[test]
+    fn rejects_public_base_url_with_shell_metacharacters() {
+        let package_file = write_temp_file("warp-insightd");
+        let text = r#"
+[server]
+listen_addr = "127.0.0.1:3000"
+public_base_url = "https://127.0.0.1:3000\"; touch /tmp/pwned"
+admin_api_token = "test-admin-token"
+
+[agent]
+package_file = "__PACKAGE__"
+trust_bundle = "internal-ca-stub"
+tenant_id = "tenant-default"
+environment_id = "env-default"
+"#
+        .replace("__PACKAGE__", &package_file.display().to_string());
+        let path = write_temp_config(&text);
+
+        let err = AdminConfig::load_from_path(&path).expect_err("injected URL rejected");
+
+        assert!(err.to_string().contains("unsafe in generated install scripts"));
         let _ = fs::remove_file(path);
         let _ = fs::remove_file(package_file);
     }

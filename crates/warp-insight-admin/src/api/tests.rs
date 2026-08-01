@@ -43,7 +43,7 @@ const TEST_ADMIN_API_TOKEN: &str = "test-admin-token";
 fn install_code_uses_header_bootstrap_token_without_url_token_leak() {
     let env = TestEnv::new();
     let expires_at = chrono::Utc::now() + chrono::Duration::seconds(900);
-    let install_code = agent_install_code(&env.config, "token-a", expires_at);
+    let install_code = agent_install_code(&env.config, "token-a", expires_at).expect("install code");
 
     assert_eq!(
         install_code.bootstrap_bundle.agent_package_url,
@@ -112,7 +112,7 @@ fn issue_install_code_persists_one_time_enrollment_token() {
 #[test]
 fn install_script_downloads_package_verifies_sha256_and_fetches_scoped_initial_config() {
     let env = TestEnv::new();
-    let script = super::install::install_script(&env.config, "x86");
+    let script = super::install::install_script(&env.config, "x86").expect("install script");
     let sha256 = agent_package_sha256(&env.config).expect("sha256");
 
     assert!(script.contains("ARCH=\"x86\""));
@@ -138,10 +138,22 @@ fn install_script_downloads_package_verifies_sha256_and_fetches_scoped_initial_c
 }
 
 #[test]
+fn install_script_fails_when_package_file_is_unreadable() {
+    let env = TestEnv::new();
+    let package_path = env.config.agent_package_file.clone();
+    std::fs::remove_file(&package_path).expect("remove package");
+
+    let err =
+        super::install::install_script(&env.config, "x86").expect_err("unreadable package");
+
+    assert!(!err.is_empty());
+}
+
+#[test]
 fn install_command_verifies_script_signature_before_execution() {
     let env = TestEnv::new();
     let expires_at = chrono::Utc::now() + chrono::Duration::seconds(900);
-    let install_code = agent_install_code(&env.config, "token-a", expires_at);
+    let install_code = agent_install_code(&env.config, "token-a", expires_at).expect("install code");
     let command = install_code.x86_linux_install_code;
 
     assert!(command.contains("INSTALL_SIGNATURE=\"$WORK_DIR/install.sh.sig\""));
@@ -161,7 +173,7 @@ fn install_command_verifies_script_signature_before_execution() {
 #[test]
 fn install_script_signature_matches_script_body() {
     let env = TestEnv::new();
-    let script = super::install::install_script(&env.config, "x86");
+    let script = super::install::install_script(&env.config, "x86").expect("install script");
     let signature =
         super::install::install_script_signature(&env.config, "x86").expect("sign script");
 
