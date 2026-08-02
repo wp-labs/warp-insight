@@ -285,8 +285,9 @@ fn install_command(config: &AdminConfig, script_url: &str) -> String {
     let signature_url = install_script_signature_url(script_url);
     format!(
         r#"set -eu
-D="${{WARP_INSIGHT_WORK_DIR:-$(mktemp -d)}}"
-test -z "${{WARP_INSIGHT_WORK_DIR:-}}" && trap 'rm -rf "$D"' EXIT INT TERM
+D="$(mktemp -d)"
+trap 'rm -rf "$D"' EXIT INT TERM
+echo "working dir: $D"
 curl -fsSL "{script_url}" -o "$D/s"
 curl -fsSL "{signature_url}" -o "$D/sig"
 cat >"$D/key.pem" <<'EOF'

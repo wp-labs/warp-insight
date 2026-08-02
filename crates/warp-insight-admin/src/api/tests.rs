@@ -156,7 +156,8 @@ fn install_command_verifies_script_signature_before_execution() {
     let install_code = agent_install_code(&env.config, "token-a", expires_at).expect("install code");
     let command = install_code.x86_linux_install_code;
 
-    assert!(command.contains("WARP_INSIGHT_WORK_DIR"));
+    assert!(command.contains("mktemp -d"));
+    assert!(command.contains("working dir: $D"));
     assert!(command.contains(
         "curl -fsSL \"https://127.0.0.1:3000/api/v1/agent/install/x86/install.sh.sig\" -o \"$D/sig\""
     ));
