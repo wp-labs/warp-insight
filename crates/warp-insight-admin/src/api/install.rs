@@ -285,7 +285,8 @@ fn install_command(config: &AdminConfig, script_url: &str) -> String {
     let signature_url = install_script_signature_url(script_url);
     format!(
         r#"set -eu; D="$(mktemp -d)"; trap 'rm -rf "$D"' EXIT INT TERM; echo "working dir: $D"
-curl -fsSL "{script_url}" -o "$D/s" && curl -fsSL "{signature_url}" -o "$D/sig"
+curl -fsSL "{script_url}" -o "$D/s"
+curl -fsSL "{signature_url}" -o "$D/sig"
 cat >"$D/key.pem" <<'EOF'
 {public_key_pem}EOF
 openssl pkeyutl -verify -pubin -inkey "$D/key.pem" -rawin -in "$D/s" -sigfile "$D/sig" && sh "$D/s""#,
