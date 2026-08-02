@@ -35,7 +35,7 @@ function tokenize(code: string): Token[] {
     if (rest[0] === '"') {
       let j = 1;
       let buf = '"';
-      while (j < code.length) {
+      while (i + j < code.length) {
         const ch = code[i + j];
         if (ch === "\\" && j + 1 < code.length) {
           buf += ch + code[i + j + 1];
@@ -69,7 +69,7 @@ function tokenize(code: string): Token[] {
       continue;
     }
 
-    const variable = rest.match(/^\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*/);
+    const variable = rest.match(/^\$(?:\{[^}]*\}|[A-Za-z_][A-Za-z0-9_]*)/);
     if (variable) {
       tokens.push({ kind: "variable", value: variable[0] });
       i += variable[0].length;
