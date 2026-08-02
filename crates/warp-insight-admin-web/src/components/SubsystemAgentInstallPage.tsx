@@ -1,19 +1,16 @@
 import styles from "./SubsystemAgentInstallPage.module.css";
 import { SubsystemAdminTopNavigation } from "./SubsystemAdminTopNavigation";
-import { SubsystemAgentInstallCodeList } from "./SubsystemAgentInstallCodeList";
-import { SubsystemGetAgentInstallCode } from "./SubsystemGetAgentInstallCode";
+import { SubsystemBootstrapTokenCard } from "./SubsystemBootstrapTokenCard";
+import { SubsystemX86LinuxInstallCode } from "./SubsystemX86LinuxInstallCode";
+import { SubsystemArmLinuxInstallCode } from "./SubsystemArmLinuxInstallCode";
 import { ApiError } from "../api";
 import { useAgentInstallCode } from "../hooks";
 
-interface SubsystemAgentInstallPageProps {
-  children?: React.ReactNode;
-}
-
-export function SubsystemAgentInstallPage({}: SubsystemAgentInstallPageProps) {
+export function SubsystemAgentInstallPage() {
   const { data, isLoading, isError, error } = useAgentInstallCode();
 
-  const authError =
-    isError && error instanceof ApiError && error.status === 401;
+  const authError = isError && error instanceof ApiError && error.status === 401;
+  const token = data?.bootstrapEnrollmentToken;
 
   return (
     <div className={styles.container}>
@@ -21,7 +18,7 @@ export function SubsystemAgentInstallPage({}: SubsystemAgentInstallPageProps) {
       <header className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>Agent 安装</h1>
         <p className={styles.pageSummary}>
-          复制对应架构的安装命令，在目标 Linux 主机上执行。
+          获取 Bootstrap Token，然后在目标 Linux 主机上运行对应架构的安装命令，让 agent 加入集群。
         </p>
       </header>
       {isError ? (
@@ -36,9 +33,24 @@ export function SubsystemAgentInstallPage({}: SubsystemAgentInstallPageProps) {
           )}
         </div>
       ) : null}
-      <SubsystemAgentInstallCodeList installCode={data} loading={isLoading}>
-        <SubsystemGetAgentInstallCode />
-      </SubsystemAgentInstallCodeList>
+      <div className={styles.content}>
+        <SubsystemBootstrapTokenCard token={token} loading={isLoading} />
+        <section className={styles.commandsSection}>
+          <h2 className={styles.sectionTitle}>安装命令</h2>
+          <div className={styles.commandGrid}>
+            <SubsystemX86LinuxInstallCode
+              command={data?.x86LinuxInstallCode}
+              token={token}
+              loading={isLoading}
+            />
+            <SubsystemArmLinuxInstallCode
+              command={data?.armLinuxInstallCode}
+              token={token}
+              loading={isLoading}
+            />
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

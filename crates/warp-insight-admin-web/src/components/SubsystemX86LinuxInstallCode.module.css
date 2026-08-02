@@ -37,3 +37,15 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+.copyButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
