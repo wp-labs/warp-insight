@@ -55,8 +55,15 @@ export interface UpgradeAgentCommand {
   requestedBy: string;
 }
 
-let adminApiToken: string | null = null;
 const ADMIN_AUTH_CHANGED_EVENT = "warpInsightAdminAuthChanged";
+const ADMIN_API_TOKEN_STORAGE_KEY = "warpInsightAdminApiToken";
+
+// Persist the admin token for the current browser session (survives page
+// reloads, but is cleared when the tab/session closes).
+let adminApiToken: string | null =
+  typeof window !== "undefined"
+    ? window.sessionStorage.getItem(ADMIN_API_TOKEN_STORAGE_KEY)
+    : null;
 
 export class ApiError extends Error {
   readonly status: number;
@@ -92,6 +99,11 @@ export function setAdminApiToken(token: string): void {
   const trimmed = token.trim();
   adminApiToken = trimmed || null;
   if (typeof window !== "undefined") {
+    if (adminApiToken) {
+      window.sessionStorage.setItem(ADMIN_API_TOKEN_STORAGE_KEY, adminApiToken);
+    } else {
+      window.sessionStorage.removeItem(ADMIN_API_TOKEN_STORAGE_KEY);
+    }
     window.dispatchEvent(new Event(ADMIN_AUTH_CHANGED_EVENT));
   }
 }
