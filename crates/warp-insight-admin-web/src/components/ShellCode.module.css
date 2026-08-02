@@ -1,0 +1,21 @@
+.comment {
+  color: #8b949e;
+  font-style: italic;
+}
+
+.string {
+  color: #22863a;
+}
+
+.variable {
+  color: #0550ae;
+}
+
+.keyword {
+  color: #cf222e;
+  font-weight: 600;
+}
+
+.text {
+  color: inherit;
+}

@@ -1,4 +1,5 @@
 import styles from "./SubsystemX86LinuxInstallCode.module.css";
+import { ShellCode } from "./ShellCode";
 
 interface SubsystemX86LinuxInstallCodeProps {
   command?: string;
@@ -26,7 +27,9 @@ export function SubsystemX86LinuxInstallCode({
   return (
     <div className={styles.container}>
       <div className={styles.label}>{label}</div>
-      <code className={styles.code}>{displayCommand}</code>
+      <code className={styles.code}>
+        <ShellCode code={displayCommand} />
+      </code>
       <div className={styles.actions}>
         <button
           className={styles.copyButton}

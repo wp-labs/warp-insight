@@ -1,4 +1,5 @@
 import styles from "./SubsystemArmLinuxInstallCode.module.css";
+import { ShellCode } from "./ShellCode";
 
 interface SubsystemArmLinuxInstallCodeProps {
   command?: string;
@@ -24,7 +25,9 @@ export function SubsystemArmLinuxInstallCode({
   return (
     <div className={styles.container}>
       <div className={styles.label}>Arm Linux 安装命令</div>
-      <code className={styles.code}>{displayCommand}</code>
+      <code className={styles.code}>
+        <ShellCode code={displayCommand} />
+      </code>
       <div className={styles.actions}>
         <button
           className={styles.copyButton}
