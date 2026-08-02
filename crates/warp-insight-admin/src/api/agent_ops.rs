@@ -29,10 +29,16 @@ pub async fn submit_agent_status(
         Ok(agent) => {
             let now = DateTime::now();
             let last_seen_at = chrono::Utc::now().to_rfc3339();
+            let memory_bytes = input.memory_bytes.map(|value| value as u64);
+            let cpu_percent = input.cpu_percent;
+            let admin_latency_ms = input.admin_latency_ms.map(|value| value as u64);
             let update_result = state.store.update(|snapshot| {
                 if let Some(stored) = snapshot.agents.get_mut(&agent.agent_id) {
                     stored.version = input.version.clone();
                     stored.last_seen_at = last_seen_at;
+                    stored.last_memory_bytes = memory_bytes;
+                    stored.last_cpu_percent = cpu_percent;
+                    stored.last_admin_latency_ms = admin_latency_ms;
                 }
             });
             if let Err(err) = update_result {

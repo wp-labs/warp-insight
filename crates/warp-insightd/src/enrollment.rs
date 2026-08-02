@@ -363,7 +363,7 @@ async fn renew_credential(
     Ok(())
 }
 
-fn enrollment_http_client(
+pub(crate) fn enrollment_http_client(
     config: &AgentConfigContract,
 ) -> Result<reqwest::Client, EnrollmentError> {
     let mut builder = reqwest::Client::builder()

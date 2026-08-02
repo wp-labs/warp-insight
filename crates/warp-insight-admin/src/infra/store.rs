@@ -94,6 +94,12 @@ pub struct StoredAgentRegistration {
     pub credential_status: StoredCredentialStatus,
     pub registered_at: String,
     pub last_seen_at: String,
+    #[serde(default)]
+    pub last_memory_bytes: Option<u64>,
+    #[serde(default)]
+    pub last_cpu_percent: Option<f64>,
+    #[serde(default)]
+    pub last_admin_latency_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

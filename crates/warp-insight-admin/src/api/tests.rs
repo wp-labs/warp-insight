@@ -535,6 +535,9 @@ async fn agent_status_route_requires_bearer_credential() {
             agent_id: "agent-node-a".to_string(),
             instance_id: "node-a".to_string(),
             version: "v0.2.0".to_string(),
+            memory_bytes: None,
+            cpu_percent: None,
+            admin_latency_ms: None,
         },
     )
     .await;
@@ -548,10 +551,49 @@ async fn agent_status_route_requires_bearer_credential() {
             agent_id: "agent-node-a".to_string(),
             instance_id: "node-a".to_string(),
             version: "v0.2.0".to_string(),
+            memory_bytes: None,
+            cpu_percent: None,
+            admin_latency_ms: None,
         },
     )
     .await;
     assert_eq!(rejected.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn agent_status_route_persists_reported_metrics() {
+    let env = TestEnv::new();
+    let token = env.issue_token();
+    let enrollment = post_enrollment_to_router(&env.config, enrollment_request_json(&token)).await;
+    let returned = decode_enrollment_response(enrollment).await;
+    let credential = returned
+        .result
+        .credential_bundle
+        .expect("credential bundle")
+        .bearer_token
+        .expect("bearer token");
+
+    let status = post_json_to_router(
+        &env.config,
+        "/api/v1/agent/status",
+        Some(&credential),
+        &AgentHello {
+            agent_id: "agent-node-a".to_string(),
+            instance_id: "node-a".to_string(),
+            version: "v0.2.0".to_string(),
+            memory_bytes: Some(12_345_678),
+            cpu_percent: Some(7.5),
+            admin_latency_ms: Some(42),
+        },
+    )
+    .await;
+    assert_eq!(status.status(), StatusCode::ACCEPTED);
+
+    let snapshot = env.store.load().expect("load store");
+    let stored = snapshot.agents.get("agent-node-a").expect("agent");
+    assert_eq!(stored.last_memory_bytes, Some(12_345_678));
+    assert_eq!(stored.last_cpu_percent, Some(7.5));
+    assert_eq!(stored.last_admin_latency_ms, Some(42));
 }
 
 #[tokio::test]
@@ -584,6 +626,9 @@ async fn agent_status_route_rejects_expired_bearer_credential() {
             agent_id: "agent-node-a".to_string(),
             instance_id: "node-a".to_string(),
             version: "v0.2.0".to_string(),
+            memory_bytes: None,
+            cpu_percent: None,
+            admin_latency_ms: None,
         },
     )
     .await;
@@ -634,6 +679,9 @@ async fn agent_credential_renewal_rotates_bearer_and_rejects_old_token() {
             agent_id: "agent-node-a".to_string(),
             instance_id: "node-a".to_string(),
             version: "v0.2.0".to_string(),
+            memory_bytes: None,
+            cpu_percent: None,
+            admin_latency_ms: None,
         },
     )
     .await;
@@ -647,6 +695,9 @@ async fn agent_credential_renewal_rotates_bearer_and_rejects_old_token() {
             agent_id: "agent-node-a".to_string(),
             instance_id: "node-a".to_string(),
             version: "v0.2.0".to_string(),
+            memory_bytes: None,
+            cpu_percent: None,
+            admin_latency_ms: None,
         },
     )
     .await;

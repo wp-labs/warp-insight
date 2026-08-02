@@ -10,12 +10,21 @@ pub const DISPATCH_ACTION_PLAN_KIND: &str = "dispatch_action_plan";
 pub const ACTION_PLAN_ACK_KIND: &str = "action_plan_ack";
 pub const REPORT_ACTION_RESULT_KIND: &str = "report_action_result";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AgentHello {
     pub agent_id: String,
     pub instance_id: String,
     pub version: String,
+    /// Own resident-set size in bytes reported by the agent.
+    #[serde(default)]
+    pub memory_bytes: Option<u64>,
+    /// Agent process CPU usage as a percentage over the last report interval.
+    #[serde(default)]
+    pub cpu_percent: Option<f64>,
+    /// Measured round-trip latency to the admin control plane in milliseconds.
+    #[serde(default)]
+    pub admin_latency_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

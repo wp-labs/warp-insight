@@ -10,6 +10,9 @@ message<command> AgentHello {
   agent_id: String
   instance_id: String
   version: String
+  memory_bytes: Int?
+  cpu_percent: Float?
+  admin_latency_ms: Int?
 }
 
 message<response> AgentStatusAccepted {

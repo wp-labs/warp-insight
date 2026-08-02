@@ -35,6 +35,9 @@ pub struct RecentOnlineRegisteredAgent {
     pub online_since: DateTime,
     pub online_duration_seconds: i64,
     pub source: RecentOnlineRegisteredAgentSource,
+    pub memory_bytes: Option<u64>,
+    pub cpu_percent: Option<f64>,
+    pub admin_latency_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -139,6 +142,9 @@ fn recent_online_agents_from_store(
                 online_since,
                 online_duration_seconds,
                 RecentOnlineRegisteredAgentSource::Real,
+                agent.last_memory_bytes,
+                agent.last_cpu_percent,
+                agent.last_admin_latency_ms,
             )
         })
         .collect()
@@ -162,6 +168,9 @@ pub fn record_recent_online_agent(
         now,
         online_duration_seconds,
         RecentOnlineRegisteredAgentSource::Real,
+        None,
+        None,
+        None,
     );
     let mut state = runtime.lock().expect("runtime state poisoned");
     state
@@ -179,6 +188,9 @@ fn recent_online_registered_agent_at(
     online_since: DateTime,
     online_duration_seconds: i64,
     source: RecentOnlineRegisteredAgentSource,
+    memory_bytes: Option<u64>,
+    cpu_percent: Option<f64>,
+    admin_latency_ms: Option<u64>,
 ) -> RecentOnlineRegisteredAgent {
     RecentOnlineRegisteredAgent {
         agent_id: agent_id.to_string(),
@@ -188,6 +200,9 @@ fn recent_online_registered_agent_at(
         online_since,
         online_duration_seconds,
         source,
+        memory_bytes,
+        cpu_percent,
+        admin_latency_ms,
     }
 }
 

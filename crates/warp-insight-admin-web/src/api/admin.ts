@@ -22,6 +22,9 @@ export interface RecentOnlineRegisteredAgent {
   onlineSince: string;
   onlineDurationSeconds: number;
   source: "real" | "example";
+  memoryBytes?: number;
+  cpuPercent?: number;
+  adminLatencyMs?: number;
 }
 
 export interface AgentOverview {

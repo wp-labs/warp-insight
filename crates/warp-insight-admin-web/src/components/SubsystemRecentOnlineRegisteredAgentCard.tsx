@@ -24,6 +24,21 @@ function formatDuration(seconds: number): string {
   return `${minutes} 分钟`;
 }
 
+function formatMemory(bytes?: number): string {
+  if (bytes === undefined || bytes === null) return "—";
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function formatCpu(percent?: number): string {
+  return percent === undefined || percent === null ? "—" : `${percent.toFixed(1)}%`;
+}
+
+function formatLatency(ms?: number): string {
+  return ms === undefined || ms === null ? "—" : `${ms} ms`;
+}
+
 export function SubsystemRecentOnlineRegisteredAgentCard({
   agent,
 }: SubsystemRecentOnlineRegisteredAgentCardProps) {
@@ -45,6 +60,20 @@ export function SubsystemRecentOnlineRegisteredAgentCard({
       <div className={styles.durationBlock}>
         <span className={styles.durationLabel}>上线时长</span>
         <strong className={styles.duration}>{formatDuration(agent.onlineDurationSeconds)}</strong>
+      </div>
+      <div className={styles.metrics}>
+        <div className={styles.metric}>
+          <span className={styles.metricLabel}>内存</span>
+          <span className={styles.metricValue}>{formatMemory(agent.memoryBytes)}</span>
+        </div>
+        <div className={styles.metric}>
+          <span className={styles.metricLabel}>CPU</span>
+          <span className={styles.metricValue}>{formatCpu(agent.cpuPercent)}</span>
+        </div>
+        <div className={styles.metric}>
+          <span className={styles.metricLabel}>Admin 延时</span>
+          <span className={styles.metricValue}>{formatLatency(agent.adminLatencyMs)}</span>
+        </div>
       </div>
       <div className={styles.details}>
         <div className={styles.item}>

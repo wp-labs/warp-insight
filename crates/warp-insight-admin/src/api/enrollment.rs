@@ -291,6 +291,9 @@ fn commit_reserved_registration(
                     credential_status: StoredCredentialStatus::Active,
                     registered_at,
                     last_seen_at: now,
+                    last_memory_bytes: None,
+                    last_cpu_percent: None,
+                    last_admin_latency_ms: None,
                 },
             );
             Ok(())

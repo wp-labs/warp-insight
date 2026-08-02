@@ -120,6 +120,37 @@
   white-space: nowrap;
 }
 
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #e3e9f1;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.metricLabel {
+  color: #718095;
+  font-size: 11px;
+}
+
+.metricValue {
+  overflow: hidden;
+  color: #1f3a5f;
+  font-size: 13px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 700px) {
   .details {
     grid-template-columns: 1fr;
