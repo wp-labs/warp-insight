@@ -224,7 +224,12 @@ ensure_install_code_endpoint() {
     status="$(install_code_status)"
   fi
   if [[ "${status}" != "200" ]]; then
-    echo "admin install-code endpoint check failed: ${ADMIN_BASE_URL%/}/api/v1/agent/install-code returned ${status}." >&2
+    if [[ "${status}" == "401" ]]; then
+      echo "another warp-insight-admin appears to be running at ${ADMIN_BASE_URL%/} with a different admin API token." >&2
+      echo "stop it, or set ADMIN_API_TOKEN to match the running admin." >&2
+    else
+      echo "admin install-code endpoint check failed: ${ADMIN_BASE_URL%/}/api/v1/agent/install-code returned ${status}." >&2
+    fi
     exit 1
   fi
 }
