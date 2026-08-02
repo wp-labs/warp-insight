@@ -10,7 +10,13 @@ if [[ -z "${ADMIN_API_TOKEN}" ]]; then
   ADMIN_API_TOKEN="$(openssl rand -hex 24)"
 fi
 ARCH="${ARCH:-x86}"
-TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/warp-insight-install-enroll.XXXXXX")"
+# Keep the test workspace inside the repo under .run/test/ so it is easy to find;
+# fall back to the system temp dir if the repo dir cannot be created.
+TEST_RUN_DIR="${REPO_ROOT}/.run/test"
+if ! mkdir -p "${TEST_RUN_DIR}" 2>/dev/null; then
+  TEST_RUN_DIR="${TMPDIR:-/tmp}"
+fi
+TMP_ROOT="$(mktemp -d "${TEST_RUN_DIR}/warp-insight-install-enroll.XXXXXX")"
 INSTALL_SCRIPT="${TMP_ROOT}/install.sh"
 INSTALL_SIGNATURE="${TMP_ROOT}/install.sh.sig"
 INSTALL_PUBLIC_KEY="${TMP_ROOT}/install.pub.pem"
