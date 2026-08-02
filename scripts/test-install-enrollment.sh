@@ -331,10 +331,10 @@ if not install_url:
     raise SystemExit("bootstrap_bundle.install_script_url is required")
 signature_url = f"{install_url}.sig"
 required_command_fragments = [
-    f'curl -fsSL "{install_url}" -o "$WORK_DIR/install.sh"',
-    f'curl -fsSL "{signature_url}" -o "$WORK_DIR/install.sh.sig"',
-    'openssl pkeyutl -verify -pubin -inkey "$WORK_DIR/install.pub.pem" -rawin -in "$WORK_DIR/install.sh" -sigfile "$WORK_DIR/install.sh.sig"',
-    'sh "$WORK_DIR/install.sh"',
+    f'curl -fsSL "{install_url}" -o "$D/s"',
+    f'curl -fsSL "{signature_url}" -o "$D/sig"',
+    'openssl pkeyutl -verify -pubin -inkey "$D/key.pem" -rawin -in "$D/s" -sigfile "$D/sig"',
+    'sh "$D/s"',
 ]
 missing = [fragment for fragment in required_command_fragments if fragment not in command]
 if missing:

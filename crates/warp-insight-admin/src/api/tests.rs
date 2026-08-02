@@ -54,10 +54,10 @@ fn install_code_uses_header_bootstrap_token_without_url_token_leak() {
         .agent_package_sha256
         .is_empty());
     assert!(install_code.x86_linux_install_code.contains(
-        "curl -fsSL \"https://127.0.0.1:3000/api/v1/agent/install/x86/install.sh\" -o \"$WORK_DIR/install.sh\""
+        "curl -fsSL \"https://127.0.0.1:3000/api/v1/agent/install/x86/install.sh\" -o \"$D/s\""
     ));
     assert!(install_code.arm_linux_install_code.contains(
-        "curl -fsSL \"https://127.0.0.1:3000/api/v1/agent/install/arm/install.sh\" -o \"$WORK_DIR/install.sh\""
+        "curl -fsSL \"https://127.0.0.1:3000/api/v1/agent/install/arm/install.sh\" -o \"$D/s\""
     ));
     assert!(install_code
         .x86_linux_install_code
@@ -67,7 +67,7 @@ fn install_code_uses_header_bootstrap_token_without_url_token_leak() {
         .contains("openssl pkeyutl -verify -pubin"));
     assert!(install_code
         .x86_linux_install_code
-        .contains("sh \"$WORK_DIR/install.sh\""));
+        .contains("sh \"$D/s\""));
     assert!(install_code
         .x86_linux_install_code
         .contains("-----BEGIN PUBLIC KEY-----"));
@@ -158,13 +158,13 @@ fn install_command_verifies_script_signature_before_execution() {
 
     assert!(command.contains("WARP_INSIGHT_WORK_DIR"));
     assert!(command.contains(
-        "curl -fsSL \"https://127.0.0.1:3000/api/v1/agent/install/x86/install.sh.sig\" -o \"$WORK_DIR/install.sh.sig\""
+        "curl -fsSL \"https://127.0.0.1:3000/api/v1/agent/install/x86/install.sh.sig\" -o \"$D/sig\""
     ));
     assert!(command.contains(&env.config.install_script_signing_public_key_pem));
     assert!(command.contains(
-        "openssl pkeyutl -verify -pubin -inkey \"$WORK_DIR/install.pub.pem\" -rawin -in \"$WORK_DIR/install.sh\" -sigfile \"$WORK_DIR/install.sh.sig\""
+        "openssl pkeyutl -verify -pubin -inkey \"$D/key.pem\" -rawin -in \"$D/s\" -sigfile \"$D/sig\""
     ));
-    assert!(command.contains("sh \"$WORK_DIR/install.sh\""));
+    assert!(command.contains("sh \"$D/s\""));
     assert!(!command.contains("| sh"));
     assert!(!command.contains("token-a"));
 }
