@@ -2,6 +2,7 @@ import styles from "./SubsystemAgentInstallPage.module.css";
 import { SubsystemAdminTopNavigation } from "./SubsystemAdminTopNavigation";
 import { SubsystemAgentInstallCodeList } from "./SubsystemAgentInstallCodeList";
 import { SubsystemGetAgentInstallCode } from "./SubsystemGetAgentInstallCode";
+import { ApiError } from "../api";
 import { useAgentInstallCode } from "../hooks";
 
 interface SubsystemAgentInstallPageProps {
@@ -9,7 +10,10 @@ interface SubsystemAgentInstallPageProps {
 }
 
 export function SubsystemAgentInstallPage({}: SubsystemAgentInstallPageProps) {
-  const { data, isLoading, isError } = useAgentInstallCode();
+  const { data, isLoading, isError, error } = useAgentInstallCode();
+
+  const authError =
+    isError && error instanceof ApiError && error.status === 401;
 
   return (
     <div className={styles.container}>
@@ -22,7 +26,14 @@ export function SubsystemAgentInstallPage({}: SubsystemAgentInstallPageProps) {
       </header>
       {isError ? (
         <div className={styles.errorBanner}>
-          无法获取安装代码，请确认 warp-insight-admin 已启动。
+          {authError ? (
+            <>
+              Admin Token 缺失或无效，无法获取安装代码。请在上方输入正确的
+              Admin Token 并点击"应用"。
+            </>
+          ) : (
+            <>无法获取安装代码，请确认 warp-insight-admin 已启动。</>
+          )}
         </div>
       ) : null}
       <SubsystemAgentInstallCodeList installCode={data} loading={isLoading}>

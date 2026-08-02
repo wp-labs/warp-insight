@@ -58,6 +58,16 @@ export interface UpgradeAgentCommand {
 let adminApiToken: string | null = null;
 const ADMIN_AUTH_CHANGED_EVENT = "warpInsightAdminAuthChanged";
 
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(status: number, path: string) {
+    super(`HTTP ${status} ${path}`);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const adminToken = getAdminApiToken();
   const response = await fetch(path, {
@@ -69,7 +79,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status} ${path}`);
+    throw new ApiError(response.status, path);
   }
   return (await response.json()) as T;
 }
