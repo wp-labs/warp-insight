@@ -285,17 +285,14 @@ fn install_command(config: &AdminConfig, script_url: &str) -> String {
     let signature_url = install_script_signature_url(script_url);
     format!(
         r#"set -eu
-WORK_DIR="$(mktemp -d)"
-trap 'rm -rf "$WORK_DIR"' EXIT INT TERM
-INSTALL_SCRIPT="$WORK_DIR/install.sh"
-INSTALL_SIGNATURE="$WORK_DIR/install.sh.sig"
-INSTALL_PUBLIC_KEY="$WORK_DIR/install.pub.pem"
-curl -fsSL "{script_url}" -o "$INSTALL_SCRIPT"
-curl -fsSL "{signature_url}" -o "$INSTALL_SIGNATURE"
-cat >"$INSTALL_PUBLIC_KEY" <<'EOF'
+WORK_DIR="${{WARP_INSIGHT_WORK_DIR:-$(mktemp -d)}}"
+trap 'test -z "${{WARP_INSIGHT_WORK_DIR:-}}" && rm -rf "$WORK_DIR"' EXIT INT TERM
+curl -fsSL "{script_url}" -o "$WORK_DIR/install.sh"
+curl -fsSL "{signature_url}" -o "$WORK_DIR/install.sh.sig"
+cat >"$WORK_DIR/install.pub.pem" <<'EOF'
 {public_key_pem}EOF
-openssl pkeyutl -verify -pubin -inkey "$INSTALL_PUBLIC_KEY" -rawin -in "$INSTALL_SCRIPT" -sigfile "$INSTALL_SIGNATURE"
-sh "$INSTALL_SCRIPT""#,
+openssl pkeyutl -verify -pubin -inkey "$WORK_DIR/install.pub.pem" -rawin -in "$WORK_DIR/install.sh" -sigfile "$WORK_DIR/install.sh.sig"
+sh "$WORK_DIR/install.sh""#,
         script_url = script_url,
         signature_url = signature_url,
         public_key_pem = config.install_script_signing_public_key_pem,
