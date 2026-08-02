@@ -5,7 +5,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 ADMIN_BASE_URL="${ADMIN_BASE_URL:-https://127.0.0.1:3000}"
-ADMIN_API_TOKEN="${ADMIN_API_TOKEN:-install-test-admin-token}"
+ADMIN_API_TOKEN="${ADMIN_API_TOKEN:-}"
+if [[ -z "${ADMIN_API_TOKEN}" ]]; then
+  ADMIN_API_TOKEN="$(openssl rand -hex 24)"
+fi
 ARCH="${ARCH:-x86}"
 TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/warp-insight-install-enroll.XXXXXX")"
 INSTALL_SCRIPT="${TMP_ROOT}/install.sh"
@@ -682,6 +685,7 @@ require_cmd openssl
 require_https_admin_base_url
 
 echo "testing install/enrollment against ${ADMIN_BASE_URL}"
+echo "admin api token: ${ADMIN_API_TOKEN}"
 if [[ "${SKIP_ADMIN_WEB}" != "1" ]]; then
   echo "testing admin web at ${ADMIN_WEB_BASE_URL}"
 fi

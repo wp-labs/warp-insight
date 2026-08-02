@@ -11,6 +11,16 @@ const DEFAULT_CONFIG_PATH: &str = "warp-insight-admin.toml";
 const CONFIG_ENV: &str = "WARP_INSIGHT_ADMIN_CONFIG";
 const MIN_ADMIN_API_TOKEN_BYTES: usize = 16;
 const MAX_BOOTSTRAP_TOKEN_TTL_SECONDS: i64 = 60 * 60;
+/// Well-known weak values that must never be used as the admin API token.
+const WEAK_ADMIN_API_TOKENS: &[&str] = &[
+    "admin",
+    "password",
+    "changeme",
+    "letmein",
+    "secret",
+    "1234567890123456",
+    "install-test-admin-token",
+];
 
 #[derive(Debug, Clone)]
 pub struct AdminConfig {
@@ -78,6 +88,20 @@ struct RawAgentConfig {
     environment_id: String,
 }
 
+pub fn default_config_path() -> String {
+    DEFAULT_CONFIG_PATH.to_string()
+}
+
+/// Default admin config loaded from the `warp-insight-admin.toml` template with
+/// the admin API token placeholder replaced by a freshly random value. Used by
+/// the `init-config` command so a newly generated config never ships with a
+/// predictable or shared default token, and editing the template file is the
+/// single place to change the generated config shape.
+pub fn default_config_text(admin_api_token: &str) -> String {
+    include_str!("../../warp-insight-admin.toml")
+        .replace("${WARP_INSIGHT_ADMIN_TOKEN}", admin_api_token)
+}
+
 impl AdminConfig {
     pub fn load_from_env() -> Result<Self, ConfigError> {
         let path = env::var(CONFIG_ENV).unwrap_or_else(|_| DEFAULT_CONFIG_PATH.to_string());
@@ -126,6 +150,7 @@ impl AdminConfig {
             &admin_api_token,
             MIN_ADMIN_API_TOKEN_BYTES,
         )?;
+        require_non_weak_admin_token(&admin_api_token)?;
         Ok(Self {
             listen_addr: expand_env(&raw.server.listen_addr)?,
             public_base_url: trim_trailing_slash(expand_env(&raw.server.public_base_url)?),
@@ -322,6 +347,16 @@ fn require_min_secret_length(field: &str, value: &str, min: usize) -> Result<(),
     Err(ConfigError::new(format!(
         "{field} must be at least {min} bytes"
     )))
+}
+
+fn require_non_weak_admin_token(value: &str) -> Result<(), ConfigError> {
+    let normalized = value.trim().to_ascii_lowercase();
+    if WEAK_ADMIN_API_TOKENS.iter().any(|weak| *weak == normalized) {
+        return Err(ConfigError::new(
+            "server.admin_api_token uses a known weak value; use a randomly generated token",
+        ));
+    }
+    Ok(())
 }
 
 fn require_existing_file(field: &str, path: &Path) -> Result<(), ConfigError> {

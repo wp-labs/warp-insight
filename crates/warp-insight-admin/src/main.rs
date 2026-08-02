@@ -1,7 +1,12 @@
 // @moju generated
 // @moju hash=46ea6f5515c8cd4b
 
-use std::{error::Error, net::SocketAddr, sync::Arc};
+use std::{
+    error::Error,
+    net::SocketAddr,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use axum::{
     extract::{connect_info::ConnectInfo, Request, State},
@@ -19,6 +24,10 @@ use tokio_rustls::TlsAcceptor;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("init-config") {
+        return init_config_command(args.get(1).map(String::as_str));
+    }
     let config = warp_insight_admin::infra::AdminConfig::load_from_env()?;
     let addr = config.listen_addr.clone();
     let tls_config = warp_insight_admin::infra::load_admin_tls_config(&config)?;
@@ -30,6 +39,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         tls_config,
     )
     .await?;
+    Ok(())
+}
+
+/// Generate a warp-insight-admin.toml with a freshly random admin API token
+/// (and the install-script signing key it references), so a newly initialized
+/// admin never runs with a predictable or shared default token.
+fn init_config_command(
+    out_arg: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let token = warp_insight_admin::infra::new_secret_token("admin")
+        .map_err(|err| format!("failed to generate admin api token: {err}"))?;
+    let out_path = out_arg
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(warp_insight_admin::infra::default_config_path()));
+    let parent = out_path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let state_dir = parent.join("state");
+    let key_path = state_dir.join("install-script-signing-ed25519.pkcs8.pem");
+    if !key_path.exists() {
+        std::fs::create_dir_all(&state_dir)?;
+        warp_insight_admin::infra::generate_install_script_signing_key(&key_path)?;
+    }
+    std::fs::write(&out_path, warp_insight_admin::infra::default_config_text(&token))?;
+    println!("generated admin config: {}", out_path.display());
+    println!("admin api token: {}", token);
+    println!("install script signing key: {}", key_path.display());
+    println!(
+        "note: create a TLS certificate/key pair at {}/admin-tls.crt.pem and {}/admin-tls.key.pem before starting",
+        state_dir.display(),
+        state_dir.display(),
+    );
     Ok(())
 }
 

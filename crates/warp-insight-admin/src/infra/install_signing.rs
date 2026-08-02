@@ -27,6 +27,31 @@ pub fn sign_install_script(path: &Path, script: &[u8]) -> Result<Vec<u8>, String
     Ok(key_pair.sign(script).as_ref().to_vec())
 }
 
+/// Generate a fresh ed25519 PKCS#8 private key PEM at `path` (mode 0600).
+pub fn generate_install_script_signing_key(path: &Path) -> Result<(), String> {
+    let rng = ring::rand::SystemRandom::new();
+    let pkcs8 = Ed25519KeyPair::generate_pkcs8(&rng)
+        .map_err(|err| format!("failed to generate install script signing key: {err}"))?;
+    fs::write(path, private_key_pem(pkcs8.as_ref())).map_err(|err| {
+        format!(
+            "failed to write install script signing key {}: {err}",
+            path.display()
+        )
+    })?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o600));
+    }
+    Ok(())
+}
+
+fn private_key_pem(der: &[u8]) -> String {
+    let encoded = STANDARD.encode(der);
+    let wrapped = wrap_base64_lines(&encoded, 64);
+    format!("-----BEGIN PRIVATE KEY-----\n{wrapped}-----END PRIVATE KEY-----\n")
+}
+
 fn load_install_script_signing_key_pair(path: &Path) -> Result<Arc<Ed25519KeyPair>, String> {
     let metadata = std::fs::metadata(path).map_err(|err| {
         format!(
