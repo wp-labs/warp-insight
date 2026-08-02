@@ -24,6 +24,9 @@
   background: #f3f6f9;
   color: #26364d;
   font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .copyButton {

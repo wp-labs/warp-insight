@@ -100,7 +100,7 @@ const STYLE_BY_KIND: Record<TokenKind, string> = {
 export function ShellCode({ code }: { code: string }) {
   const nodes: ReactNode[] = tokenize(code).map((token, index) => (
     <span className={STYLE_BY_KIND[token.kind]} key={index}>
-      {token.value}
+      {token.value ?? ""}
     </span>
   ));
   return <>{nodes}</>;
