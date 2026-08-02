@@ -1,4 +1,5 @@
 import styles from "./SubsystemBootstrapTokenCard.module.css";
+import { CopyButton } from "./CopyButton";
 
 interface SubsystemBootstrapTokenCardProps {
   token?: string;
@@ -23,14 +24,7 @@ export function SubsystemBootstrapTokenCard({
       </div>
       <div className={styles.tokenRow}>
         <code className={styles.token}>{display}</code>
-        <button
-          type="button"
-          className={styles.copyButton}
-          disabled={!token}
-          onClick={() => token && navigator.clipboard?.writeText(token)}
-        >
-          复制 Token
-        </button>
+        <CopyButton text={token} label="复制 Token" className={styles.copyButton} />
       </div>
       <div className={styles.usage}>
         <div className={styles.usageTitle}>目标主机上运行安装命令，二选一提供 Token：</div>

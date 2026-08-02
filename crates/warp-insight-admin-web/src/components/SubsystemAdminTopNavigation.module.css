@@ -92,6 +92,11 @@
   background: #f0f4f8;
 }
 
+.authButton:active:not(:disabled) {
+  background: #e3e9f1;
+  transform: translateY(1px);
+}
+
 .authButton:disabled {
   color: #99a5b5;
   cursor: not-allowed;

@@ -1,5 +1,6 @@
 import styles from "./SubsystemArmLinuxInstallCode.module.css";
 import { ShellCode } from "./ShellCode";
+import { CopyButton } from "./CopyButton";
 
 interface SubsystemArmLinuxInstallCodeProps {
   command?: string;
@@ -29,24 +30,13 @@ export function SubsystemArmLinuxInstallCode({
         <ShellCode code={displayCommand} />
       </code>
       <div className={styles.actions}>
-        <button
+        <CopyButton text={command} label="复制命令" className={styles.copyButton} />
+        <CopyButton
+          text={fullCommand}
+          label="复制完整命令（含 Token）"
+          copiedLabel="已复制完整命令"
           className={styles.copyButton}
-          type="button"
-          disabled={!command}
-          onClick={() => command && navigator.clipboard?.writeText(command)}
-        >
-          复制命令
-        </button>
-        <button
-          className={styles.copyButton}
-          type="button"
-          disabled={!fullCommand}
-          onClick={() =>
-            fullCommand && navigator.clipboard?.writeText(fullCommand)
-          }
-        >
-          复制完整命令（含 Token）
-        </button>
+        />
       </div>
       {children}
     </div>

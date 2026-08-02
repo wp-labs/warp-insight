@@ -54,6 +54,16 @@
   cursor: default;
 }
 
+.copyButton:hover:not(:disabled) {
+  background: #eef3f7;
+  border-color: #8fa3bd;
+}
+
+.copyButton:active:not(:disabled) {
+  background: #e3e9f1;
+  transform: translateY(1px);
+}
+
 .usage {
   display: flex;
   flex-direction: column;

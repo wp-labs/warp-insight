@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { NavLink } from "react-router-dom";
 import { clearAdminApiToken, getAdminApiToken, setAdminApiToken } from "../api";
@@ -15,6 +15,10 @@ export function SubsystemAdminTopNavigation({
 }: SubsystemAdminTopNavigationProps) {
   const queryClient = useQueryClient();
   const [token, setToken] = useState(() => getAdminApiToken() ?? "");
+  const [applied, setApplied] = useState(false);
+  const appliedTimer = useRef<number | undefined>(undefined);
+
+  useEffect(() => () => window.clearTimeout(appliedTimer.current), []);
 
   useEffect(() => {
     function refreshToken() {
@@ -31,6 +35,9 @@ export function SubsystemAdminTopNavigation({
     event.preventDefault();
     setAdminApiToken(token);
     setToken(getAdminApiToken() ?? "");
+    setApplied(true);
+    window.clearTimeout(appliedTimer.current);
+    appliedTimer.current = window.setTimeout(() => setApplied(false), 1500);
     void queryClient.invalidateQueries();
   }
 
@@ -90,7 +97,7 @@ export function SubsystemAdminTopNavigation({
               onChange={(event) => setToken(event.target.value)}
             />
             <button className={styles.authButton} type="submit">
-              应用
+              {applied ? "已应用" : "应用"}
             </button>
             <button
               className={styles.authButton}
