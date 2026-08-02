@@ -1,4 +1,5 @@
 import styles from "./SubsystemRecentOnlineRegisteredAgentCard.module.css";
+import { Sparkline } from "./Sparkline";
 import type { RecentOnlineRegisteredAgent } from "../api";
 
 interface SubsystemRecentOnlineRegisteredAgentCardProps {
@@ -73,6 +74,29 @@ export function SubsystemRecentOnlineRegisteredAgentCard({
         <div className={styles.metric}>
           <span className={styles.metricLabel}>Admin 延时</span>
           <span className={styles.metricValue}>{formatLatency(agent.adminLatencyMs)}</span>
+        </div>
+      </div>
+      <div className={styles.trend}>
+        <div className={styles.trendItem}>
+          <span className={styles.trendLabel}>内存趋势</span>
+          <Sparkline
+            values={(agent.metricsHistory ?? []).map((s) => s.memoryBytes)}
+            color="#0550ae"
+          />
+        </div>
+        <div className={styles.trendItem}>
+          <span className={styles.trendLabel}>CPU 趋势</span>
+          <Sparkline
+            values={(agent.metricsHistory ?? []).map((s) => s.cpuPercent)}
+            color="#cf222e"
+          />
+        </div>
+        <div className={styles.trendItem}>
+          <span className={styles.trendLabel}>延时趋势</span>
+          <Sparkline
+            values={(agent.metricsHistory ?? []).map((s) => s.adminLatencyMs)}
+            color="#22863a"
+          />
         </div>
       </div>
       <div className={styles.details}>

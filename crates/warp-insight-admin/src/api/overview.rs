@@ -9,7 +9,7 @@ use axum::{
 use serde::Serialize;
 
 use crate::domain::types::{AgentRuntimeStatusView, DateTime};
-use crate::infra::StoredAgentRegistration;
+use crate::infra::{AgentMetricSample, StoredAgentRegistration};
 
 use super::admin_auth::require_admin_bearer;
 use super::{rate_limit, AdminRuntimeState, ApiState};
@@ -38,6 +38,7 @@ pub struct RecentOnlineRegisteredAgent {
     pub memory_bytes: Option<u64>,
     pub cpu_percent: Option<f64>,
     pub admin_latency_ms: Option<u64>,
+    pub metrics_history: Vec<AgentMetricSample>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -145,6 +146,7 @@ fn recent_online_agents_from_store(
                 agent.last_memory_bytes,
                 agent.last_cpu_percent,
                 agent.last_admin_latency_ms,
+                agent.metrics_history,
             )
         })
         .collect()
@@ -171,6 +173,7 @@ pub fn record_recent_online_agent(
         None,
         None,
         None,
+        Vec::new(),
     );
     let mut state = runtime.lock().expect("runtime state poisoned");
     state
@@ -191,6 +194,7 @@ fn recent_online_registered_agent_at(
     memory_bytes: Option<u64>,
     cpu_percent: Option<f64>,
     admin_latency_ms: Option<u64>,
+    metrics_history: Vec<AgentMetricSample>,
 ) -> RecentOnlineRegisteredAgent {
     RecentOnlineRegisteredAgent {
         agent_id: agent_id.to_string(),
@@ -203,6 +207,7 @@ fn recent_online_registered_agent_at(
         memory_bytes,
         cpu_percent,
         admin_latency_ms,
+        metrics_history,
     }
 }
 

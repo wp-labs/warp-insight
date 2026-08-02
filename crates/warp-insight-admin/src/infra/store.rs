@@ -76,6 +76,17 @@ pub enum StoredEnrollmentTokenStatus {
     Revoked,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentMetricSample {
+    pub at: String,
+    #[serde(default)]
+    pub memory_bytes: Option<u64>,
+    #[serde(default)]
+    pub cpu_percent: Option<f64>,
+    #[serde(default)]
+    pub admin_latency_ms: Option<u64>,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct StoredAgentRegistration {
@@ -100,6 +111,9 @@ pub struct StoredAgentRegistration {
     pub last_cpu_percent: Option<f64>,
     #[serde(default)]
     pub last_admin_latency_ms: Option<u64>,
+    /// Rolling window of the most recent reported status samples (newest last).
+    #[serde(default)]
+    pub metrics_history: Vec<AgentMetricSample>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

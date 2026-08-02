@@ -14,6 +14,13 @@ export interface AgentOverviewMetrics {
   lastSeenLagSeconds: number;
 }
 
+export interface AgentMetricSample {
+  at: string;
+  memoryBytes?: number;
+  cpuPercent?: number;
+  adminLatencyMs?: number;
+}
+
 export interface RecentOnlineRegisteredAgent {
   agentId: string;
   instanceId: string;
@@ -25,6 +32,7 @@ export interface RecentOnlineRegisteredAgent {
   memoryBytes?: number;
   cpuPercent?: number;
   adminLatencyMs?: number;
+  metricsHistory?: AgentMetricSample[];
 }
 
 export interface AgentOverview {

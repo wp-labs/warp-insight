@@ -12,13 +12,18 @@ use crate::domain::messages::{
 use crate::domain::types::{
     ActionResultReceipt, DateTime, MetricsHealthSnapshot, RuntimeHealthSnapshot,
 };
-use crate::infra::{new_secret_token, sha256_hex, StoredAgentRegistration, StoredCredentialStatus};
+use crate::infra::{
+    new_secret_token, sha256_hex, AgentMetricSample, StoredAgentRegistration, StoredCredentialStatus,
+};
 use warp_insight_contracts::enrollment::{
     AgentCredentialBundle, AgentCredentialRenewed, RenewAgentCredential,
     RENEW_AGENT_CREDENTIAL_KIND,
 };
 
 use super::ApiState;
+
+/// How many recent status samples to keep per agent (30s interval → 50 minutes).
+const STATUS_HISTORY_LIMIT: usize = 100;
 
 pub async fn submit_agent_status(
     State(state): State<ApiState>,
@@ -32,6 +37,7 @@ pub async fn submit_agent_status(
             let memory_bytes = input.memory_bytes.map(|value| value as u64);
             let cpu_percent = input.cpu_percent;
             let admin_latency_ms = input.admin_latency_ms.map(|value| value as u64);
+            let sample_at = last_seen_at.clone();
             let update_result = state.store.update(|snapshot| {
                 if let Some(stored) = snapshot.agents.get_mut(&agent.agent_id) {
                     stored.version = input.version.clone();
@@ -39,6 +45,16 @@ pub async fn submit_agent_status(
                     stored.last_memory_bytes = memory_bytes;
                     stored.last_cpu_percent = cpu_percent;
                     stored.last_admin_latency_ms = admin_latency_ms;
+                    append_status_sample(
+                        stored,
+                        AgentMetricSample {
+                            at: sample_at,
+                            memory_bytes,
+                            cpu_percent,
+                            admin_latency_ms,
+                        },
+                        STATUS_HISTORY_LIMIT,
+                    );
                 }
             });
             if let Err(err) = update_result {
@@ -242,6 +258,18 @@ fn authenticate_agent(
     Ok(agent.clone())
 }
 
+fn append_status_sample(
+    stored: &mut StoredAgentRegistration,
+    sample: AgentMetricSample,
+    limit: usize,
+) {
+    stored.metrics_history.push(sample);
+    if stored.metrics_history.len() > limit {
+        let overflow = stored.metrics_history.len() - limit;
+        stored.metrics_history.drain(0..overflow);
+    }
+}
+
 fn bearer_token(headers: &HeaderMap) -> Option<&str> {
     headers
         .get(header::AUTHORIZATION)?
@@ -268,4 +296,29 @@ fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
         diff |= (left_byte ^ right_byte) as usize;
     }
     diff == 0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn append_status_sample_caps_history_to_limit() {
+        let mut stored = StoredAgentRegistration::default();
+        for index in 0..120 {
+            append_status_sample(
+                &mut stored,
+                AgentMetricSample {
+                    at: format!("t-{index}"),
+                    memory_bytes: Some(index),
+                    cpu_percent: None,
+                    admin_latency_ms: None,
+                },
+                100,
+            );
+        }
+        assert_eq!(stored.metrics_history.len(), 100);
+        assert_eq!(stored.metrics_history.first().unwrap().at, "t-20");
+        assert_eq!(stored.metrics_history.last().unwrap().at, "t-119");
+    }
 }
