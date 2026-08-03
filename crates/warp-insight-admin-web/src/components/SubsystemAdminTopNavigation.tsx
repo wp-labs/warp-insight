@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { NavLink } from "react-router-dom";
-import { clearAdminApiToken, getAdminApiToken, setAdminApiToken } from "../api";
+import {
+  ADMIN_AUTH_CHANGED_EVENT,
+  clearAdminApiToken,
+  getAdminApiToken,
+  setAdminApiToken,
+} from "../api";
 import styles from "./SubsystemAdminTopNavigation.module.css";
-
-const ADMIN_AUTH_CHANGED_EVENT = "warpInsightAdminAuthChanged";
 
 interface SubsystemAdminTopNavigationProps {
   children?: React.ReactNode;

@@ -3,6 +3,8 @@ import { SubsystemAdminTopNavigation } from "./SubsystemAdminTopNavigation";
 import { SubsystemAgentStatusOverviewMetrics } from "./SubsystemAgentStatusOverviewMetrics";
 import { SubsystemRecentOnlineRegisteredAgentPanel } from "./SubsystemRecentOnlineRegisteredAgentPanel";
 import { SubsystemAbnormalAgentPanel } from "./SubsystemAbnormalAgentPanel";
+import { RateLimitNotice } from "./RateLimitNotice";
+import { isRateLimitedError } from "../api";
 import { useAgentOverview } from "../hooks";
 
 interface SubsystemAdminHomePageProps {
@@ -10,7 +12,7 @@ interface SubsystemAdminHomePageProps {
 }
 
 export function SubsystemAdminHomePage({}: SubsystemAdminHomePageProps) {
-  const { data, isLoading, isError } = useAgentOverview();
+  const { data, isLoading, isError, error } = useAgentOverview();
 
   return (
     <div className={styles.container}>
@@ -22,9 +24,13 @@ export function SubsystemAdminHomePage({}: SubsystemAdminHomePageProps) {
         </p>
       </header>
       {isError ? (
-        <div className={styles.errorBanner}>
-          无法连接 warp-insight-admin，请确认管理服务已启动。
-        </div>
+        isRateLimitedError(error) ? (
+          <RateLimitNotice error={error} />
+        ) : (
+          <div className={styles.errorBanner}>
+            无法连接 warp-insight-admin，请确认管理服务已启动。
+          </div>
+        )
       ) : null}
       <SubsystemAgentStatusOverviewMetrics
         metrics={data?.metrics}

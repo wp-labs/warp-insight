@@ -54,10 +54,10 @@ fn install_code_uses_header_bootstrap_token_without_url_token_leak() {
         .agent_package_sha256
         .is_empty());
     assert!(install_code.x86_linux_install_code.contains(
-        "curl -fsSL \"https://127.0.0.1:3000/api/v1/agent/install/x86/install.sh\" -o \"$D/s\""
+        "curl -fsSLk \"https://127.0.0.1:3000/api/v1/agent/install/x86/install.sh\" -o \"$D/s\""
     ));
     assert!(install_code.arm_linux_install_code.contains(
-        "curl -fsSL \"https://127.0.0.1:3000/api/v1/agent/install/arm/install.sh\" -o \"$D/s\""
+        "curl -fsSLk \"https://127.0.0.1:3000/api/v1/agent/install/arm/install.sh\" -o \"$D/s\""
     ));
     assert!(install_code
         .x86_linux_install_code
@@ -159,7 +159,7 @@ fn install_command_verifies_script_signature_before_execution() {
     assert!(command.contains("mktemp -d"));
     assert!(command.contains("working dir: $D"));
     assert!(command.contains(
-        "curl -fsSL \"https://127.0.0.1:3000/api/v1/agent/install/x86/install.sh.sig\" -o \"$D/sig\""
+        "curl -fsSLk \"https://127.0.0.1:3000/api/v1/agent/install/x86/install.sh.sig\" -o \"$D/sig\""
     ));
     assert!(command.contains(&env.config.install_script_signing_public_key_pem));
     assert!(command.contains(
@@ -942,6 +942,46 @@ async fn admin_routes_rate_limit_failed_bearer_attempts() {
     assert_eq!(blocked.status(), StatusCode::TOO_MANY_REQUESTS);
     assert!(blocked.headers().contains_key(header::RETRY_AFTER));
     assert_no_store(&blocked);
+}
+
+#[tokio::test]
+async fn admin_rate_limit_ignores_missing_bearer_requests() {
+    let env = TestEnv::new();
+    let app = router(env.config);
+
+    // An unauthenticated client (e.g. the web UI polling the overview before a
+    // token is entered) must not accumulate rate-limit failures. Send several
+    // missing-token requests, then a correct token must be accepted at once
+    // instead of being blocked by failures it never caused.
+    for _ in 0..6 {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/agent/install-code")
+                    .header("x-real-ip", "192.0.2.20")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("route response");
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    let accepted = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/agent/install-code")
+                .header("x-real-ip", "192.0.2.20")
+                .header("authorization", format!("Bearer {TEST_ADMIN_API_TOKEN}"))
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("route response");
+    assert_eq!(accepted.status(), StatusCode::OK);
 }
 
 #[tokio::test]

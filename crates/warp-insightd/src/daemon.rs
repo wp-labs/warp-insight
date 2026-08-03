@@ -41,7 +41,7 @@ mod telemetry_support;
 
 /// How often the daemon reports its own status (memory / CPU / admin latency)
 /// to the control plane.
-const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(30);
+const STATUS_REPORT_INTERVAL: Duration = Duration::from_secs(3);
 
 /// A sampled CPU-time reading used to compute a percentage across the report interval.
 struct CpuSample {
@@ -58,7 +58,26 @@ fn current_rss_bytes() -> Option<u64> {
         let resident_pages: u64 = content.split_whitespace().nth(1)?.parse().ok()?;
         Some(resident_pages * 4096)
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "macos")]
+    {
+        // proc_pidinfo(PROC_PIDTASKINFO) reports the current resident size in bytes.
+        let mut info: libc::proc_taskinfo = unsafe { std::mem::zeroed() };
+        let size = std::mem::size_of::<libc::proc_taskinfo>() as libc::c_int;
+        let written = unsafe {
+            libc::proc_pidinfo(
+                std::process::id() as libc::c_int,
+                libc::PROC_PIDTASKINFO,
+                0,
+                &mut info as *mut libc::proc_taskinfo as *mut libc::c_void,
+                size,
+            )
+        };
+        if written != size {
+            return None;
+        }
+        Some(info.pti_resident_size)
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
         None
     }
@@ -76,7 +95,21 @@ fn cpu_ticks() -> Option<u64> {
         let stime: u64 = fields.get(12)?.parse().ok()?;
         Some(utime + stime)
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "macos")]
+    {
+        // getrusage reports user + system CPU time; both are timeval (seconds
+        // + microseconds). Total is expressed in microseconds so that
+        // ticks_per_sec() = 1_000_000 makes cpu_percent_since() linear in
+        // wall-clock seconds.
+        let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
+        if unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut usage) } != 0 {
+            return None;
+        }
+        let user_us = usage.ru_utime.tv_sec as i64 * 1_000_000 + usage.ru_utime.tv_usec as i64;
+        let system_us = usage.ru_stime.tv_sec as i64 * 1_000_000 + usage.ru_stime.tv_usec as i64;
+        Some((user_us + system_us) as u64)
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
         None
     }
@@ -87,7 +120,12 @@ fn ticks_per_sec() -> u64 {
     unsafe { libc::sysconf(libc::_SC_CLK_TCK) as u64 }
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "macos")]
+fn ticks_per_sec() -> u64 {
+    1_000_000
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
 fn ticks_per_sec() -> u64 {
     100
 }
@@ -649,5 +687,16 @@ mod tests {
         config.control_plane.bearer_token = None;
         let latency = report_status_to_control_plane(&config, None, None).await;
         assert!(latency.is_none());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_resource_measurements_return_values() {
+        let rss = current_rss_bytes().expect("current_rss_bytes on macos");
+        assert!(rss > 0, "resident memory should be positive, got {rss}");
+        let first = cpu_ticks().expect("cpu_ticks on macos");
+        let second = cpu_ticks().expect("cpu_ticks on macos");
+        assert!(second >= first, "cpu time should not decrease");
+        assert_eq!(ticks_per_sec(), 1_000_000);
     }
 }

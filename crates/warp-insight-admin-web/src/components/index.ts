@@ -7,6 +7,7 @@ export { SubsystemUnhealthyAgentMetric } from "./SubsystemUnhealthyAgentMetric";
 export { SubsystemShowAgentRuntimeStatusForm } from "./SubsystemShowAgentRuntimeStatusForm";
 export { SubsystemAgentInstanceText } from "./SubsystemAgentInstanceText";
 export { SubsystemAdminHomePage } from "./SubsystemAdminHomePage";
+export { RateLimitNotice } from "./RateLimitNotice";
 export { SubsystemAgentControlCenterPage } from "./SubsystemAgentControlCenterPage";
 export { SubsystemUpgradeAgentRemotelyUsecaseMeta } from "./SubsystemUpgradeAgentRemotelyUsecaseMeta";
 export { SubsystemAdminOperatorLane } from "./SubsystemAdminOperatorLane";

@@ -278,15 +278,20 @@ pub fn install_script(config: &AdminConfig, arch: &str) -> Result<String, String
             "{{AGENT_INITIAL_CONFIG_URL}}",
             &config.agent_initial_config_url(),
         )
-        .replace("{{AGENT_PACKAGE_SHA256}}", &package_sha256))
+        .replace("{{AGENT_PACKAGE_SHA256}}", &package_sha256)
+        .replace("{{TRUST_BUNDLE}}", &config.trust_bundle))
 }
 
 fn install_command(config: &AdminConfig, script_url: &str) -> String {
     let signature_url = install_script_signature_url(script_url);
+    // The two downloads use -k (skip cert verification) because the admin runs
+    // a self-signed CA that a fresh host cannot yet trust. This is safe: the
+    // script's integrity/authenticity is verified by the embedded public key
+    // below (openssl pkeyutl -verify), so TLS is just transport here.
     format!(
         r#"set -eu; D="$(mktemp -d)"; trap 'rm -rf "$D"' EXIT INT TERM; echo "working dir: $D"
-curl -fsSL "{script_url}" -o "$D/s"
-curl -fsSL "{signature_url}" -o "$D/sig"
+curl -fsSLk "{script_url}" -o "$D/s"
+curl -fsSLk "{signature_url}" -o "$D/sig"
 cat >"$D/key.pem" <<'EOF'
 {public_key_pem}EOF
 openssl pkeyutl -verify -pubin -inkey "$D/key.pem" -rawin -in "$D/s" -sigfile "$D/sig" && sh "$D/s""#,

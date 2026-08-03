@@ -3,8 +3,9 @@ import { SubsystemAdminTopNavigation } from "./SubsystemAdminTopNavigation";
 import { SubsystemBootstrapTokenCard } from "./SubsystemBootstrapTokenCard";
 import { SubsystemX86LinuxInstallCode } from "./SubsystemX86LinuxInstallCode";
 import { SubsystemArmLinuxInstallCode } from "./SubsystemArmLinuxInstallCode";
-import { ApiError } from "../api";
+import { ApiError, isRateLimitedError } from "../api";
 import { useAgentInstallCode } from "../hooks";
+import { RateLimitNotice } from "./RateLimitNotice";
 
 export function SubsystemAgentInstallPage() {
   const { data, isLoading, isError, error } = useAgentInstallCode();
@@ -22,16 +23,20 @@ export function SubsystemAgentInstallPage() {
         </p>
       </header>
       {isError ? (
-        <div className={styles.errorBanner}>
-          {authError ? (
-            <>
-              Admin Token 缺失或无效，无法获取安装代码。请在上方输入正确的
-              Admin Token 并点击"应用"。
-            </>
-          ) : (
-            <>无法获取安装代码，请确认 warp-insight-admin 已启动。</>
-          )}
-        </div>
+        isRateLimitedError(error) ? (
+          <RateLimitNotice error={error} />
+        ) : (
+          <div className={styles.errorBanner}>
+            {authError ? (
+              <>
+                Admin Token 缺失或无效，无法获取安装代码。请在上方输入正确的
+                Admin Token 并点击"应用"。
+              </>
+            ) : (
+              <>无法获取安装代码，请确认 warp-insight-admin 已启动。</>
+            )}
+          </div>
+        )
       ) : null}
       <div className={styles.content}>
         <SubsystemBootstrapTokenCard token={token} loading={isLoading} />

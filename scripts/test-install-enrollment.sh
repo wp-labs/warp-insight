@@ -4,10 +4,78 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-ADMIN_BASE_URL="${ADMIN_BASE_URL:-https://127.0.0.1:3000}"
+detect_lan_ip() {
+  python3 - <<'PY'
+import ipaddress
+import re
+import socket
+import subprocess
+
+# Ranges used by tunnels/VPNs that should not be advertised as the LAN address.
+EXCLUDED = ["100.64.0.0/10", "198.18.0.0/15"]
+
+def is_lan(ip):
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return (
+        addr.is_private
+        and not addr.is_loopback
+        and not addr.is_link_local
+        and not addr.is_multicast
+        and not any(addr in ipaddress.ip_network(net) for net in EXCLUDED)
+    )
+
+def ifconfig_ips():
+    try:
+        out = subprocess.run(["ifconfig"], capture_output=True, text=True).stdout
+    except OSError:
+        return []
+    return [
+        match.group(1)
+        for line in out.splitlines()
+        if (match := re.search(r"inet (\d+\.\d+\.\d+\.\d+)", line))
+    ]
+
+# Source IP of the default route (no packet is sent).
+source = ""
+try:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.connect(("8.8.8.8", 80))
+        source = sock.getsockname()[0] or ""
+    finally:
+        sock.close()
+except OSError:
+    pass
+
+candidates = [ip for ip in ifconfig_ips() if is_lan(ip)]
+if is_lan(source):
+    print(source)
+elif candidates:
+    print(candidates[0])
+elif source and not source.startswith("127.") and not source.startswith("0."):
+    print(source)
+else:
+    print("127.0.0.1")
+PY
+}
+
+# Primary LAN address so admin + web are reachable from other hosts; falls back
+# to loopback when the host has no routable interface.
+LAN_IP="$(detect_lan_ip)"
+NOPROXY_HOSTS="127.0.0.1,localhost,${LAN_IP}"
+
+ADMIN_BASE_URL="${ADMIN_BASE_URL:-https://${LAN_IP}:3000}"
 ADMIN_API_TOKEN="${ADMIN_API_TOKEN:-}"
 if [[ -z "${ADMIN_API_TOKEN}" ]]; then
-  ADMIN_API_TOKEN="$(openssl rand -hex 24)"
+  # 10 alphanumeric chars (~60 bits of entropy): strong enough for the
+  # rate-limited admin control plane while still being easy to type. The
+  # 16-byte base64 source guarantees plenty of alphanumerics survive tr so head
+  # always yields exactly 10 chars; `|| true` swallows tr's SIGPIPE once head
+  # closes the pipe (otherwise pipefail turns it into a fatal 141 exit).
+  ADMIN_API_TOKEN="$(openssl rand -base64 16 | LC_ALL=C tr -dc 'A-Za-z0-9' | head -c 10 || true)"
 fi
 ARCH="${ARCH:-x86}"
 # Keep the test workspace inside the repo under .run/test/ so it is easy to find;
@@ -33,14 +101,24 @@ ADMIN_TLS_CSR="${TMP_ROOT}/admin-tls.csr.pem"
 ADMIN_TLS_EXT="${TMP_ROOT}/admin-tls.ext"
 ADMIN_LOG="${TMP_ROOT}/warp-insight-admin.log"
 ADMIN_PID=""
-ADMIN_WEB_BASE_URL="${ADMIN_WEB_BASE_URL:-http://127.0.0.1:5173}"
+ADMIN_WEB_BASE_URL="${ADMIN_WEB_BASE_URL:-http://${LAN_IP}:5173}"
 ADMIN_WEB_LOG="${TMP_ROOT}/warp-insight-admin-web.log"
 ADMIN_WEB_PID=""
 SKIP_ADMIN_WEB="${SKIP_ADMIN_WEB:-0}"
 STOP_STARTED_SERVICES="${STOP_STARTED_SERVICES:-0}"
 WAIT_FOR_STARTED_SERVICES="${WAIT_FOR_STARTED_SERVICES:-1}"
+STATUS_REPORT_WAIT_TIMEOUT_SECONDS="${STATUS_REPORT_WAIT_TIMEOUT_SECONDS:-90}"
+WAIT_FOR_EXIT="${WAIT_FOR_EXIT:-1}"
+DAEMON_PID=""
+AGENT_STATUS_LOG="${TMP_ROOT}/agent-status.log"
+OVERVIEW_JSON="${TMP_ROOT}/agent-overview.json"
 
 cleanup() {
+  if [[ -n "${DAEMON_PID}" ]] && kill -0 "${DAEMON_PID}" 2>/dev/null; then
+    kill "${DAEMON_PID}" 2>/dev/null || true
+    wait "${DAEMON_PID}" 2>/dev/null || true
+  fi
+  DAEMON_PID=""
   if [[ "${STOP_STARTED_SERVICES}" == "1" ]]; then
     if [[ -n "${ADMIN_WEB_PID}" ]] && kill -0 "${ADMIN_WEB_PID}" 2>/dev/null; then
       kill "${ADMIN_WEB_PID}" 2>/dev/null || true
@@ -71,13 +149,13 @@ require_cmd() {
 curl_get() {
   local url="$1"
   curl -fsSL \
-    --noproxy "127.0.0.1,localhost" \
+    --noproxy "${NOPROXY_HOSTS}" \
     "${url}"
 }
 
 install_code_status() {
   curl -s \
-    --noproxy "127.0.0.1,localhost" \
+    --noproxy "${NOPROXY_HOSTS}" \
     -H "authorization: Bearer ${ADMIN_API_TOKEN}" \
     -o "${RESPONSE_JSON}" \
     -w "%{http_code}" \
@@ -97,7 +175,36 @@ if not url.hostname:
 port = url.port
 if port is None:
     port = 443
-print(f"{url.hostname}:{port}")
+host = url.hostname
+# Loopback stays loopback; any other advertised host binds all interfaces so
+# the admin is reachable from the network at the advertised URL host.
+if host in {"127.0.0.1", "localhost"}:
+    print(f"{host}:{port}")
+else:
+    print(f"0.0.0.0:{port}")
+PY
+}
+
+# subjectAltName line for the admin TLS cert: always cover loopback, the primary
+# LAN address, and any non-loopback IP explicitly advertised in ADMIN_BASE_URL.
+admin_cert_san() {
+  python3 - "$LAN_IP" "$ADMIN_BASE_URL" <<'PY'
+import ipaddress
+import sys
+from urllib.parse import urlparse
+
+lan_ip = sys.argv[1]
+url = urlparse(sys.argv[2])
+ips = {"127.0.0.1", lan_ip}
+host = url.hostname
+if host and host not in {"127.0.0.1", "localhost"} and host != lan_ip:
+    try:
+        ipaddress.ip_address(host)
+        ips.add(host)
+    except ValueError:
+        pass  # hostname, not a literal IP — cannot go into an IP: SAN entry
+entries = ",".join(f"IP:{ip}" for ip in sorted(ips))
+print(f"subjectAltName=DNS:localhost,{entries}")
 PY
 }
 
@@ -121,7 +228,13 @@ if not url.hostname:
 port = url.port
 if port is None:
     port = 443 if url.scheme == "https" else 80
-print(url.hostname)
+host = url.hostname
+# Loopback stays loopback; any other advertised host binds all interfaces so
+# the web UI is reachable from the network at the advertised URL host.
+if host in {"127.0.0.1", "localhost"}:
+    print(host)
+else:
+    print("0.0.0.0")
 print(port)
 PY
 }
@@ -152,7 +265,7 @@ start_admin_service() {
 basicConstraints=critical,CA:FALSE
 keyUsage=critical,digitalSignature,keyEncipherment
 extendedKeyUsage=serverAuth
-subjectAltName=DNS:localhost,IP:127.0.0.1
+$(admin_cert_san)
 EOF
   openssl x509 -req \
     -in "${ADMIN_TLS_CSR}" \
@@ -236,7 +349,7 @@ ensure_install_code_endpoint() {
 
 admin_web_status() {
   curl -s \
-    --noproxy "127.0.0.1,localhost" \
+    --noproxy "${NOPROXY_HOSTS}" \
     -o /dev/null \
     -w "%{http_code}" \
     "${ADMIN_WEB_BASE_URL%/}/" || true
@@ -245,14 +358,6 @@ admin_web_status() {
 start_admin_web_service() {
   local host
   local port
-
-  if [[ "${ADMIN_BASE_URL%/}" != "https://127.0.0.1:3000" && "${ADMIN_BASE_URL%/}" != "https://localhost:3000" ]]; then
-    cat >&2 <<EOF
-admin-web dev proxy currently targets the local admin development endpoint.
-Set ADMIN_BASE_URL=https://127.0.0.1:3000 for this script, or update crates/warp-insight-admin-web/vite.config.ts first.
-EOF
-    exit 1
-  fi
 
   host="$(admin_web_listen_options | sed -n '1p')"
   port="$(admin_web_listen_options | sed -n '2p')"
@@ -331,8 +436,8 @@ if not install_url:
     raise SystemExit("bootstrap_bundle.install_script_url is required")
 signature_url = f"{install_url}.sig"
 required_command_fragments = [
-    f'curl -fsSL "{install_url}" -o "$D/s"',
-    f'curl -fsSL "{signature_url}" -o "$D/sig"',
+    f'curl -fsSLk "{install_url}" -o "$D/s"',
+    f'curl -fsSLk "{signature_url}" -o "$D/sig"',
     'openssl pkeyutl -verify -pubin -inkey "$D/key.pem" -rawin -in "$D/s" -sigfile "$D/sig"',
     'sh "$D/s"',
 ]
@@ -445,7 +550,7 @@ check_enrollment_route() {
 
   status="$(
     curl -sS \
-      --noproxy "127.0.0.1,localhost" \
+      --noproxy "${NOPROXY_HOSTS}" \
       -o "${response_path}" \
       -w "%{http_code}" \
       -X POST "${ADMIN_BASE_URL%/}/api/v1/agent/enroll" \
@@ -599,7 +704,7 @@ instance_id = sys.argv[3]
 }), encoding="utf-8")
 PY
 
-  status="$(curl -sS --noproxy "127.0.0.1,localhost" -o /dev/null -w "%{http_code}" \
+  status="$(curl -sS --noproxy "${NOPROXY_HOSTS}" -o /dev/null -w "%{http_code}" \
     -X POST "${ADMIN_BASE_URL%/}/api/v1/agent/status" \
     -H "authorization: Bearer ${bearer_token}" \
     -H "content-type: application/json" \
@@ -609,7 +714,7 @@ PY
     exit 1
   fi
 
-  status="$(curl -sS --noproxy "127.0.0.1,localhost" -o /dev/null -w "%{http_code}" \
+  status="$(curl -sS --noproxy "${NOPROXY_HOSTS}" -o /dev/null -w "%{http_code}" \
     -X POST "${ADMIN_BASE_URL%/}/api/v1/agent/control-commands:poll" \
     -H "authorization: Bearer ${bearer_token}" \
     -H "content-type: application/json" \
@@ -619,7 +724,7 @@ PY
     exit 1
   fi
 
-  status="$(curl -sS --noproxy "127.0.0.1,localhost" -o /dev/null -w "%{http_code}" \
+  status="$(curl -sS --noproxy "${NOPROXY_HOSTS}" -o /dev/null -w "%{http_code}" \
     -X POST "${ADMIN_BASE_URL%/}/api/v1/agent/action-results" \
     -H "authorization: Bearer ${bearer_token}" \
     -H "content-type: application/json" \
@@ -630,7 +735,7 @@ PY
   fi
 
   local renew_response="${payload_dir}/renew-response.json"
-  status="$(curl -sS --noproxy "127.0.0.1,localhost" -o "${renew_response}" -w "%{http_code}" \
+  status="$(curl -sS --noproxy "${NOPROXY_HOSTS}" -o "${renew_response}" -w "%{http_code}" \
     -X POST "${ADMIN_BASE_URL%/}/api/v1/agent/credentials:renew" \
     -H "authorization: Bearer ${bearer_token}" \
     -H "content-type: application/json" \
@@ -656,7 +761,7 @@ print(token)
 PY
 )"
 
-  status="$(curl -sS --noproxy "127.0.0.1,localhost" -o /dev/null -w "%{http_code}" \
+  status="$(curl -sS --noproxy "${NOPROXY_HOSTS}" -o /dev/null -w "%{http_code}" \
     -X POST "${ADMIN_BASE_URL%/}/api/v1/agent/status" \
     -H "authorization: Bearer ${bearer_token}" \
     -H "content-type: application/json" \
@@ -666,7 +771,7 @@ PY
     exit 1
   fi
 
-  status="$(curl -sS --noproxy "127.0.0.1,localhost" -o /dev/null -w "%{http_code}" \
+  status="$(curl -sS --noproxy "${NOPROXY_HOSTS}" -o /dev/null -w "%{http_code}" \
     -X POST "${ADMIN_BASE_URL%/}/api/v1/agent/status" \
     -H "authorization: Bearer ${renewed_bearer_token}" \
     -H "content-type: application/json" \
@@ -675,6 +780,259 @@ PY
     echo "renewed bearer token should be accepted, got ${status}" >&2
     exit 1
   fi
+}
+
+start_agent_daemon() {
+  if [[ -n "${DAEMON_PID}" ]] && kill -0 "${DAEMON_PID}" 2>/dev/null; then
+    return 0
+  fi
+  echo "starting installed daemon for real status reporting..."
+  env \
+    NO_PROXY="${NOPROXY_HOSTS}" \
+    no_proxy="${NOPROXY_HOSTS}" \
+    HTTP_PROXY="" \
+    HTTPS_PROXY="" \
+    ALL_PROXY="" \
+    http_proxy="" \
+    https_proxy="" \
+    all_proxy="" \
+    "${BIN_PATH}" --config-dir "${CONFIG_DIR}" \
+    >"${AGENT_STATUS_LOG}" 2>&1 &
+  DAEMON_PID=$!
+  sleep 0.5
+  if ! kill -0 "${DAEMON_PID}" 2>/dev/null; then
+    echo "agent daemon failed to start; log:" >&2
+    cat "${AGENT_STATUS_LOG}" >&2
+    exit 1
+  fi
+  echo "started agent daemon pid=${DAEMON_PID}"
+}
+
+overview_has_at_least_status_samples() {
+  local overview_json="$1"
+  local agent_id="$2"
+  local min_count="$3"
+  python3 - "${overview_json}" "${agent_id}" "${min_count}" <<'PY'
+import json
+import pathlib
+import sys
+
+try:
+    payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+except Exception:
+    sys.exit(1)
+agent_id = sys.argv[2]
+min_count = int(sys.argv[3])
+for agent in payload.get("recent_online_agents") or payload.get("recentOnlineAgents") or []:
+    if (agent.get("agent_id") or agent.get("agentId")) == agent_id:
+        history = agent.get("metrics_history") or agent.get("metricsHistory") or []
+        if len(history) >= min_count:
+            sys.exit(0)
+        break
+sys.exit(1)
+PY
+}
+
+wait_for_status_samples() {
+  local agent_id="$1"
+  local overview_json="$2"
+  local min_count="${3:-2}"
+  local timeout_seconds="${STATUS_REPORT_WAIT_TIMEOUT_SECONDS:-90}"
+  local deadline=$(( $(date +%s) + timeout_seconds ))
+
+  while (( $(date +%s) < deadline )); do
+    if ! kill -0 "${DAEMON_PID}" 2>/dev/null; then
+      echo "agent daemon exited during status reporting; log:" >&2
+      cat "${AGENT_STATUS_LOG}" >&2
+      exit 1
+    fi
+    curl -sS \
+      --noproxy "${NOPROXY_HOSTS}" \
+      -H "authorization: Bearer ${ADMIN_API_TOKEN}" \
+      -o "${overview_json}" \
+      "${ADMIN_BASE_URL%/}/api/v1/admin/agents/overview" || true
+    if overview_has_at_least_status_samples "${overview_json}" "${agent_id}" "${min_count}"; then
+      return 0
+    fi
+    sleep 0.5
+  done
+
+  echo "timed out waiting for ${agent_id} to report >=${min_count} status samples" >&2
+  if [[ -f "${AGENT_STATUS_LOG}" ]]; then
+    echo "agent daemon log:" >&2
+    cat "${AGENT_STATUS_LOG}" >&2
+  fi
+  exit 1
+}
+
+validate_stored_status_metrics() {
+  local store_file="$1"
+  local agent_id="$2"
+  local host_reports_resources="$3"
+  python3 - "${store_file}" "${agent_id}" "${host_reports_resources}" <<'PY'
+import json
+import pathlib
+import sys
+
+store_path, agent_id, host_reports_resources = (
+    pathlib.Path(sys.argv[1]),
+    sys.argv[2],
+    sys.argv[3] == "1",
+)
+snapshot = json.loads(store_path.read_text(encoding="utf-8"))
+agent = (snapshot.get("agents") or {}).get(agent_id)
+if not agent:
+    raise SystemExit(f"agent {agent_id} not found in admin store")
+history = agent.get("metrics_history") or []
+if len(history) < 2:
+    raise SystemExit(f"expected >= 2 status samples in admin store, got {len(history)}")
+if agent.get("last_admin_latency_ms") is None:
+    raise SystemExit("last_admin_latency_ms was not persisted")
+last = history[-1]
+if last.get("admin_latency_ms") is None:
+    raise SystemExit("latest status sample is missing admin_latency_ms")
+if host_reports_resources:
+    memory = agent.get("last_memory_bytes")
+    if not isinstance(memory, int) or memory <= 0:
+        raise SystemExit("last_memory_bytes was not persisted on this host")
+    cpu = agent.get("last_cpu_percent")
+    if not isinstance(cpu, (int, float)):
+        raise SystemExit("last_cpu_percent was not persisted on this host")
+
+print("stored status metrics ok:")
+print(
+    json.dumps(
+        {
+            "last_memory_bytes": agent.get("last_memory_bytes"),
+            "last_cpu_percent": agent.get("last_cpu_percent"),
+            "last_admin_latency_ms": agent.get("last_admin_latency_ms"),
+            "sample_count": len(history),
+        },
+        indent=2,
+        sort_keys=True,
+    )
+)
+PY
+}
+
+fetch_overview_final() {
+  if ! curl -sS \
+    --noproxy "${NOPROXY_HOSTS}" \
+    -H "authorization: Bearer ${ADMIN_API_TOKEN}" \
+    -o "${OVERVIEW_JSON}" \
+    "${ADMIN_BASE_URL%/}/api/v1/admin/agents/overview"; then
+    echo "failed to fetch final agent overview" >&2
+    exit 1
+  fi
+  if ! python3 - "${OVERVIEW_JSON}" <<'PY'
+import json
+import pathlib
+import sys
+
+json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+PY
+  then
+    echo "admin overview response was not valid JSON" >&2
+    cat "${OVERVIEW_JSON}" >&2
+    exit 1
+  fi
+}
+
+run_frontend_display_test() {
+  local overview_json="$1"
+  local agent_id="$2"
+  local host_reports_resources="$3"
+  local host_flag=""
+  local args=()
+  if [[ "${host_reports_resources}" == "1" ]]; then
+    host_flag="resources"
+  fi
+  if ! command -v npx >/dev/null 2>&1; then
+    echo "skipping frontend normalizer display test (npx not found)" >&2
+    return 0
+  fi
+  if [[ ! -d "${REPO_ROOT}/crates/warp-insight-admin-web/node_modules" ]]; then
+    echo "skipping frontend normalizer display test (admin-web node_modules missing)" >&2
+    return 0
+  fi
+  args+=("${overview_json}" "${agent_id}")
+  if [[ -n "${host_flag}" ]]; then
+    args+=("${host_flag}")
+  fi
+  (
+    cd "${REPO_ROOT}/crates/warp-insight-admin-web"
+    npx tsx tests/overview-display.test.ts "${args[@]}"
+  )
+}
+
+stop_agent_daemon() {
+  if [[ -n "${DAEMON_PID}" ]] && kill -0 "${DAEMON_PID}" 2>/dev/null; then
+    kill "${DAEMON_PID}" 2>/dev/null || true
+    wait "${DAEMON_PID}" 2>/dev/null || true
+  fi
+  DAEMON_PID=""
+}
+
+start_continuous_agent_daemon() {
+  local renew_response="${TMP_ROOT}/agent-api-payloads/renew-response.json"
+  local current_count
+  local target_count
+
+  if [[ -n "${DAEMON_PID}" ]] && kill -0 "${DAEMON_PID}" 2>/dev/null; then
+    echo "agent daemon is already running pid=${DAEMON_PID}"
+    return 0
+  fi
+
+  # The credential-route checks renewed the agent credential, which invalidates
+  # the token stored in agent_runtime.json at enrollment time. The daemon reads
+  # its control-plane bearer token from that file at startup, so point it at
+  # the renewed credential before launching the continuous daemon.
+  if [[ ! -f "${renew_response}" ]]; then
+    echo "warning: renewed credential response is missing (${renew_response});" >&2
+    echo "the continuous daemon will use the runtime state credential." >&2
+  else
+    echo "updating agent runtime state with the renewed bearer credential..."
+    python3 - "${STATE_PATH}" "${renew_response}" <<'PY'
+import json
+import pathlib
+import sys
+
+state_path = pathlib.Path(sys.argv[1])
+renew_path = pathlib.Path(sys.argv[2])
+renewed = json.loads(renew_path.read_text(encoding="utf-8"))
+bundle = renewed.get("credential_bundle") or {}
+token = bundle.get("bearer_token")
+if not token:
+    raise SystemExit("renewed credential bundle is missing bearer_token")
+runtime = json.loads(state_path.read_text(encoding="utf-8"))
+runtime["bearer_token"] = token
+state_path.write_text(json.dumps(runtime, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+state_path.chmod(0o600)
+print("agent runtime state bearer_token updated")
+PY
+  fi
+
+  fetch_overview_final
+  current_count="$(python3 - "${OVERVIEW_JSON}" "${AGENT_ID}" <<'PY'
+import json
+import pathlib
+import sys
+
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+agent_id = sys.argv[2]
+for agent in payload.get("recent_online_agents") or payload.get("recentOnlineAgents") or []:
+    if (agent.get("agent_id") or agent.get("agentId")) == agent_id:
+        print(len(agent.get("metrics_history") or agent.get("metricsHistory") or []))
+        break
+else:
+    print("0")
+PY
+)"
+  target_count=$(( current_count + 1 ))
+
+  start_agent_daemon
+  wait_for_status_samples "${AGENT_ID}" "${OVERVIEW_JSON}" "${target_count}"
+  echo "agent daemon is continuously reporting (>= ${target_count} status samples)"
 }
 
 wait_for_started_services() {
@@ -729,8 +1087,8 @@ INSTALL_ENV=(
   "WARP_INSIGHT_HOME=${INSTALL_HOME}"
   "WARP_INSIGHT_ENROLLMENT_TOKEN=${INSTALL_TOKEN}"
   "WARP_INSIGHT_START=0"
-  "NO_PROXY=127.0.0.1,localhost"
-  "no_proxy=127.0.0.1,localhost"
+  "NO_PROXY=${NOPROXY_HOSTS}"
+  "no_proxy=${NOPROXY_HOSTS}"
   "HTTP_PROXY="
   "HTTPS_PROXY="
   "ALL_PROXY="
@@ -769,8 +1127,8 @@ echo "checking installed daemon executable..."
 echo "running installed daemon once for enrollment..."
 env \
   WARP_INSIGHTD_RUN_ONCE=1 \
-  NO_PROXY="127.0.0.1,localhost" \
-  no_proxy="127.0.0.1,localhost" \
+  NO_PROXY="${NOPROXY_HOSTS}" \
+  no_proxy="${NOPROXY_HOSTS}" \
   HTTP_PROXY="" \
   HTTPS_PROXY="" \
   ALL_PROXY="" \
@@ -791,6 +1149,28 @@ if grep -Eq '^[[:space:]]*enrollment_token[[:space:]]*=' "${CONFIG_PATH}"; then
   exit 1
 fi
 
+echo "checking real status reporting from the installed daemon..."
+AGENT_ID="$(python3 - "${STATE_PATH}" <<'PY'
+import json
+import pathlib
+import sys
+
+print(json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))["agent_id"])
+PY
+)"
+HOST_REPORTS_RESOURCES="0"
+case "$(uname -s)" in
+  Linux|Darwin) HOST_REPORTS_RESOURCES="1" ;;
+esac
+start_agent_daemon
+wait_for_status_samples "${AGENT_ID}" "${OVERVIEW_JSON}"
+if [[ -n "${ADMIN_PID}" ]]; then
+  validate_stored_status_metrics "${TMP_ROOT}/admin-state/admin-store.json" "${AGENT_ID}" "${HOST_REPORTS_RESOURCES}"
+fi
+fetch_overview_final
+run_frontend_display_test "${OVERVIEW_JSON}" "${AGENT_ID}" "${HOST_REPORTS_RESOURCES}"
+stop_agent_daemon
+
 echo "checking bearer-authenticated agent API routes..."
 check_agent_credential_routes "${STATE_PATH}"
 
@@ -807,12 +1187,24 @@ if [[ -n "${ADMIN_WEB_PID}" ]]; then
   echo "started admin web pid: ${ADMIN_WEB_PID}"
   echo "admin web log: ${ADMIN_WEB_LOG}"
 fi
-if [[ -n "${ADMIN_PID}${ADMIN_WEB_PID}" && "${STOP_STARTED_SERVICES}" != "1" ]]; then
-  echo "services started by this script are still running."
-  echo "keep this terminal open while viewing the page."
-  echo "stop them manually with: kill ${ADMIN_PID:-} ${ADMIN_WEB_PID:-}"
-  echo "or run with STOP_STARTED_SERVICES=1 to clean them up automatically."
-  if [[ "${WAIT_FOR_STARTED_SERVICES}" == "1" ]]; then
-    wait_for_started_services
+if [[ "${WAIT_FOR_EXIT}" == "1" && -t 0 ]]; then
+  start_continuous_agent_daemon
+  echo ""
+  echo "全部验证通过。Agent 持续上报状态中（当前心跳间隔 ~3s）。"
+  echo "工作区: ${TMP_ROOT}"
+  echo "页面:   admin web ${ADMIN_WEB_BASE_URL}   admin api ${ADMIN_BASE_URL}"
+  echo "按回车退出并清理所有服务..."
+  read -r _ || true
+  echo "收到退出，清理中..."
+  STOP_STARTED_SERVICES=1
+else
+  if [[ -n "${ADMIN_PID}${ADMIN_WEB_PID}" && "${STOP_STARTED_SERVICES}" != "1" ]]; then
+    echo "services started by this script are still running."
+    echo "keep this terminal open while viewing the page."
+    echo "stop them manually with: kill ${ADMIN_PID:-} ${ADMIN_WEB_PID:-}"
+    echo "or run with STOP_STARTED_SERVICES=1 to clean them up automatically."
+    if [[ "${WAIT_FOR_STARTED_SERVICES}" == "1" ]]; then
+      wait_for_started_services
+    fi
   fi
 fi

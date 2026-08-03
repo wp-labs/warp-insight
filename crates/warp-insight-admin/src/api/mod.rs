@@ -18,9 +18,8 @@ mod install;
 mod overview;
 mod rate_limit;
 
-pub mod warp_insight_admin_public_install_interface;
-pub use warp_insight_admin_public_install_interface::*;
 pub mod warp_insight_admin_management_interface;
+pub mod warp_insight_admin_public_install_interface;
 pub use warp_insight_admin_management_interface::*;
 pub mod wp_agent_online_registration_interface;
 pub use wp_agent_online_registration_interface::*;

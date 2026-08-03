@@ -1,0 +1,12 @@
+.banner {
+  width: calc(100% - 48px);
+  max-width: 1072px;
+  margin: 0 auto;
+  padding: 10px 12px;
+  border: 1px solid #f1c7c2;
+  border-radius: 8px;
+  background: #fff5f3;
+  color: #9f2f24;
+  font-size: 13px;
+  font-weight: 700;
+}

@@ -18,7 +18,11 @@ pub(super) fn require_admin_bearer(
         return Err(response);
     }
     let Some(token) = bearer_token(headers) else {
-        rate_limit::record_auth_failure(state, client_key, ADMIN_AUTH_SCOPE);
+        // A missing token is an unauthenticated request, not a brute-force
+        // attempt against a specific credential. Counting it toward the per-IP
+        // rate limit lets an unauthenticated client (e.g. the web UI polling
+        // the overview every few seconds before a token is entered) lock the IP
+        // out for the block window even after the correct token is supplied.
         return Err((StatusCode::UNAUTHORIZED, "missing admin bearer token").into_response());
     };
     if !constant_time_eq(

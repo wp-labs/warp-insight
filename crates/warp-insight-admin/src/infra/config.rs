@@ -9,7 +9,9 @@ use super::{load_install_script_public_key_pem, sha256_hex};
 
 const DEFAULT_CONFIG_PATH: &str = "warp-insight-admin.toml";
 const CONFIG_ENV: &str = "WARP_INSIGHT_ADMIN_CONFIG";
-const MIN_ADMIN_API_TOKEN_BYTES: usize = 16;
+// Lower bound on the admin token length; the actual strength gate is the
+// entropy check in require_non_weak_admin_token (>= 8 alphanumeric chars).
+const MIN_ADMIN_API_TOKEN_BYTES: usize = 8;
 const MAX_BOOTSTRAP_TOKEN_TTL_SECONDS: i64 = 60 * 60;
 /// Well-known weak values that must never be used as the admin API token.
 const WEAK_ADMIN_API_TOKENS: &[&str] = &[
@@ -349,14 +351,58 @@ fn require_min_secret_length(field: &str, value: &str, min: usize) -> Result<(),
     )))
 }
 
+/// Minimum accepted admin token entropy in bits. 40 bits admits an 8-character
+/// alphanumeric token while rejecting short digit/hex tokens (~20-32 bits).
+const MIN_ADMIN_TOKEN_ENTROPY_BITS: f64 = 40.0;
+
 fn require_non_weak_admin_token(value: &str) -> Result<(), ConfigError> {
-    let normalized = value.trim().to_ascii_lowercase();
+    let trimmed = value.trim();
+    let normalized = trimmed.to_ascii_lowercase();
     if WEAK_ADMIN_API_TOKENS.iter().any(|weak| *weak == normalized) {
         return Err(ConfigError::new(
             "server.admin_api_token uses a known weak value; use a randomly generated token",
         ));
     }
+    if estimate_token_entropy_bits(trimmed) < MIN_ADMIN_TOKEN_ENTROPY_BITS {
+        return Err(ConfigError::new(format!(
+            "server.admin_api_token is too weak: use a mixed-case alphanumeric token with at least \
+             {MIN_ADMIN_TOKEN_ENTROPY_BITS} bits of entropy (an 8-character alphanumeric token qualifies)"
+        )));
+    }
+    let distinct = trimmed.chars().collect::<std::collections::HashSet<char>>();
+    if distinct.len() < 3 {
+        return Err(ConfigError::new(
+            "server.admin_api_token is too weak: too few distinct characters",
+        ));
+    }
     Ok(())
+}
+
+/// Conservative entropy estimate (bits) based on the character classes present:
+/// each class contributes its alphabet size, symbols are counted as a small
+/// set, and the result is `length * log2(alphabet)`. This rejects short
+/// digit/hex tokens while leaving strong single-case values (e.g. a long hex
+/// key) accepted.
+fn estimate_token_entropy_bits(value: &str) -> f64 {
+    let has_upper = value.chars().any(|ch| ch.is_ascii_uppercase());
+    let has_lower = value.chars().any(|ch| ch.is_ascii_lowercase());
+    let has_digit = value.chars().any(|ch| ch.is_ascii_digit());
+    let has_symbol = value.chars().any(|ch| !ch.is_ascii_alphanumeric());
+    let mut alphabet = 0.0f64;
+    if has_upper {
+        alphabet += 26.0;
+    }
+    if has_lower {
+        alphabet += 26.0;
+    }
+    if has_digit {
+        alphabet += 10.0;
+    }
+    if has_symbol {
+        alphabet += 10.0; // conservative guess for a small symbol set
+    }
+    let alphabet = alphabet.max(2.0);
+    value.chars().count() as f64 * alphabet.log2()
 }
 
 fn require_existing_file(field: &str, path: &Path) -> Result<(), ConfigError> {
@@ -383,6 +429,30 @@ mod tests {
         signature::{Ed25519KeyPair, KeyPair},
     };
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn rejects_short_admin_token() {
+        assert!(require_non_weak_admin_token("1234567").is_err()); // 7 chars < minimum
+    }
+
+    #[test]
+    fn rejects_low_entropy_admin_tokens() {
+        assert!(require_non_weak_admin_token("12345678").is_err()); // 8 digits ~27 bits
+        assert!(require_non_weak_admin_token("abcdefgh").is_err()); // 8 lowercase ~37 bits
+        assert!(require_non_weak_admin_token("0123456789").is_err()); // 10 digits ~33 bits
+    }
+
+    #[test]
+    fn rejects_known_weak_admin_token() {
+        assert!(require_non_weak_admin_token("password").is_err());
+        assert!(require_non_weak_admin_token("install-test-admin-token").is_err());
+    }
+
+    #[test]
+    fn accepts_strong_admin_tokens() {
+        assert!(require_non_weak_admin_token("aB3kQ9x2Zz").is_ok()); // 10 alphanumeric ~60 bits
+        assert!(require_non_weak_admin_token("test-admin-token").is_ok()); // existing test fixture
+    }
 
     #[test]
     fn loads_config_with_environment_expansion() {
@@ -560,7 +630,7 @@ environment_id = "env-default"
         let err = AdminConfig::load_from_path(&path).expect_err("short token rejected");
 
         assert!(err.to_string().contains("server.admin_api_token"));
-        assert!(err.to_string().contains("at least 16 bytes"));
+        assert!(err.to_string().contains("at least 8 bytes"));
         let _ = fs::remove_file(path);
         let _ = fs::remove_file(package_file);
     }

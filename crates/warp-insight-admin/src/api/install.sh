@@ -34,7 +34,18 @@ umask 077
 mkdir -p "$BIN_DIR" "$CONFIG_DIR"
 chmod 0700 "$CONFIG_DIR"
 
-curl -fsSL -H "authorization: Bearer $WARP_INSIGHT_ENROLLMENT_TOKEN" "{{AGENT_PACKAGE_URL}}" -o "$BIN_DIR/warp-insightd"
+# Trust the admin CA embedded in this signed script so the package and initial
+# config downloads below are verified against it. This script itself was
+# signature-verified by the bootstrap command, so the embedded CA is a valid
+# trust anchor (no -k needed for these sensitive downloads).
+CA_CERT="$(mktemp)"
+cat >"$CA_CERT" <<'EOF'
+{{TRUST_BUNDLE}}
+EOF
+chmod 0600 "$CA_CERT"
+trap 'rm -f "$CA_CERT"' EXIT INT TERM
+
+curl -fsSL --cacert "$CA_CERT" -H "authorization: Bearer $WARP_INSIGHT_ENROLLMENT_TOKEN" "{{AGENT_PACKAGE_URL}}" -o "$BIN_DIR/warp-insightd"
 if [ -n "$AGENT_PACKAGE_SHA256" ]; then
   if command -v sha256sum >/dev/null 2>&1; then
     ACTUAL_SHA256="$(sha256sum "$BIN_DIR/warp-insightd" | awk '{print $1}')"
@@ -51,7 +62,7 @@ if [ -n "$AGENT_PACKAGE_SHA256" ]; then
 fi
 chmod 0755 "$BIN_DIR/warp-insightd"
 
-curl -fsSL -H "authorization: Bearer $WARP_INSIGHT_ENROLLMENT_TOKEN" "{{AGENT_INITIAL_CONFIG_URL}}" -o "$CONFIG_DIR/insightd.toml"
+curl -fsSL --cacert "$CA_CERT" -H "authorization: Bearer $WARP_INSIGHT_ENROLLMENT_TOKEN" "{{AGENT_INITIAL_CONFIG_URL}}" -o "$CONFIG_DIR/insightd.toml"
 chmod 0600 "$CONFIG_DIR/insightd.toml"
 
 echo "warp-insightd installed for $ARCH"

@@ -66,7 +66,7 @@ export interface UpgradeAgentCommand {
   requestedBy: string;
 }
 
-const ADMIN_AUTH_CHANGED_EVENT = "warpInsightAdminAuthChanged";
+export const ADMIN_AUTH_CHANGED_EVENT = "warpInsightAdminAuthChanged";
 const ADMIN_API_TOKEN_STORAGE_KEY = "warpInsightAdminApiToken";
 
 // Persist the admin token for the current browser session (survives page
@@ -78,12 +78,19 @@ let adminApiToken: string | null =
 
 export class ApiError extends Error {
   readonly status: number;
+  /** Seconds until the per-IP rate-limit block expires, when status is 429. */
+  readonly retryAfterSeconds?: number;
 
-  constructor(status: number, path: string) {
+  constructor(status: number, path: string, retryAfterSeconds?: number) {
     super(`HTTP ${status} ${path}`);
     this.name = "ApiError";
     this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
+}
+
+export function isRateLimitedError(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.status === 429;
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -97,6 +104,14 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!response.ok) {
+    if (response.status === 429) {
+      const retryAfter = Number.parseInt(response.headers.get("Retry-After") ?? "", 10);
+      throw new ApiError(
+        response.status,
+        path,
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 60,
+      );
+    }
     throw new ApiError(response.status, path);
   }
   return (await response.json()) as T;
@@ -226,6 +241,7 @@ function normalizeRecentOnlineAgent(payload: any): RecentOnlineRegisteredAgent {
   if (source !== "real" && source !== "example") {
     throw new Error("Invalid API response: invalid recent online agent source");
   }
+  const rawHistory = payload.metrics_history ?? payload.metricsHistory ?? [];
   return {
     agentId: requiredString(
       payload.agent_id ?? payload.agentId,
@@ -249,10 +265,19 @@ function normalizeRecentOnlineAgent(payload: any): RecentOnlineRegisteredAgent {
       "recentOnlineAgent.onlineDurationSeconds",
     ),
     source,
+    memoryBytes: payload.memory_bytes ?? payload.memoryBytes,
+    cpuPercent: payload.cpu_percent ?? payload.cpuPercent,
+    adminLatencyMs: payload.admin_latency_ms ?? payload.adminLatencyMs,
+    metricsHistory: rawHistory.map((sample: any) => ({
+      at: sample.at,
+      memoryBytes: sample.memory_bytes ?? sample.memoryBytes,
+      cpuPercent: sample.cpu_percent ?? sample.cpuPercent,
+      adminLatencyMs: sample.admin_latency_ms ?? sample.adminLatencyMs,
+    })),
   };
 }
 
-function normalizeOverview(payload: any): AgentOverview {
+export function normalizeOverview(payload: any): AgentOverview {
   const metrics = payload.metrics;
   const recentOnlineAgents =
     payload.recent_online_agents ?? payload.recentOnlineAgents;
