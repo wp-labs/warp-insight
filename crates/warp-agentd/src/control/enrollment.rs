@@ -1,11 +1,11 @@
 //! Startup enrollment client for managed agents.
 
-use std::error::Error as StdError;
-use std::fmt;
 use std::fs;
 use std::io;
 use std::path::Path;
 use std::time::Duration;
+
+use orion_error::{conversion::ToStructError, prelude::*};
 
 use wist_contracts::agent_config::AgentConfigContract;
 use wist_contracts::enrollment::{
@@ -32,83 +32,7 @@ pub enum EnrollmentDecision {
     Enrolled,
 }
 
-#[derive(Debug)]
-pub enum EnrollmentError {
-    Io(io::Error),
-    MissingEndpoint,
-    MissingEnrollmentToken,
-    Http(reqwest::Error),
-    InvalidTrustBundle(String),
-    Rejected {
-        status: AgentEnrollmentResultStatus,
-        reason_code: Option<String>,
-    },
-    InvalidAcceptedResult(&'static str),
-    UnsupportedCredentialScheme(String),
-    InvalidTlsMode(String),
-}
-
-impl fmt::Display for EnrollmentError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Io(err) => write!(f, "enrollment io error: {err}"),
-            Self::MissingEndpoint => write!(f, "control_plane.endpoint is required for enrollment"),
-            Self::MissingEnrollmentToken => {
-                write!(
-                    f,
-                    "control_plane.enrollment_token is required for enrollment"
-                )
-            }
-            Self::Http(err) => write!(f, "enrollment http error: {}", error_chain(err)),
-            Self::InvalidTrustBundle(reason) => {
-                write!(f, "invalid control_plane.trust_bundle: {reason}")
-            }
-            Self::Rejected {
-                status,
-                reason_code,
-            } => write!(
-                f,
-                "enrollment rejected with status {:?} reason {}",
-                status,
-                reason_code.as_deref().unwrap_or("unknown")
-            ),
-            Self::InvalidAcceptedResult(field) => {
-                write!(f, "accepted enrollment response is missing {field}")
-            }
-            Self::UnsupportedCredentialScheme(scheme) => {
-                write!(f, "unsupported credential auth_scheme: {scheme}")
-            }
-            Self::InvalidTlsMode(mode) => {
-                write!(f, "invalid control_plane.tls_mode: {mode}")
-            }
-        }
-    }
-}
-
-fn error_chain(err: &(dyn StdError + 'static)) -> String {
-    let mut message = err.to_string();
-    let mut source = err.source();
-    while let Some(err) = source {
-        message.push_str(": ");
-        message.push_str(&err.to_string());
-        source = err.source();
-    }
-    message
-}
-
-impl std::error::Error for EnrollmentError {}
-
-impl From<io::Error> for EnrollmentError {
-    fn from(value: io::Error) -> Self {
-        Self::Io(value)
-    }
-}
-
-impl From<reqwest::Error> for EnrollmentError {
-    fn from(value: reqwest::Error) -> Self {
-        Self::Http(value)
-    }
-}
+pub use crate::error::{EnrollmentError, EnrollmentReason, EnrollmentResult};
 
 pub async fn ensure_enrolled(
     config: &mut AgentConfigContract,
@@ -148,10 +72,18 @@ async fn ensure_enrolled_with_optional_config_path(
     }
 
     let endpoint = required_option(config.control_plane.endpoint.as_deref())
-        .ok_or(EnrollmentError::MissingEndpoint)?
+        .ok_or_else(|| {
+            EnrollmentReason::MissingEndpoint
+                .to_err()
+                .with_detail("control_plane.endpoint is required for enrollment")
+        })?
         .to_string();
     let token = required_option(config.control_plane.enrollment_token.as_deref())
-        .ok_or(EnrollmentError::MissingEnrollmentToken)?
+        .ok_or_else(|| {
+            EnrollmentReason::MissingEnrollmentToken
+                .to_err()
+                .with_detail("control_plane.enrollment_token is required for enrollment")
+        })?
         .to_string();
     let request = build_enrollment_request(config, token);
     let returned = post_enrollment(config, &endpoint, &request).await?;
@@ -174,7 +106,8 @@ fn load_state_identity(
     if !runtime_path.exists() {
         return Ok(false);
     }
-    let runtime_state = state_store::agent_runtime::load_or_default(&runtime_path)?;
+    let runtime_state = state_store::agent_runtime::load_or_default(&runtime_path)
+        .source_err(EnrollmentReason::Io, "load runtime state")?;
     if !is_registered_agent_id(&runtime_state.agent_id) {
         return Ok(false);
     }
@@ -256,11 +189,13 @@ async fn post_enrollment(
     let url = format!("{}/api/v1/agent/enroll", endpoint.trim_end_matches('/'));
     let client = enrollment_http_client(config)?;
     let response = send_with_retry(&client, |client| client.post(&url).json(request)).await?;
-    let response = response.error_for_status().map_err(EnrollmentError::Http)?;
-    Ok(response
+    let response = response
+        .error_for_status()
+        .source_raw_err(EnrollmentReason::Http, "enrollment http error")?;
+    response
         .json::<AgentEnrollmentResultReturned>()
         .await
-        .map_err(EnrollmentError::Http)?)
+        .source_raw_err(EnrollmentReason::Http, "decode enrollment response")
 }
 
 /// Send the request with bounded retries on transport errors (connect refused,
@@ -276,7 +211,12 @@ async fn send_with_retry(
             Err(_) if attempt + 1 < ENROLLMENT_MAX_ATTEMPTS => {
                 tokio::time::sleep(retry_backoff(attempt)).await;
             }
-            Err(err) => return Err(EnrollmentError::Http(err)),
+            Err(err) => {
+                return Err(StructError::builder(EnrollmentReason::Http)
+                    .detail("enrollment http error")
+                    .source_std(err)
+                    .finish());
+            }
         }
     }
     unreachable!("send_with_retry loop always returns")
@@ -289,17 +229,13 @@ fn retry_backoff(attempt: u32) -> Duration {
 /// Best-effort credential rotation when the restored credential is expired or
 /// within [`CREDENTIAL_RENEWAL_WINDOW`] of expiry. Failures are logged and the
 /// existing credential is kept so the daemon still starts.
-async fn renew_state_credential_if_needed(
-    config: &mut AgentConfigContract,
-    state_dir: &Path,
-) {
+async fn renew_state_credential_if_needed(config: &mut AgentConfigContract, state_dir: &Path) {
     let Some(expires_at) = config.control_plane.credential_expires_at.as_deref() else {
         return;
     };
-    let Ok(expires_at) = time::OffsetDateTime::parse(
-        expires_at,
-        &time::format_description::well_known::Rfc3339,
-    ) else {
+    let Ok(expires_at) =
+        time::OffsetDateTime::parse(expires_at, &time::format_description::well_known::Rfc3339)
+    else {
         return;
     };
     if time::OffsetDateTime::now_utc() + CREDENTIAL_RENEWAL_WINDOW < expires_at {
@@ -317,7 +253,9 @@ async fn renew_credential(
     state_dir: &Path,
 ) -> Result<(), EnrollmentError> {
     let Some(endpoint) = required_option(config.control_plane.endpoint.as_deref()) else {
-        return Err(EnrollmentError::MissingEndpoint);
+        return Err(EnrollmentReason::MissingEndpoint
+            .to_err()
+            .with_detail("control_plane.endpoint is required for enrollment"));
     };
     let Some(bearer_token) = required_option(config.control_plane.bearer_token.as_deref()) else {
         return Ok(());
@@ -344,22 +282,27 @@ async fn renew_credential(
         endpoint.trim_end_matches('/')
     );
     let response = send_with_retry(&client, |client| {
-        client
-            .post(&url)
-            .bearer_auth(bearer_token)
-            .json(&request)
+        client.post(&url).bearer_auth(bearer_token).json(&request)
     })
     .await?;
-    let response = response.error_for_status().map_err(EnrollmentError::Http)?;
-    let renewed: AgentCredentialRenewed =
-        response.json().await.map_err(EnrollmentError::Http)?;
+    let response = response
+        .error_for_status()
+        .source_raw_err(EnrollmentReason::Http, "renewal http error")?;
+    let renewed: AgentCredentialRenewed = response
+        .json()
+        .await
+        .source_raw_err(EnrollmentReason::Http, "decode renewal response")?;
     let credential = renewed.credential_bundle;
 
     apply_credential_to_config(config, &credential)?;
     let runtime_path = state_store::agent_runtime::path_for(state_dir);
-    let mut runtime_state = state_store::agent_runtime::load_or_default(&runtime_path)?;
+    let mut runtime_state = state_store::agent_runtime::load_or_default_async(&runtime_path)
+        .await
+        .source_err(EnrollmentReason::Io, "load runtime state")?;
     apply_credential_to_runtime_state(&mut runtime_state, credential);
-    state_store::agent_runtime::store(&runtime_path, &runtime_state)?;
+    state_store::agent_runtime::store_async(&runtime_path, &runtime_state)
+        .await
+        .source_err(EnrollmentReason::Io, "store runtime state")?;
     Ok(())
 }
 
@@ -380,10 +323,15 @@ pub(crate) fn enrollment_http_client(
         // Verify the control-plane certificate; use trust_bundle when provided,
         // otherwise fall back to the platform root store.
         "https" | "verify" => {
-            if let Some(trust_bundle) = required_option(config.control_plane.trust_bundle.as_deref())
+            if let Some(trust_bundle) =
+                required_option(config.control_plane.trust_bundle.as_deref())
             {
-                let certificate = reqwest::Certificate::from_pem(trust_bundle.as_bytes())
-                    .map_err(|err| EnrollmentError::InvalidTrustBundle(err.to_string()))?;
+                let certificate =
+                    reqwest::Certificate::from_pem(trust_bundle.as_bytes()).map_err(|err| {
+                        EnrollmentReason::InvalidTrustBundle
+                            .to_err()
+                            .with_detail(format!("invalid control_plane.trust_bundle: {err}"))
+                    })?;
                 builder = builder.add_root_certificate(certificate);
                 loaded_trust_bundle = true;
             }
@@ -395,14 +343,21 @@ pub(crate) fn enrollment_http_client(
         // Plain HTTP, no TLS.
         "http" => {}
         other => {
-            return Err(EnrollmentError::InvalidTlsMode(other.to_string()));
+            return Err(EnrollmentReason::InvalidTlsMode
+                .to_err()
+                .with_detail(format!("invalid control_plane.tls_mode: {other}")));
         }
     }
     builder.build().map_err(|err| {
         if loaded_trust_bundle {
-            EnrollmentError::InvalidTrustBundle(err.to_string())
+            EnrollmentReason::InvalidTrustBundle
+                .to_err()
+                .with_detail(format!("invalid control_plane.trust_bundle: {err}"))
         } else {
-            EnrollmentError::Http(err)
+            StructError::builder(EnrollmentReason::Http)
+                .detail("enrollment http error")
+                .source_std(err)
+                .finish()
         }
     })
 }
@@ -413,10 +368,11 @@ fn apply_enrollment_result(
     result: AgentEnrollmentResult,
 ) -> Result<(), EnrollmentError> {
     if result.status != AgentEnrollmentResultStatus::Accepted {
-        return Err(EnrollmentError::Rejected {
-            status: result.status,
-            reason_code: result.reason_code,
-        });
+        return Err(EnrollmentReason::Rejected.to_err().with_detail(format!(
+            "enrollment rejected with status {:?} reason {}",
+            result.status,
+            result.reason_code.as_deref().unwrap_or("unknown")
+        )));
     }
 
     let agent_id = result
@@ -428,7 +384,11 @@ fn apply_enrollment_result(
                 .map(|identity| identity.agent_id.clone())
         })
         .filter(|value| !value.trim().is_empty())
-        .ok_or(EnrollmentError::InvalidAcceptedResult("agent_id"))?;
+        .ok_or_else(|| {
+            EnrollmentReason::InvalidAcceptedResult
+                .to_err()
+                .with_detail("accepted enrollment response is missing agent_id")
+        })?;
     let instance_id = result
         .instance_id
         .or_else(|| {
@@ -438,7 +398,11 @@ fn apply_enrollment_result(
                 .map(|identity| identity.instance_id.clone())
         })
         .filter(|value| !value.trim().is_empty())
-        .ok_or(EnrollmentError::InvalidAcceptedResult("instance_id"))?;
+        .ok_or_else(|| {
+            EnrollmentReason::InvalidAcceptedResult
+                .to_err()
+                .with_detail("accepted enrollment response is missing instance_id")
+        })?;
 
     if let Some(identity) = result.issued_identity.as_ref() {
         config.agent.environment_id = Some(identity.environment_id.clone());
@@ -461,7 +425,8 @@ fn apply_enrollment_result(
     if let Some(credential) = issued_credential {
         apply_credential_to_runtime_state(&mut runtime_state, credential);
     }
-    state_store::agent_runtime::store(&runtime_path, &runtime_state)?;
+    state_store::agent_runtime::store(&runtime_path, &runtime_state)
+        .source_err(EnrollmentReason::Io, "store runtime state")?;
     Ok(())
 }
 
@@ -481,18 +446,20 @@ fn apply_credential_to_config(
                 .map(str::trim)
                 .filter(|value| !value.is_empty());
             let Some(token) = token else {
-                return Err(EnrollmentError::InvalidAcceptedResult(
-                    "credential bearer_token",
-                ));
+                return Err(EnrollmentReason::InvalidAcceptedResult
+                    .to_err()
+                    .with_detail(
+                        "accepted enrollment response is missing credential bearer_token",
+                    ));
             };
             config.control_plane.bearer_token = Some(token.to_string());
             config.control_plane.auth_mode = Some("bearer".to_string());
             config.control_plane.enrollment_token = None;
         }
         Some(scheme) => {
-            return Err(EnrollmentError::UnsupportedCredentialScheme(
-                scheme.to_string(),
-            ));
+            return Err(EnrollmentReason::UnsupportedCredentialScheme
+                .to_err()
+                .with_detail(format!("unsupported credential auth_scheme: {scheme}")));
         }
     }
     if let Some(expires_at) = credential.not_after.as_ref() {
@@ -579,7 +546,12 @@ fn scrub_enrollment_token_from_config_file(path: &Path) -> Result<(), Enrollment
     let text = match fs::read_to_string(path) {
         Ok(text) => text,
         Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(()),
-        Err(err) => return Err(err.into()),
+        Err(err) => {
+            return Err(StructError::builder(EnrollmentReason::Io)
+                .detail(format!("read config {}", path.display()))
+                .source_std(err)
+                .finish());
+        }
     };
     let scrubbed: Vec<&str> = text
         .lines()
@@ -588,7 +560,8 @@ fn scrub_enrollment_token_from_config_file(path: &Path) -> Result<(), Enrollment
     if scrubbed.len() == text.lines().count() {
         return Ok(());
     }
-    write_bytes_private_atomic(path, scrubbed.join("\n").as_bytes())?;
+    write_bytes_private_atomic(path, scrubbed.join("\n").as_bytes())
+        .source_err(EnrollmentReason::Io, "scrub enrollment token")?;
     Ok(())
 }
 
@@ -617,7 +590,7 @@ mod tests {
     };
 
     use super::{
-        EnrollmentDecision, EnrollmentError, build_enrollment_request, enrollment_http_client,
+        EnrollmentDecision, EnrollmentReason, build_enrollment_request, enrollment_http_client,
         ensure_enrolled, ensure_enrolled_with_config_path, hostname_from_sources, post_enrollment,
         renew_credential,
     };
@@ -699,7 +672,7 @@ mod tests {
 
         let err = enrollment_http_client(&config).expect_err("invalid trust bundle");
 
-        assert!(matches!(err, EnrollmentError::InvalidTrustBundle(_)));
+        assert_eq!(err.reason(), &EnrollmentReason::InvalidTrustBundle);
     }
 
     #[test]
@@ -732,7 +705,7 @@ mod tests {
 
         let err = enrollment_http_client(&config).expect_err("invalid trust bundle");
 
-        assert!(matches!(err, EnrollmentError::InvalidTrustBundle(_)));
+        assert_eq!(err.reason(), &EnrollmentReason::InvalidTrustBundle);
     }
 
     #[test]
@@ -742,7 +715,7 @@ mod tests {
 
         let err = enrollment_http_client(&config).expect_err("unsupported mode");
 
-        assert!(matches!(err, EnrollmentError::InvalidTlsMode(_)));
+        assert_eq!(err.reason(), &EnrollmentReason::InvalidTlsMode);
     }
 
     #[tokio::test]
@@ -755,7 +728,7 @@ mod tests {
             .await
             .expect_err("unreachable endpoint");
 
-        assert!(matches!(err, EnrollmentError::Http(_)));
+        assert_eq!(err.reason(), &EnrollmentReason::Http);
     }
 
     #[tokio::test]
@@ -792,9 +765,11 @@ mod tests {
             }
             let request = String::from_utf8_lossy(&request_bytes);
             assert!(request.contains("credentials:renew"));
-            assert!(request
-                .to_lowercase()
-                .contains("authorization: bearer wic_old_token"));
+            assert!(
+                request
+                    .to_lowercase()
+                    .contains("authorization: bearer wic_old_token")
+            );
             let body = r#"{"credential_bundle":{"credential_id":"cred-new","agent_id":"agent-x","instance_id":"instance-x","auth_scheme":"bearer","bearer_token":"wic_new_token","certificate":null,"private_key_ref":null,"ca_bundle":null,"issued_at":"2026-08-01T00:00:00Z","not_before":"2026-08-01T00:00:00Z","not_after":"2026-09-01T00:00:00Z"}}"#;
             let response = format!(
                 "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
@@ -813,7 +788,9 @@ mod tests {
         config.control_plane.credential_id = Some("cred-old".to_string());
         config.control_plane.credential_expires_at = Some("2026-08-01T00:00:00Z".to_string());
 
-        renew_credential(&mut config, &state_dir).await.expect("renew");
+        renew_credential(&mut config, &state_dir)
+            .await
+            .expect("renew");
         server.await.expect("server task");
 
         assert_eq!(
@@ -824,8 +801,8 @@ mod tests {
             config.control_plane.credential_id.as_deref(),
             Some("cred-new")
         );
-        let runtime =
-            crate::state_store::agent_runtime::load_or_default(&runtime_path).expect("load runtime");
+        let runtime = crate::state_store::agent_runtime::load_or_default(&runtime_path)
+            .expect("load runtime");
         assert_eq!(runtime.bearer_token.as_deref(), Some("wic_new_token"));
         assert_eq!(runtime.credential_id.as_deref(), Some("cred-new"));
     }
@@ -903,7 +880,7 @@ mod tests {
             .await
             .expect_err("missing token");
 
-        assert!(matches!(err, EnrollmentError::MissingEnrollmentToken));
+        assert_eq!(err.reason(), &EnrollmentReason::MissingEnrollmentToken);
     }
 
     #[tokio::test]
@@ -1139,10 +1116,9 @@ credential_request = "bearer"
         .expect("write config");
         let mut config = config();
 
-        let decision =
-            ensure_enrolled_with_config_path(&mut config, &state_dir, &config_path)
-                .await
-                .expect("ensure");
+        let decision = ensure_enrolled_with_config_path(&mut config, &state_dir, &config_path)
+            .await
+            .expect("ensure");
 
         assert_eq!(decision, EnrollmentDecision::ExistingStateIdentity);
         let text = fs::read_to_string(&config_path).expect("read config");
@@ -1173,10 +1149,9 @@ auth_mode = "enrollment_token"
         config.agent.agent_id = Some("pre-provisioned-agent".to_string());
         config.control_plane.enabled = false;
 
-        let decision =
-            ensure_enrolled_with_config_path(&mut config, &state_dir, &config_path)
-                .await
-                .expect("ensure");
+        let decision = ensure_enrolled_with_config_path(&mut config, &state_dir, &config_path)
+            .await
+            .expect("ensure");
 
         assert_eq!(decision, EnrollmentDecision::ExistingConfigIdentity);
         let text = fs::read_to_string(&config_path).expect("read config");
@@ -1214,10 +1189,7 @@ auth_mode = "enrollment_token"
         let err =
             super::apply_enrollment_result(&mut config, &state_dir, result).expect_err("reject");
 
-        assert!(matches!(
-            err,
-            EnrollmentError::UnsupportedCredentialScheme(_)
-        ));
+        assert_eq!(err.reason(), &EnrollmentReason::UnsupportedCredentialScheme);
         assert!(config.control_plane.bearer_token.is_none());
         assert!(config.control_plane.auth_mode.is_none());
         let runtime = crate::state_store::agent_runtime::load_or_default(

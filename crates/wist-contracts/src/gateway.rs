@@ -10,6 +10,22 @@ pub const DISPATCH_ACTION_PLAN_KIND: &str = "dispatch_action_plan";
 pub const ACTION_PLAN_ACK_KIND: &str = "action_plan_ack";
 pub const REPORT_ACTION_RESULT_KIND: &str = "report_action_result";
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentWorkState {
+    Paused,
+    Resumed,
+}
+
+/// 工作状态变化（非告警、非失败）：暂停/恢复各上报一次。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentWorkStateChange {
+    pub input_id: String,
+    pub state: AgentWorkState,
+    pub reason: String,
+    pub at: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AgentHello {
@@ -25,6 +41,9 @@ pub struct AgentHello {
     /// Measured round-trip latency to the admin control plane in milliseconds.
     #[serde(default)]
     pub admin_latency_ms: Option<u64>,
+    /// 自上次上报以来的工作状态变化（paused/resumed），非告警、非失败。
+    #[serde(default)]
+    pub work_state_changes: Option<Vec<AgentWorkStateChange>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -175,6 +175,21 @@ pub struct LogsSection {
     pub file_inputs_file: Option<String>,
     #[serde(default = "default_logs_buffer_bytes")]
     pub in_memory_buffer_bytes: u64,
+    /// 单行最大字节数：超过则截断提交（并计数），避免无换行大文件拖垮内存。
+    #[serde(default = "default_max_line_bytes")]
+    pub max_line_bytes: u64,
+    /// 单次 tick 最多读取的字节数（大文件回放分块）。
+    #[serde(default = "default_max_read_bytes_per_tick")]
+    pub max_read_bytes_per_tick: u64,
+    /// 单次 tick 最多读取的行数（大文件回放分块）。
+    #[serde(default = "default_max_lines_per_tick")]
+    pub max_lines_per_tick: u64,
+    /// 落盘待发队列（spool）上限（字节）。
+    #[serde(default = "default_spool_max_bytes")]
+    pub spool_max_bytes: u64,
+    /// spool 超限行为：`pause`（默认，暂停采集+告警，保完整）| `drop_oldest`（显式备选）。
+    #[serde(default = "default_spool_over_limit")]
+    pub spool_over_limit: String,
     #[serde(default = "default_logs_spool_dir")]
     pub spool_dir: String,
     #[serde(default)]
@@ -187,6 +202,11 @@ impl Default for LogsSection {
             file_inputs: Vec::new(),
             file_inputs_file: None,
             in_memory_buffer_bytes: default_logs_buffer_bytes(),
+            max_line_bytes: default_max_line_bytes(),
+            max_read_bytes_per_tick: default_max_read_bytes_per_tick(),
+            max_lines_per_tick: default_max_lines_per_tick(),
+            spool_max_bytes: default_spool_max_bytes(),
+            spool_over_limit: default_spool_over_limit(),
             spool_dir: default_logs_spool_dir(),
             output: LogsOutputSection::default(),
         }
@@ -271,6 +291,30 @@ pub struct LogFileInputsFile {
 
 fn default_logs_buffer_bytes() -> u64 {
     1_048_576
+}
+
+/// 1 MiB：超过此长度的单行截断提交（见 log-file-input-spec §7.3）。
+fn default_max_line_bytes() -> u64 {
+    1_048_576
+}
+
+/// 4 MiB / tick：大文件回放分块读取。
+fn default_max_read_bytes_per_tick() -> u64 {
+    4_194_304
+}
+
+/// 4096 行 / tick：大文件回放分块读取。
+fn default_max_lines_per_tick() -> u64 {
+    4096
+}
+
+/// 256 MiB：落盘待发队列上限（见 log-file-input-spec §7.5）。
+fn default_spool_max_bytes() -> u64 {
+    268_435_456
+}
+
+fn default_spool_over_limit() -> String {
+    "pause".to_string()
 }
 
 fn default_root_dir() -> String {

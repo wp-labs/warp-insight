@@ -65,6 +65,8 @@ pub struct RuntimeHealthSnapshot {
     pub reporting_count: usize,
     pub discovery: DiscoveryHealthSnapshot,
     pub metrics: MetricsHealthSnapshot,
+    /// 当前因 spool 超限而暂停采集的输入（工作状态，非告警/失败）。
+    pub paused_inputs: Vec<String>,
     pub updated_at: String,
 }
 
@@ -74,11 +76,12 @@ pub fn register() {
 
 pub fn emit(snapshot: &RuntimeHealthSnapshot) {
     eprintln!(
-        "health state={:?} queue={} running={} reporting={} discovery_readiness={:?} discovery_cached_loaded={} discovery_used_cached={} discovery_resources={} discovery_targets={} discovery_failures={} discovery_last_success_at={} updated_at={}",
+        "health state={:?} queue={} running={} reporting={} paused_inputs={} discovery_readiness={:?} discovery_cached_loaded={} discovery_used_cached={} discovery_resources={} discovery_targets={} discovery_failures={} discovery_last_success_at={} updated_at={}",
         snapshot.state,
         snapshot.queue_depth,
         snapshot.running_count,
         snapshot.reporting_count,
+        snapshot.paused_inputs.join(","),
         snapshot.discovery.readiness,
         snapshot.discovery.cached_snapshot_loaded,
         snapshot.discovery.used_cached_snapshot,

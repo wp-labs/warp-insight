@@ -39,6 +39,7 @@ jumo/draft/
 
 # Local run/test artifacts
 .run/
+/state/
 
 # Case-scoped agent runtime data (checkpoints/state must stay out of git)
 case/*/run/

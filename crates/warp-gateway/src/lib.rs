@@ -8,4 +8,4 @@ pub mod infra;
 pub use insight_control::*;
 pub use wist_reporting::*;
 
-pub type AppError = Box<dyn std::error::Error + Send + Sync>;
+pub type AppError = wist_error::AppError;

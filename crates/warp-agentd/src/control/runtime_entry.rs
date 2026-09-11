@@ -2,8 +2,11 @@ use std::ffi::OsString;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use orion_error::{conversion::ToStructError, prelude::*};
+
 use crate::daemon;
 use crate::enrollment::is_registered_agent_id;
+use crate::error::{AgentdReason, AgentdResult};
 use crate::self_observability;
 use crate::state_store;
 use wist_shared::paths::{AGENTD_CONFIG_FILE, LEGACY_AGENT_CONFIG_FILE};
@@ -11,8 +14,9 @@ use wist_shared::paths::{AGENTD_CONFIG_FILE, LEGACY_AGENT_CONFIG_FILE};
 const CONFIG_DIR: &str = "warp-agentd";
 const LEGACY_CONFIG_DIR: &str = ".warp-agentd";
 
-pub(crate) async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let root = std::env::current_dir()?;
+pub(crate) async fn run() -> AgentdResult<()> {
+    let root =
+        std::env::current_dir().source_err(AgentdReason::system_error(), "resolve current dir")?;
     run_from_args_async(root, std::env::args_os().skip(1)).await
 }
 
@@ -29,12 +33,16 @@ struct ParsedArgs {
     config_dir: Option<PathBuf>,
 }
 
-async fn run_from_args_async<I, S>(root: PathBuf, args: I) -> Result<(), Box<dyn std::error::Error>>
+async fn run_from_args_async<I, S>(root: PathBuf, args: I) -> AgentdResult<()>
 where
     I: IntoIterator<Item = S>,
     S: Into<OsString>,
 {
-    let parsed = parse_command(args)?;
+    let parsed = parse_command(args).map_err(|err| {
+        AgentdReason::InvalidArgs
+            .to_err()
+            .with_detail(err.to_string())
+    })?;
     match parsed.command {
         Command::Help => {
             print!("{}", usage_message());
@@ -47,7 +55,7 @@ where
         }
         Command::InitConfig { stdout_only: false } => {
             let config_root = resolve_requested_config_root(&root, parsed.config_dir.as_deref());
-            let ensured = crate::config_runtime::ensure_default_config(&config_root)?;
+            let ensured = crate::config_runtime::ensure_default_config(&config_root).conv_err()?;
             println!("{}", init_config_message(&ensured.path, ensured.created));
             Ok(())
         }
@@ -55,14 +63,15 @@ where
 }
 
 #[cfg(test)]
-fn run_from_args<I, S>(root: PathBuf, args: I) -> Result<(), Box<dyn std::error::Error>>
+fn run_from_args<I, S>(root: PathBuf, args: I) -> AgentdResult<()>
 where
     I: IntoIterator<Item = S>,
     S: Into<OsString>,
 {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
-        .build()?
+        .build()
+        .source_err(AgentdReason::system_error(), "build tokio runtime")?
         .block_on(run_from_args_async(root, args))
 }
 
@@ -162,27 +171,35 @@ fn looks_like_option(value: &OsString) -> bool {
         .is_some_and(|text| matches!(text, "--help" | "-h" | "--stdout" | "--config-dir"))
 }
 
-async fn run_daemon(
-    root: PathBuf,
-    config_dir: Option<&Path>,
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn run_daemon(root: PathBuf, config_dir: Option<&Path>) -> AgentdResult<()> {
     let config_root = match config_dir {
         Some(path) => resolve_requested_config_root(&root, Some(path)),
         None => resolve_config_root(&root),
     };
-    let mut config = crate::config_runtime::load_or_init(&config_root)?;
+    let mut config = crate::config_runtime::load_or_init_async(&config_root)
+        .await
+        .conv_err()?;
     let root_dir = PathBuf::from(&config.paths.root_dir);
     let run_dir = PathBuf::from(&config.paths.run_dir);
     let state_dir = PathBuf::from(&config.paths.state_dir);
     let log_dir = PathBuf::from(&config.paths.log_dir);
 
-    crate::bootstrap::initialize(&root_dir, &run_dir, &state_dir, &log_dir)?;
+    crate::bootstrap::initialize_async(&root_dir, &run_dir, &state_dir, &log_dir)
+        .await
+        .source_err(
+            AgentdReason::system_error(),
+            "initialize runtime directories",
+        )?;
     let config_path = crate::config_runtime::resolve_config_path(&config_root);
     crate::enrollment::ensure_enrolled_with_config_path(&mut config, &state_dir, &config_path)
-        .await?;
-    initialize_runtime_state(&state_dir, &config)?;
+        .await
+        .conv_err()?;
+    initialize_runtime_state_async(&state_dir, &config)
+        .await
+        .source_err(AgentdReason::system_error(), "initialize runtime state")?;
     self_observability::register();
-    let exec_bin = resolve_exec_bin()?;
+    let exec_bin =
+        resolve_exec_bin().source_err(AgentdReason::ExecBinUnavailable, "resolve wist-exec")?;
     let loop_ctx = daemon::DaemonLoop {
         config: &config,
         exec_bin: &exec_bin,
@@ -262,18 +279,19 @@ fn config_file_exists(config_root: &Path) -> bool {
         || config_root.join(LEGACY_AGENT_CONFIG_FILE).is_file()
 }
 
-fn initialize_runtime_state(
+async fn initialize_runtime_state_async(
     state_dir: &Path,
     config: &wist_contracts::agent_config::AgentConfigContract,
 ) -> io::Result<()> {
     let runtime_path = state_store::agent_runtime::path_for(state_dir);
-    let mut runtime_state = state_store::agent_runtime::load_or_default(&runtime_path)?;
+    let mut runtime_state =
+        state_store::agent_runtime::load_or_default_async(&runtime_path).await?;
     sync_runtime_identity(&mut runtime_state, config)?;
-    state_store::agent_runtime::store(&runtime_path, &runtime_state)?;
+    state_store::agent_runtime::store_async(&runtime_path, &runtime_state).await?;
 
     let queue_path = state_store::execution_queue::path_for(state_dir);
-    let queue_state = state_store::execution_queue::load_or_default(&queue_path)?;
-    state_store::execution_queue::store(&queue_path, &queue_state)?;
+    let queue_state = state_store::execution_queue::load_or_default_async(&queue_path).await?;
+    state_store::execution_queue::store_async(&queue_path, &queue_state).await?;
     Ok(())
 }
 

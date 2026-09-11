@@ -8,6 +8,7 @@ use wist_shared::integrity::digest_json;
 use wist_shared::paths::{ACTIONS_DIR, WORKDIR_PLAN_FILE};
 use wist_shared::time::{after_millis_rfc3339, now_rfc3339};
 
+use crate::error::RuntimeResult;
 use crate::execution_support::find_duplicate_execution;
 use crate::local_exec::next_execution_id;
 use crate::state_store::execution_queue::{self, ExecutionQueueItem};
@@ -52,7 +53,7 @@ pub struct DrainOutcome {
     pub report: wist_contracts::gateway::ReportActionResult,
 }
 
-pub fn submit_local_plan(request: &SchedulerRequest) -> io::Result<SchedulerOutcome> {
+pub fn submit_local_plan(request: &SchedulerRequest) -> RuntimeResult<SchedulerOutcome> {
     let execution_id = next_execution_id();
     let plan_digest = digest_json(&request.plan)?;
     let deadline_at = Some(after_millis_rfc3339(
@@ -69,7 +70,8 @@ pub fn submit_local_plan(request: &SchedulerRequest) -> io::Result<SchedulerOutc
                 "duplicate action plan already tracked locally: action_id={} plan_digest={} execution_id={existing_execution_id}",
                 request.plan.meta.action_id, plan_digest
             ),
-        ));
+        )
+        .into());
     }
 
     let workdir = request.run_dir.join(ACTIONS_DIR).join(&execution_id);
@@ -99,7 +101,7 @@ pub fn submit_local_plan(request: &SchedulerRequest) -> io::Result<SchedulerOutc
     })();
     if let Err(err) = queue_write {
         let _ = std::fs::remove_dir_all(&workdir);
-        return Err(err);
+        return Err(err.into());
     }
 
     Ok(SchedulerOutcome {
@@ -108,15 +110,15 @@ pub fn submit_local_plan(request: &SchedulerRequest) -> io::Result<SchedulerOutc
     })
 }
 
-pub async fn drain_next_async(request: &DrainRequest) -> io::Result<bool> {
+pub async fn drain_next_async(request: &DrainRequest) -> RuntimeResult<bool> {
     Ok(drain_next_with_report_async(request).await?.is_some())
 }
 
 pub async fn drain_next_with_report_async(
     request: &DrainRequest,
-) -> io::Result<Option<DrainOutcome>> {
+) -> RuntimeResult<Option<DrainOutcome>> {
     let queue_path = execution_queue::path_for(&request.state_dir);
-    let mut queue = execution_queue::load_or_default(&queue_path)?;
+    let mut queue = execution_queue::load_or_default_async(&queue_path).await?;
     loop {
         let Some(item) = queue.items.first().cloned() else {
             return Ok(None);
@@ -125,25 +127,25 @@ pub async fn drain_next_with_report_async(
         match handle_queue_head_async(request, &item).await? {
             QueueHeadDisposition::Blocked => return Ok(None),
             QueueHeadDisposition::ReloadQueue => {
-                queue = execution_queue::load_or_default(&queue_path)?;
+                queue = execution_queue::load_or_default_async(&queue_path).await?;
             }
             QueueHeadDisposition::Completed(outcome) => {
                 queue.remove(&item.execution_id);
-                execution_queue::store(&queue_path, &queue)?;
+                execution_queue::store_async(&queue_path, &queue).await?;
                 return Ok(Some(*outcome));
             }
         }
     }
 }
 
-pub fn drain_next(request: &DrainRequest) -> io::Result<bool> {
+pub fn drain_next(request: &DrainRequest) -> RuntimeResult<bool> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?
         .block_on(drain_next_async(request))
 }
 
-pub fn drain_next_with_report(request: &DrainRequest) -> io::Result<Option<DrainOutcome>> {
+pub fn drain_next_with_report(request: &DrainRequest) -> RuntimeResult<Option<DrainOutcome>> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?

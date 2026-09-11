@@ -1,17 +1,16 @@
 //! Local execution controller for `wist-exec`.
 
-use std::fs;
 use std::io;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::fs_async::{read_json_async, write_json_atomic_async};
 use tokio::fs::File;
 use tokio::process::Command;
 use wist_contracts::action_plan::ActionPlanContract;
 use wist_contracts::action_result::{ActionResultContract, FinalStatus};
 use wist_contracts::state_exec::ExecRuntimeContext;
-use wist_shared::fs::{read_json, write_json_atomic};
 use wist_shared::paths::{
     ACTIONS_DIR, WORKDIR_PLAN_FILE, WORKDIR_RESULT_FILE, WORKDIR_RUNTIME_FILE,
 };
@@ -26,7 +25,7 @@ mod support;
 
 use support::{
     ExitClassification, join_capture, spawn_stream_capture, synthesize_result, terminate_child,
-    wait_for_child, write_exec_state, write_timed_out_result,
+    wait_for_child, write_exec_state_async, write_timed_out_result_async,
 };
 
 #[derive(Debug, Clone, ::jumo_derive::Jumo)]
@@ -57,7 +56,7 @@ pub async fn execute_async(request: &LocalExecRequest) -> io::Result<LocalExecOu
         .run_dir
         .join(ACTIONS_DIR)
         .join(&request.execution_id);
-    fs::create_dir_all(&workdir)?;
+    tokio::fs::create_dir_all(&workdir).await?;
 
     let runtime = ExecRuntimeContext {
         execution_id: request.execution_id.clone(),
@@ -70,8 +69,8 @@ pub async fn execute_async(request: &LocalExecRequest) -> io::Result<LocalExecOu
         workdir: workdir.display().to_string(),
     };
 
-    write_json_atomic(&workdir.join(WORKDIR_PLAN_FILE), &request.plan)?;
-    write_json_atomic(&workdir.join(WORKDIR_RUNTIME_FILE), &runtime)?;
+    write_json_atomic_async(&workdir.join(WORKDIR_PLAN_FILE), &request.plan).await?;
+    write_json_atomic_async(&workdir.join(WORKDIR_RUNTIME_FILE), &runtime).await?;
 
     let stdout_log = File::create(workdir.join("stdout.log")).await?;
     let stderr_log = File::create(workdir.join("stderr.log")).await?;
@@ -119,7 +118,7 @@ pub async fn execute_async(request: &LocalExecRequest) -> io::Result<LocalExecOu
     .kill_requested_at(None)
     .updated_at(started_at)
     .build();
-    if let Err(err) = running::store(&running_path, &running_state) {
+    if let Err(err) = running::store_async(&running_path, &running_state).await {
         terminate_child(&mut child).await?;
         join_capture(stdout_capture, "stdout").await?;
         join_capture(stderr_capture, "stderr").await?;
@@ -143,9 +142,10 @@ pub async fn execute_async(request: &LocalExecRequest) -> io::Result<LocalExecOu
     join_capture(stderr_capture, "stderr").await?;
 
     let result_path = workdir.join(WORKDIR_RESULT_FILE);
-    let result = load_or_synthesize_result(request, &workdir, &result_path, exit_status)?;
+    let result =
+        load_or_synthesize_result_async(request, &workdir, &result_path, exit_status).await?;
 
-    let signal_state = running::load(&running_path).ok();
+    let signal_state = running::load_async(&running_path).await.ok();
     let finished_state = running::RunningExecutionState::builder(
         request.execution_id.clone(),
         request.plan.meta.action_id.clone(),
@@ -172,7 +172,7 @@ pub async fn execute_async(request: &LocalExecRequest) -> io::Result<LocalExecOu
     )
     .updated_at(now_rfc3339())
     .build();
-    running::store(&running_path, &finished_state)?;
+    running::store_async(&running_path, &finished_state).await?;
 
     Ok(LocalExecOutcome {
         execution_id: request.execution_id.clone(),
@@ -188,15 +188,20 @@ pub fn execute(request: &LocalExecRequest) -> io::Result<LocalExecOutcome> {
         .block_on(execute_async(request))
 }
 
-fn load_or_synthesize_result(
+async fn load_or_synthesize_result_async(
     request: &LocalExecRequest,
     workdir: &std::path::Path,
     result_path: &std::path::Path,
     exit_status: ExitClassification,
 ) -> io::Result<ActionResultContract> {
+    let result_exists = match tokio::fs::metadata(result_path).await {
+        Ok(_) => true,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => false,
+        Err(err) => return Err(err),
+    };
     match exit_status {
-        ExitClassification::Completed(status) if result_path.exists() => {
-            let result: ActionResultContract = read_json(result_path)?;
+        ExitClassification::Completed(status) if result_exists => {
+            let result: ActionResultContract = read_json_async(result_path).await?;
             if !status.success() && result.final_status == FinalStatus::Succeeded {
                 return Err(io::Error::other(
                     "exec process exited non-zero with succeeded result",
@@ -204,16 +209,16 @@ fn load_or_synthesize_result(
             }
             Ok(result)
         }
-        ExitClassification::CompletedAfterTimeout(_) if result_path.exists() => {
-            let result: ActionResultContract = read_json(result_path)?;
+        ExitClassification::CompletedAfterTimeout(_) if result_exists => {
+            let result: ActionResultContract = read_json_async(result_path).await?;
             if result.final_status == FinalStatus::Succeeded {
-                write_timed_out_result(request, workdir, result_path)
+                write_timed_out_result_async(request, workdir, result_path).await
             } else {
                 Ok(result)
             }
         }
         ExitClassification::TimedOut | ExitClassification::CompletedAfterTimeout(_) => {
-            write_timed_out_result(request, workdir, result_path)
+            write_timed_out_result_async(request, workdir, result_path).await
         }
         ExitClassification::Completed(status) => {
             let reason = match status.code() {
@@ -221,15 +226,16 @@ fn load_or_synthesize_result(
                 None => "exec_terminated_by_signal".to_string(),
             };
             let result = synthesize_result(request, FinalStatus::Failed, &reason, "failed");
-            write_json_atomic(result_path, &result)?;
-            write_exec_state(
+            write_json_atomic_async(result_path, &result).await?;
+            write_exec_state_async(
                 workdir,
                 &request.execution_id,
                 &request.plan.meta.action_id,
                 "failed",
                 Some(reason),
                 "agentd synthesized failure result after abnormal exec exit",
-            )?;
+            )
+            .await?;
             Ok(result)
         }
     }

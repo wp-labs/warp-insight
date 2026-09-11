@@ -3,8 +3,9 @@ use std::path::{Path, PathBuf};
 
 use wist_contracts::agent_config::{AgentConfigContract, LogFileInputSection};
 
-use crate::telemetry::logs::files::{FileInputConfig, ProcessOutcome};
+use crate::telemetry::logs::files::file_reader::ReadLimits;
 use crate::telemetry::logs::files::file_watcher::StartupPosition;
+use crate::telemetry::logs::files::{FileInputConfig, ProcessOutcome};
 use crate::telemetry::logs::multiline::MultilineMode;
 use crate::telemetry::spool;
 use crate::telemetry::warp_parse::{RecordSink, TelemetryRecordSink};
@@ -44,6 +45,12 @@ pub(super) fn build_file_input_config(
         startup_position: startup_position_for(input),
         multiline_mode: multiline_mode_for(input),
         in_memory_budget_bytes: config.telemetry.logs.in_memory_buffer_bytes as usize,
+        read_limits: ReadLimits::new(
+            config.telemetry.logs.max_line_bytes as usize,
+            config.telemetry.logs.max_read_bytes_per_tick as usize,
+            config.telemetry.logs.max_lines_per_tick as usize,
+        ),
+        spool_max_bytes: config.telemetry.logs.spool_max_bytes,
     }
 }
 
@@ -75,6 +82,10 @@ pub(super) fn processing_failure(input: &LogFileInputSection, detail: String) ->
         path: input.path.clone(),
         detail,
     }
+}
+
+pub(super) fn spool_paused_reason(spool_bytes: u64) -> String {
+    format!("spool over limit ({spool_bytes} bytes); source read paused")
 }
 
 fn spool_path_for(config: &AgentConfigContract, input: &LogFileInputSection) -> PathBuf {

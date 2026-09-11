@@ -1,10 +1,12 @@
 //! Runtime config loading and mode selection.
 
-use std::fmt;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use orion_error::{conversion::ToStructError, prelude::*};
+
+use crate::fs_async::write_bytes_atomic_async;
 use wist_contracts::agent_config::{AgentConfigContract, LogFileInputsFile};
 use wist_shared::fs::write_bytes_atomic;
 use wist_shared::paths::{AGENTD_CONFIG_FILE, LEGACY_AGENT_CONFIG_FILE};
@@ -24,32 +26,7 @@ pub struct EnsuredConfigFile {
     pub created: bool,
 }
 
-#[derive(Debug)]
-pub enum ConfigError {
-    Io(io::Error),
-    ParseToml(toml::de::Error),
-    MissingEnvVar(String),
-    Validation(&'static str),
-}
-
-impl fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Io(err) => write!(f, "io error: {err}"),
-            Self::ParseToml(err) => write!(f, "config parse error: {err}"),
-            Self::MissingEnvVar(name) => write!(f, "missing environment variable: {name}"),
-            Self::Validation(code) => write!(f, "config validation failed: {code}"),
-        }
-    }
-}
-
-impl std::error::Error for ConfigError {}
-
-impl From<io::Error> for ConfigError {
-    fn from(value: io::Error) -> Self {
-        Self::Io(value)
-    }
-}
+pub use crate::error::{ConfigError, ConfigReason};
 
 pub fn load_or_init(config_root: &Path) -> Result<AgentConfigContract, ConfigError> {
     let ensured = ensure_default_config(config_root)?;
@@ -57,13 +34,19 @@ pub fn load_or_init(config_root: &Path) -> Result<AgentConfigContract, ConfigErr
 }
 
 pub fn ensure_default_config(config_root: &Path) -> Result<EnsuredConfigFile, ConfigError> {
-    fs::create_dir_all(config_root)?;
+    fs::create_dir_all(config_root).source_err(
+        ConfigReason::Io,
+        format!("create config dir {}", config_root.display()),
+    )?;
     let config_path = resolve_config_path(config_root);
     let created = if config_path.exists() {
         false
     } else {
         let text = default_file_config_text();
-        write_bytes_atomic(&config_path, text.as_bytes())?;
+        write_bytes_atomic(&config_path, text.as_bytes()).source_err(
+            ConfigReason::Io,
+            format!("write config {}", config_path.display()),
+        )?;
         true
     };
     Ok(EnsuredConfigFile {
@@ -77,13 +60,17 @@ pub fn default_config_template() -> String {
 }
 
 pub fn load_from_path(config_path: &Path) -> Result<AgentConfigContract, ConfigError> {
-    let text = fs::read_to_string(config_path)?;
-    let mut parsed =
-        toml::from_str::<AgentConfigContract>(&text).map_err(ConfigError::ParseToml)?;
+    let text = fs::read_to_string(config_path).source_err(
+        ConfigReason::Io,
+        format!("read config {}", config_path.display()),
+    )?;
+    let mut parsed = toml::from_str::<AgentConfigContract>(&text)
+        .source_raw_err(ConfigReason::ParseToml, "parse config")?;
     load_file_inputs_from_task_file(&mut parsed, config_path)?;
     let env_resolved = expand_env_contract(parsed)?;
     let path_resolved = resolve_paths(env_resolved, config_path);
-    validate_config(&path_resolved).map_err(|err| ConfigError::Validation(err.code))?;
+    validate_config(&path_resolved)
+        .map_err(|err| ConfigReason::Validation.to_err().with_detail(err.code))?;
     Ok(path_resolved)
 }
 
@@ -100,27 +87,20 @@ fn load_file_inputs_from_task_file(
     };
     let config_dir = config_path.parent().unwrap_or_else(|| Path::new("."));
     let task_path = absolutize(config_dir, &expand_string(raw_path)?);
-    let text = fs::read_to_string(&task_path).map_err(|err| {
-        ConfigError::Io(io::Error::new(
-            err.kind(),
-            format!("read file_inputs_file {}: {err}", task_path.display()),
-        ))
-    })?;
+    let text = fs::read_to_string(&task_path).source_err(
+        ConfigReason::Io,
+        format!("read file_inputs_file {}", task_path.display()),
+    )?;
     if !config.telemetry.logs.file_inputs.is_empty() {
-        return Err(ConfigError::Io(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!(
-                "file_inputs_file {} conflicts with inline [[telemetry.logs.file_inputs]]; declare one or the other",
-                task_path.display()
-            ),
+        return Err(ConfigReason::Validation.to_err().with_detail(format!(
+            "file_inputs_file {} conflicts with inline [[telemetry.logs.file_inputs]]; declare one or the other",
+            task_path.display()
         )));
     }
-    let tasks = toml::from_str::<LogFileInputsFile>(&text).map_err(|err| {
-        ConfigError::Io(io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("parse file_inputs_file {}: {err}", task_path.display()),
-        ))
-    })?;
+    let tasks = toml::from_str::<LogFileInputsFile>(&text).source_raw_err(
+        ConfigReason::ParseToml,
+        format!("parse file_inputs_file {}", task_path.display()),
+    )?;
     config.telemetry.logs.file_inputs = tasks.file_inputs;
     Ok(())
 }
@@ -137,6 +117,86 @@ pub fn resolve_config_path(config_root: &Path) -> PathBuf {
     }
 
     preferred
+}
+
+pub async fn load_or_init_async(config_root: &Path) -> Result<AgentConfigContract, ConfigError> {
+    let ensured = ensure_default_config_async(config_root).await?;
+    load_from_path_async(&ensured.path).await
+}
+
+pub async fn ensure_default_config_async(
+    config_root: &Path,
+) -> Result<EnsuredConfigFile, ConfigError> {
+    tokio::fs::create_dir_all(config_root).await.source_err(
+        ConfigReason::Io,
+        format!("create config dir {}", config_root.display()),
+    )?;
+    let config_path = resolve_config_path(config_root);
+    let created = match tokio::fs::metadata(&config_path).await {
+        Ok(_) => false,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => {
+            let text = default_file_config_text();
+            write_bytes_atomic_async(&config_path, text.as_bytes())
+                .await
+                .source_err(
+                    ConfigReason::Io,
+                    format!("write config {}", config_path.display()),
+                )?;
+            true
+        }
+        Err(err) => {
+            return Err(StructError::builder(ConfigReason::Io)
+                .detail(format!("stat config {}", config_path.display()))
+                .source_std(err)
+                .finish());
+        }
+    };
+    Ok(EnsuredConfigFile {
+        path: config_path,
+        created,
+    })
+}
+
+pub async fn load_from_path_async(config_path: &Path) -> Result<AgentConfigContract, ConfigError> {
+    let text = tokio::fs::read_to_string(config_path).await.source_err(
+        ConfigReason::Io,
+        format!("read config {}", config_path.display()),
+    )?;
+    let mut parsed = toml::from_str::<AgentConfigContract>(&text)
+        .source_raw_err(ConfigReason::ParseToml, "parse config")?;
+    load_file_inputs_from_task_file_async(&mut parsed, config_path).await?;
+    let env_resolved = expand_env_contract(parsed)?;
+    let path_resolved = resolve_paths(env_resolved, config_path);
+    validate_config(&path_resolved)
+        .map_err(|err| ConfigReason::Validation.to_err().with_detail(err.code))?;
+    Ok(path_resolved)
+}
+
+async fn load_file_inputs_from_task_file_async(
+    config: &mut AgentConfigContract,
+    config_path: &Path,
+) -> Result<(), ConfigError> {
+    let Some(raw_path) = config.telemetry.logs.file_inputs_file.take() else {
+        return Ok(());
+    };
+    let config_dir = config_path.parent().unwrap_or_else(|| Path::new("."));
+    let task_path = absolutize(config_dir, &expand_string(raw_path)?);
+    let text = tokio::fs::read_to_string(&task_path).await.source_err(
+        ConfigReason::Io,
+        format!("read file_inputs_file {}", task_path.display()),
+    )?;
+    if !config.telemetry.logs.file_inputs.is_empty() {
+        return Err(ConfigReason::Validation.to_err().with_detail(format!(
+            "file_inputs_file {} conflicts with inline [[telemetry.logs.file_inputs]]; declare one or the other",
+            task_path.display()
+        )));
+    }
+    let tasks = toml::from_str::<LogFileInputsFile>(&text).source_raw_err(
+        ConfigReason::ParseToml,
+        format!("parse file_inputs_file {}", task_path.display()),
+    )?;
+    config.telemetry.logs.file_inputs = tasks.file_inputs;
+    Ok(())
 }
 
 #[cfg(test)]

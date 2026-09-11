@@ -1,11 +1,13 @@
 use std::{
-    env, error, fmt, fs,
+    env, fs,
     path::{Path, PathBuf},
 };
 
+use orion_error::conversion::ToStructError;
 use serde::Deserialize;
 
 use super::{load_install_script_public_key_pem, sha256_hex};
+use wist_error::ConfigReason;
 
 const DEFAULT_CONFIG_PATH: &str = "warp-gateway.toml";
 const CONFIG_ENV: &str = "WARP_GATEWAY_CONFIG";
@@ -42,23 +44,19 @@ pub struct AdminConfig {
     pub environment_id: String,
 }
 
-#[derive(Debug, ::jumo_derive::Jumo)]
-#[jumo(kind = "struct", domain = "Discovery", module = "Discovery.Config")]
-pub struct ConfigError(String);
+pub use wist_error::ConfigError;
 
-impl ConfigError {
-    fn new(message: impl Into<String>) -> Self {
-        Self(message.into())
-    }
+fn config_validation(message: impl Into<String>) -> ConfigError {
+    ConfigReason::Validation.to_err().with_detail(message)
 }
 
-impl fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
+fn config_io(message: impl Into<String>) -> ConfigError {
+    ConfigReason::Io.to_err().with_detail(message)
 }
 
-impl error::Error for ConfigError {}
+fn config_parse(message: impl Into<String>) -> ConfigError {
+    ConfigReason::Parse.to_err().with_detail(message)
+}
 
 #[derive(Debug, Deserialize)]
 struct RawAdminConfig {
@@ -100,8 +98,7 @@ pub fn default_config_path() -> String {
 /// predictable or shared default token, and editing the template file is the
 /// single place to change the generated config shape.
 pub fn default_config_text(admin_api_token: &str) -> String {
-    include_str!("../../warp-gateway.toml")
-        .replace("${WARP_INSIGHT_ADMIN_TOKEN}", admin_api_token)
+    include_str!("../../warp-gateway.toml").replace("${WARP_INSIGHT_ADMIN_TOKEN}", admin_api_token)
 }
 
 impl AdminConfig {
@@ -113,19 +110,19 @@ impl AdminConfig {
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, ConfigError> {
         let config_path = absolutize_config_path(path.as_ref())?;
         let raw_content = fs::read_to_string(&config_path).map_err(|err| {
-            ConfigError::new(format!(
+            config_io(format!(
                 "failed to read config {}: {err}",
                 config_path.display()
             ))
         })?;
         let raw: RawAdminConfig = toml::from_str(&raw_content).map_err(|err| {
-            ConfigError::new(format!(
+            config_parse(format!(
                 "failed to parse config {}: {err}",
                 config_path.display()
             ))
         })?;
         let config_dir = config_path.parent().ok_or_else(|| {
-            ConfigError::new(format!(
+            config_validation(format!(
                 "failed to resolve config dir for {}",
                 config_path.display()
             ))
@@ -169,7 +166,7 @@ impl AdminConfig {
             install_script_signing_public_key_pem: load_install_script_public_key_pem(
                 &install_script_signing_private_key_file,
             )
-            .map_err(ConfigError::new)?,
+            .map_err(config_validation)?,
             tenant_id: expand_env(&raw.agent.tenant_id)?,
             environment_id: expand_env(&raw.agent.environment_id)?,
         })
@@ -238,7 +235,7 @@ fn absolutize_config_path(path: &Path) -> Result<PathBuf, ConfigError> {
         return Ok(path.to_path_buf());
     }
     let cwd = env::current_dir()
-        .map_err(|err| ConfigError::new(format!("failed to resolve current dir: {err}")))?;
+        .map_err(|err| config_io(format!("failed to resolve current dir: {err}")))?;
     Ok(cwd.join(path))
 }
 
@@ -256,16 +253,16 @@ fn expand_env(value: &str) -> Result<String, ConfigError> {
         output.push_str(&rest[..start]);
         let after_start = &rest[start + 2..];
         let Some(end) = after_start.find('}') else {
-            return Err(ConfigError::new(format!(
+            return Err(config_validation(format!(
                 "invalid environment placeholder in {value:?}"
             )));
         };
         let key = &after_start[..end];
         if key.is_empty() {
-            return Err(ConfigError::new("empty environment placeholder"));
+            return Err(config_validation("empty environment placeholder"));
         }
         let replacement = env::var(key)
-            .map_err(|_| ConfigError::new(format!("missing environment variable {key}")))?;
+            .map_err(|_| config_validation(format!("missing environment variable {key}")))?;
         output.push_str(&replacement);
         rest = &after_start[end + 1..];
     }
@@ -279,7 +276,7 @@ fn trim_trailing_slash(value: String) -> String {
 
 fn require_non_empty(field: &str, value: &str) -> Result<(), ConfigError> {
     if value.trim().is_empty() {
-        return Err(ConfigError::new(format!("{field} must not be empty")));
+        return Err(config_validation(format!("{field} must not be empty")));
     }
     Ok(())
 }
@@ -287,12 +284,12 @@ fn require_non_empty(field: &str, value: &str) -> Result<(), ConfigError> {
 fn require_https_url(field: &str, value: &str) -> Result<(), ConfigError> {
     require_non_empty(field, value)?;
     if !value.starts_with("https://") {
-        return Err(ConfigError::new(format!(
+        return Err(config_validation(format!(
             "{field} must start with https://"
         )));
     }
     if contains_shell_metacharacters(value) {
-        return Err(ConfigError::new(format!(
+        return Err(config_validation(format!(
             "{field} contains characters that are unsafe in generated install scripts"
         )));
     }
@@ -330,14 +327,14 @@ fn require_positive_seconds(field: &str, value: i64) -> Result<(), ConfigError> 
     if value > 0 {
         return Ok(());
     }
-    Err(ConfigError::new(format!("{field} must be greater than 0")))
+    Err(config_validation(format!("{field} must be greater than 0")))
 }
 
 fn require_seconds_at_most(field: &str, value: i64, max: i64) -> Result<(), ConfigError> {
     if value <= max {
         return Ok(());
     }
-    Err(ConfigError::new(format!(
+    Err(config_validation(format!(
         "{field} must be less than or equal to {max}"
     )))
 }
@@ -346,7 +343,7 @@ fn require_min_secret_length(field: &str, value: &str, min: usize) -> Result<(),
     if value.as_bytes().len() >= min {
         return Ok(());
     }
-    Err(ConfigError::new(format!(
+    Err(config_validation(format!(
         "{field} must be at least {min} bytes"
     )))
 }
@@ -359,19 +356,19 @@ fn require_non_weak_admin_token(value: &str) -> Result<(), ConfigError> {
     let trimmed = value.trim();
     let normalized = trimmed.to_ascii_lowercase();
     if WEAK_ADMIN_API_TOKENS.iter().any(|weak| *weak == normalized) {
-        return Err(ConfigError::new(
+        return Err(config_validation(
             "server.admin_api_token uses a known weak value; use a randomly generated token",
         ));
     }
     if estimate_token_entropy_bits(trimmed) < MIN_ADMIN_TOKEN_ENTROPY_BITS {
-        return Err(ConfigError::new(format!(
+        return Err(config_validation(format!(
             "server.admin_api_token is too weak: use a mixed-case alphanumeric token with at least \
              {MIN_ADMIN_TOKEN_ENTROPY_BITS} bits of entropy (an 8-character alphanumeric token qualifies)"
         )));
     }
     let distinct = trimmed.chars().collect::<std::collections::HashSet<char>>();
     if distinct.len() < 3 {
-        return Err(ConfigError::new(
+        return Err(config_validation(
             "server.admin_api_token is too weak: too few distinct characters",
         ));
     }
@@ -407,13 +404,13 @@ fn estimate_token_entropy_bits(value: &str) -> f64 {
 
 fn require_existing_file(field: &str, path: &Path) -> Result<(), ConfigError> {
     if !path.exists() {
-        return Err(ConfigError::new(format!(
+        return Err(config_validation(format!(
             "{field} does not exist: {}",
             path.display()
         )));
     }
     if !path.is_file() {
-        return Err(ConfigError::new(format!(
+        return Err(config_validation(format!(
             "{field} is not a file: {}",
             path.display()
         )));
@@ -739,7 +736,9 @@ environment_id = "env-default"
 
         let err = AdminConfig::load_from_path(&path).expect_err("injected URL rejected");
 
-        assert!(err.to_string().contains("unsafe in generated install scripts"));
+        assert!(err
+            .to_string()
+            .contains("unsafe in generated install scripts"));
         let _ = fs::remove_file(path);
         let _ = fs::remove_file(package_file);
     }

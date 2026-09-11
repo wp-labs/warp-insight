@@ -18,8 +18,9 @@ use std::io;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::error::RuntimeResult;
+use crate::fs_async::{read_json_async, write_bytes_atomic_async};
 use wist_contracts::exporter::ExporterSource;
-use wist_shared::fs::{read_json, write_bytes_atomic};
 use wist_shared::time::now_rfc3339;
 
 use crate::discovery::cache as discovery_cache;
@@ -113,7 +114,7 @@ fn matching_target(targets: &[serde_json::Value], resource_id: &str) -> Option<s
         .cloned()
 }
 
-fn write_jsonl(path: &Path, rows: &[serde_json::Value]) -> io::Result<()> {
+async fn write_jsonl_async(path: &Path, rows: &[serde_json::Value]) -> RuntimeResult<()> {
     let mut buf = String::new();
     for (idx, row) in rows.iter().enumerate() {
         if idx > 0 {
@@ -122,7 +123,7 @@ fn write_jsonl(path: &Path, rows: &[serde_json::Value]) -> io::Result<()> {
         let line = serde_json::to_string(row).map_err(io::Error::other)?;
         buf.push_str(&line);
     }
-    write_bytes_atomic(path, buf.as_bytes())
+    Ok(write_bytes_atomic_async(path, buf.as_bytes()).await?)
 }
 
 #[derive(::jumo_derive::Jumo)]
@@ -197,14 +198,14 @@ fn build_disc_row(
 
 /// Writes one per-probe discovery snapshot file (JSONL format).
 /// Used for host and container.
-fn export_probe(
+async fn export_probe_async(
     state_dir: &Path,
     source: &ExporterSource,
     probe: &str,
     resources: &serde_json::Value,
     targets: &serde_json::Value,
     meta: Option<&serde_json::Value>,
-) -> io::Result<ExportResult> {
+) -> RuntimeResult<ExportResult> {
     let probe_resources = filter_by_kind(resources, probe);
     if probe_resources.is_empty() {
         return Ok(ExportResult::Skipped);
@@ -243,55 +244,73 @@ fn export_probe(
         .collect();
 
     let out_path = state_dir.join("export").join(format!("{probe}.jsonl"));
-    write_jsonl(&out_path, &rows)?;
+    write_jsonl_async(&out_path, &rows).await?;
     Ok(ExportResult::Written)
 }
 
 /// Reads discovery cache and writes one file per probe kind.
-pub fn export_disc_snap(state_dir: &Path, source: &ExporterSource) -> io::Result<()> {
+pub async fn export_disc_snap_async(
+    state_dir: &Path,
+    source: &ExporterSource,
+) -> RuntimeResult<()> {
     let paths = discovery_cache::DiscoveryCachePaths::under_state_dir(state_dir);
 
-    let mut resources = match read_json::<serde_json::Value>(&paths.resources) {
+    let mut resources = match read_json_async::<serde_json::Value>(&paths.resources).await {
         Ok(v) => v,
         Err(err) => {
             eprintln!("exporter: discovery cache skipped: {err}");
             return Ok(());
         }
     };
-    let mut targets = read_json::<serde_json::Value>(&paths.targets).unwrap_or_default();
+    let mut targets = read_json_async::<serde_json::Value>(&paths.targets)
+        .await
+        .unwrap_or_default();
     strip_internal_fields(&mut resources);
     strip_internal_fields(&mut targets);
-    let meta = read_json(&paths.meta).ok();
+    let meta = read_json_async(&paths.meta).await.ok();
 
     for probe in DISCOVERY_PROBES {
         if *probe == "process" {
-            if let Err(err) =
-                export_process_classified(state_dir, source, &resources, &targets, meta.as_ref())
+            if let Err(err) = export_process_classified_async(
+                state_dir,
+                source,
+                &resources,
+                &targets,
+                meta.as_ref(),
+            )
+            .await
             {
                 eprintln!("exporter: process_classified error: {err}");
             }
-        } else if let Err(err) = export_probe(
+        } else if let Err(err) = export_probe_async(
             state_dir,
             source,
             probe,
             &resources,
             &targets,
             meta.as_ref(),
-        ) {
+        )
+        .await
+        {
             eprintln!("exporter: {probe} export error: {err}");
         }
     }
     Ok(())
 }
 
+#[cfg(test)]
+pub fn export_disc_snap(state_dir: &Path, source: &ExporterSource) -> RuntimeResult<()> {
+    block_on(export_disc_snap_async(state_dir, source))
+}
+
 /// Classifies process resources and writes one JSONL file per set.
-fn export_process_classified(
+async fn export_process_classified_async(
     state_dir: &Path,
     source: &ExporterSource,
     resources: &serde_json::Value,
     targets: &serde_json::Value,
     meta: Option<&serde_json::Value>,
-) -> io::Result<()> {
+) -> RuntimeResult<()> {
     let mut identified = Vec::new();
     let mut named = Vec::new();
     let mut unidentified = Vec::new();
@@ -357,16 +376,16 @@ fn export_process_classified(
         let out_path = state_dir
             .join("export")
             .join(format!("process-{set_name}.jsonl"));
-        write_jsonl(&out_path, &rows)?;
+        write_jsonl_async(&out_path, &rows).await?;
     }
     Ok(())
 }
 
 /// Reads current metrics runtime snapshot and writes one sample per JSONL line.
-pub fn export_metrics(state_dir: &Path, source: &ExporterSource) -> io::Result<()> {
+pub async fn export_metrics_async(state_dir: &Path, source: &ExporterSource) -> RuntimeResult<()> {
     let runtime_path = metrics_runtime::path_for(state_dir);
 
-    match read_json::<MetricsRuntimeSnapshot>(&runtime_path) {
+    match read_json_async::<MetricsRuntimeSnapshot>(&runtime_path).await {
         Ok(snapshot) => {
             let samples_snapshot = samples::build_samples_snapshot(&snapshot);
             let seq = EXPORT_SEQ.fetch_add(1, Ordering::Relaxed);
@@ -398,7 +417,7 @@ pub fn export_metrics(state_dir: &Path, source: &ExporterSource) -> io::Result<(
             }
 
             let out_path = state_dir.join("export").join("metrics.jsonl");
-            write_jsonl(&out_path, &rows)
+            write_jsonl_async(&out_path, &rows).await
         }
         Err(err) => {
             eprintln!("exporter: metrics skipped (no runtime snapshot): {err}");
@@ -407,14 +426,28 @@ pub fn export_metrics(state_dir: &Path, source: &ExporterSource) -> io::Result<(
     }
 }
 
+#[cfg(test)]
+pub fn export_metrics(state_dir: &Path, source: &ExporterSource) -> RuntimeResult<()> {
+    block_on(export_metrics_async(state_dir, source))
+}
+
 /// Export all probe discovery snapshots and metrics. Errors are logged, not propagated.
-pub fn export_all(state_dir: &Path, source: &ExporterSource) {
-    if let Err(err) = export_disc_snap(state_dir, source) {
+pub async fn export_all_async(state_dir: &Path, source: &ExporterSource) {
+    if let Err(err) = export_disc_snap_async(state_dir, source).await {
         eprintln!("exporter: disc_snap error: {err}");
     }
-    if let Err(err) = export_metrics(state_dir, source) {
+    if let Err(err) = export_metrics_async(state_dir, source).await {
         eprintln!("exporter: metrics error: {err}");
     }
+}
+
+#[cfg(test)]
+fn block_on<T>(future: impl std::future::Future<Output = T>) -> T {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build tokio runtime")
+        .block_on(future)
 }
 
 #[cfg(test)]

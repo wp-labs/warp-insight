@@ -10,7 +10,7 @@ use serde::Deserialize;
 use wist_contracts::discovery::{DiscoveredResource, DiscoveredTarget, DiscoveryOrigin};
 use wist_shared::time::now_rfc3339;
 
-use super::{DiscoveryProbe, DiscoveryProbeError, DiscoverySourceKind, ProbeOutput};
+use super::{DiscoveryError, DiscoveryProbe, DiscoverySourceKind, ProbeOutput};
 
 #[derive(::jumo_derive::Jumo)]
 #[jumo(kind = "struct", domain = "Discovery", module = "Discovery.Probe")]
@@ -29,14 +29,14 @@ impl DiscoveryProbe for ContainerDiscoveryProbe {
         std::time::Duration::from_secs(30)
     }
 
-    fn refresh(&self, _now: std::time::SystemTime) -> Result<ProbeOutput, DiscoveryProbeError> {
+    fn refresh(&self, _now: std::time::SystemTime) -> Result<ProbeOutput, DiscoveryError> {
         let discovered_at = now_rfc3339();
         let source = self.source().as_str().to_string();
         let observed_at = discovered_at.clone();
         let origin_id = format!("{}:{}:{}", source, self.name(), observed_at);
         let containers =
             discover_containers_in_roots(&default_container_runtime_roots()).map_err(|err| {
-                DiscoveryProbeError::new(
+                super::probe_failed(
                     self.name(),
                     self.source(),
                     format!("container discovery failed: {err}"),

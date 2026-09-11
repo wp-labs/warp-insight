@@ -1,9 +1,10 @@
 use std::env;
 use std::path::{Component, Path, PathBuf};
 
+use orion_error::conversion::ToStructError;
 use wist_contracts::agent_config::AgentConfigContract;
 
-use crate::config_runtime::ConfigError;
+use crate::config_runtime::{ConfigError, ConfigReason};
 
 pub(super) fn default_file_config_text() -> String {
     r#"schema_version = "v1"
@@ -230,7 +231,8 @@ pub(super) fn expand_string(value: String) -> Result<String, ConfigError> {
         };
         let end = start + 2 + end_rel;
         let name = &value[start + 2..end];
-        let expanded = env::var(name).map_err(|_| ConfigError::MissingEnvVar(name.to_string()))?;
+        let expanded =
+            env::var(name).map_err(|_| ConfigReason::MissingEnvVar.to_err().with_detail(name))?;
         out.push_str(&expanded);
         cursor = end + 1;
     }

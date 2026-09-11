@@ -5,7 +5,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use wist_contracts::discovery::{CandidateCollectionTarget, StringKeyValue};
-use wist_shared::fs::write_json_atomic;
+use crate::fs_async::write_json_atomic_async;
 
 use crate::state_store::planner_candidates;
 
@@ -30,6 +30,7 @@ pub struct MetricsTargetViewEntry {
     pub execution_hints: Vec<StringKeyValue>,
 }
 
+#[cfg(test)]
 pub fn build_metrics_target_view(
     state_dir: &Path,
     generated_at: &str,
@@ -55,8 +56,34 @@ pub fn path_for(state_dir: &Path) -> std::path::PathBuf {
     state_dir.join("telemetry").join("metrics_target_view.json")
 }
 
+#[cfg(test)]
 pub fn store(path: &Path, view: &MetricsTargetView) -> io::Result<()> {
-    write_json_atomic(path, view)
+    wist_shared::fs::write_json_atomic(path, view)
+}
+
+pub async fn build_metrics_target_view_async(
+    state_dir: &Path,
+    generated_at: &str,
+) -> io::Result<MetricsTargetView> {
+    let mut targets = Vec::new();
+
+    for path in [
+        planner_candidates::host_metrics_path_for(state_dir),
+        planner_candidates::process_metrics_path_for(state_dir),
+        planner_candidates::container_metrics_path_for(state_dir),
+    ] {
+        let candidates = planner_candidates::load_or_default_async(&path).await?;
+        targets.extend(candidates.into_iter().map(map_candidate));
+    }
+
+    Ok(MetricsTargetView {
+        generated_at: generated_at.to_string(),
+        targets,
+    })
+}
+
+pub async fn store_async(path: &Path, view: &MetricsTargetView) -> io::Result<()> {
+    write_json_atomic_async(path, view).await
 }
 
 fn map_candidate(candidate: CandidateCollectionTarget) -> MetricsTargetViewEntry {

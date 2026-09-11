@@ -4,14 +4,16 @@
 
 use insight_control::types::DateTime;
 use insight_control::GatewayInstanceLifecycleState;
+use orion_error::{conversion::ToStructError, prelude::*};
 use sqlx::{postgres::PgPoolOptions, FromRow, PgPool, Row};
+use wist_error::{StoreError, StoreReason};
 
 use crate::config::GatewayCredentialSeed;
 
 use super::{
     sha256_hex, EnrollmentTokenIssue, GatewayCustomerBindingRecord, GatewayStatusUpdate,
-    LifecycleEvent, ReleaseRecord, Store, StoreError, StoredAgent, StoredEnrollmentToken,
-    StoredGateway, StoredGatewayCredentialStatus, UpgradePlanRecord,
+    LifecycleEvent, ReleaseRecord, Store, StoredAgent, StoredEnrollmentToken, StoredGateway,
+    StoredGatewayCredentialStatus, UpgradePlanRecord,
 };
 
 #[derive(Debug, Clone)]
@@ -24,7 +26,8 @@ impl PgStore {
         let pool = PgPoolOptions::new()
             .max_connections(5)
             .connect(database_url)
-            .await?;
+            .await
+            .source_raw_err(StoreReason::Sql, "connect postgres")?;
         Ok(Self { pool })
     }
 }
@@ -215,7 +218,8 @@ impl Store for PgStore {
             .bind(token_hash)
             .bind(expires_at)
             .execute(&self.pool)
-            .await?;
+            .await
+            .source_raw_err(StoreReason::Sql, "seed gateway")?;
             added |= result.rows_affected() > 0;
         }
         Ok(added)
@@ -226,7 +230,8 @@ impl Store for PgStore {
             "SELECT {GATEWAY_COLUMNS} FROM gateways ORDER BY gateway_id"
         ))
         .fetch_all(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "list gateways")?;
         Ok(rows.into_iter().map(GatewayRow::into_stored).collect())
     }
 
@@ -236,7 +241,8 @@ impl Store for PgStore {
         ))
         .bind(gateway_id)
         .fetch_optional(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "get gateway")?;
         Ok(row.map(GatewayRow::into_stored))
     }
 
@@ -262,7 +268,8 @@ impl Store for PgStore {
         .bind(update.cpu_percent)
         .bind(last_seen_at)
         .execute(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "upsert gateway status")?;
         // 首次上报 → Running（记录转变事件）。
         if prev != Some(GatewayInstanceLifecycleState::Running) {
             self.record_lifecycle_event(
@@ -285,19 +292,20 @@ impl Store for PgStore {
         } else {
             sha256_hex(token)
         };
-        let instance_id = format!("inst-{gateway_id}");
         let result = sqlx::query(
             "INSERT INTO gateways (gateway_id, instance_id, bootstrap_token_hash, lifecycle_state, created_at) \
-             VALUES ($1, $2, $3, 'Provisioned', NOW()) \
+             VALUES ($1, '', $2, 'Provisioned', NOW()) \
              ON CONFLICT (gateway_id) DO NOTHING",
         )
         .bind(gateway_id)
-        .bind(&instance_id)
         .bind(&bootstrap_hash)
         .execute(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "insert gateway")?;
         if result.rows_affected() == 0 {
-            return Err(StoreError::Conflict(gateway_id.to_string()));
+            return Err(StoreReason::Conflict
+                .to_err()
+                .with_detail(gateway_id.to_string()));
         }
         self.record_lifecycle_event(gateway_id, None, GatewayInstanceLifecycleState::Provisioned)
             .await?;
@@ -321,7 +329,8 @@ impl Store for PgStore {
         .bind(gateway_id)
         .bind(bootstrap_hash)
         .execute(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "consume bootstrap token")?;
         Ok(result.rows_affected() > 0)
     }
 
@@ -341,7 +350,8 @@ impl Store for PgStore {
         .bind(token_hash)
         .bind(expires_at)
         .execute(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "update gateway credential")?;
         Ok(result.rows_affected() > 0)
     }
 
@@ -371,7 +381,8 @@ impl Store for PgStore {
         .bind(&issue.issued_by)
         .bind(&issue.control_center_trust_bundle)
         .fetch_one(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "insert enrollment token")?;
         Ok(enrollment_token_from_row(&row))
     }
 
@@ -389,20 +400,31 @@ impl Store for PgStore {
         )
         .bind(&token_hash)
         .fetch_optional(&self.pool)
-        .await?
-        .ok_or_else(|| StoreError::Enrollment("token not found".to_string()))?;
+        .await
+        .source_raw_err(StoreReason::Sql, "select enrollment token")?
+        .ok_or_else(|| {
+            StoreReason::Enrollment
+                .to_err()
+                .with_detail("token not found")
+        })?;
         let status: String = row.get("status");
         let used_count: i64 = row.get("used_count");
         let max_uses: i64 = row.get("max_uses");
         let expires_at: Option<chrono::DateTime<chrono::Utc>> = row.get("expires_at");
         if status != "Active" && status != "Used" {
-            return Err(StoreError::Enrollment(format!("token status {status}")));
+            return Err(StoreReason::Enrollment
+                .to_err()
+                .with_detail(format!("token status {status}")));
         }
         if expires_at.as_ref().is_some_and(|exp| *exp < now) {
-            return Err(StoreError::Enrollment("token expired".to_string()));
+            return Err(StoreReason::Enrollment
+                .to_err()
+                .with_detail("token expired"));
         }
         if used_count >= max_uses {
-            return Err(StoreError::Enrollment("token exhausted".to_string()));
+            return Err(StoreReason::Enrollment
+                .to_err()
+                .with_detail("token exhausted"));
         }
         let new_used = used_count + 1;
         let new_status = if new_used >= max_uses {
@@ -417,7 +439,8 @@ impl Store for PgStore {
         .bind(new_status)
         .bind(row.get::<String, _>("token_id"))
         .execute(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "update enrollment token")?;
         let mut token = enrollment_token_from_row(&row);
         token.used_count = new_used;
         token.status = new_status.to_string();
@@ -439,8 +462,13 @@ impl Store for PgStore {
         .bind(token_id)
         .bind(gateway_id)
         .fetch_optional(&self.pool)
-        .await?
-        .ok_or_else(|| StoreError::Enrollment("token not found".to_string()))?;
+        .await
+        .source_raw_err(StoreReason::Sql, "revoke enrollment token")?
+        .ok_or_else(|| {
+            StoreReason::Enrollment
+                .to_err()
+                .with_detail("token not found")
+        })?;
         Ok(enrollment_token_from_row(&row))
     }
 
@@ -457,7 +485,8 @@ impl Store for PgStore {
         )
         .bind(gateway_id)
         .fetch_optional(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "get enrollment token")?;
         Ok(row.map(|row| enrollment_token_from_row(&row)))
     }
 
@@ -492,7 +521,8 @@ impl Store for PgStore {
             .bind(agent.admin_latency_ms)
             .bind(last_seen_at)
             .execute(&self.pool)
-            .await?;
+            .await
+            .source_raw_err(StoreReason::Sql, "upsert agent status")?;
         }
         Ok(())
     }
@@ -508,7 +538,8 @@ impl Store for PgStore {
         )
         .bind(gateway_id)
         .fetch_all(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "list agents")?;
         Ok(rows.into_iter().map(AgentRow::into_stored).collect())
     }
 
@@ -519,7 +550,8 @@ impl Store for PgStore {
         )
         .bind(gateway_id)
         .execute(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "mark gateway initializing")?;
         if result.rows_affected() > 0 {
             self.record_lifecycle_event(
                 gateway_id,
@@ -549,7 +581,8 @@ impl Store for PgStore {
         .bind(to_state)
         .bind(at)
         .execute(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "insert lifecycle event")?;
         Ok(())
     }
 
@@ -563,7 +596,8 @@ impl Store for PgStore {
         )
         .bind(gateway_id)
         .fetch_all(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "list lifecycle events")?;
         Ok(rows
             .into_iter()
             .map(LifecycleEventRow::into_event)
@@ -586,7 +620,8 @@ impl Store for PgStore {
         .bind(artifact_url)
         .bind(published_at)
         .execute(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "insert release")?;
         Ok(ReleaseRecord {
             version: version.to_string(),
             artifact_url: artifact_url.to_string(),
@@ -603,7 +638,8 @@ impl Store for PgStore {
         )
         .bind(component)
         .fetch_all(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "list releases")?;
         Ok(rows.into_iter().map(ReleaseRow::into_record).collect())
     }
 
@@ -611,25 +647,31 @@ impl Store for PgStore {
         &self,
         plan: &UpgradePlanRecord,
     ) -> Result<UpgradePlanRecord, StoreError> {
-        let payload = serde_json::to_value(plan).map_err(StoreError::Json)?;
+        let payload =
+            serde_json::to_value(plan).source_err(StoreReason::Json, "serialize upgrade plan")?;
         sqlx::query(
             "INSERT INTO upgrade_plans (plan_id, payload, status) VALUES ($1, $2, 'pending')",
         )
         .bind(&plan.plan_id)
         .bind(payload)
         .execute(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "insert upgrade plan")?;
         Ok(plan.clone())
     }
 
     async fn list_upgrade_plans(&self) -> Result<Vec<UpgradePlanRecord>, StoreError> {
         let rows = sqlx::query("SELECT payload FROM upgrade_plans ORDER BY created_at DESC")
             .fetch_all(&self.pool)
-            .await?;
+            .await
+            .source_raw_err(StoreReason::Sql, "list upgrade plans")?;
         let mut plans = Vec::new();
         for row in rows {
-            let value: serde_json::Value = row.try_get("payload")?;
-            let plan = serde_json::from_value(value).map_err(StoreError::Json)?;
+            let value: serde_json::Value = row
+                .try_get("payload")
+                .source_raw_err(StoreReason::Sql, "read upgrade plan payload")?;
+            let plan = serde_json::from_value(value)
+                .source_err(StoreReason::Json, "deserialize upgrade plan")?;
             plans.push(plan);
         }
         Ok(plans)
@@ -644,23 +686,28 @@ impl Store for PgStore {
             sqlx::query_as("SELECT payload FROM upgrade_plans WHERE plan_id = $1")
                 .bind(plan_id)
                 .fetch_optional(&self.pool)
-                .await?;
+                .await
+                .source_raw_err(StoreReason::Sql, "select upgrade plan")?;
         let Some((payload,)) = row else {
-            return Err(StoreError::Conflict(plan_id.to_string()));
+            return Err(StoreReason::Conflict
+                .to_err()
+                .with_detail(plan_id.to_string()));
         };
-        let mut plan: UpgradePlanRecord =
-            serde_json::from_value(payload).map_err(StoreError::Json)?;
+        let mut plan: UpgradePlanRecord = serde_json::from_value(payload)
+            .source_err(StoreReason::Json, "deserialize upgrade plan")?;
         plan.status = "approved".to_string();
         plan.approved_by = Some(approved_by.to_string());
         plan.approved_at = Some(DateTime::now());
-        let payload = serde_json::to_value(&plan).map_err(StoreError::Json)?;
+        let payload =
+            serde_json::to_value(&plan).source_err(StoreReason::Json, "serialize upgrade plan")?;
         sqlx::query(
             "UPDATE upgrade_plans SET payload = $2, status = 'approved' WHERE plan_id = $1",
         )
         .bind(plan_id)
         .bind(payload)
         .execute(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "update upgrade plan")?;
         Ok(plan)
     }
 
@@ -679,7 +726,8 @@ impl Store for PgStore {
         .bind(customer_id)
         .bind(bound_at)
         .execute(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "bind gateway customer")?;
         Ok(GatewayCustomerBindingRecord {
             gateway_id: gateway_id.to_string(),
             customer_id: customer_id.to_string(),
@@ -695,7 +743,8 @@ impl Store for PgStore {
             "SELECT gateway_id, customer_id, status, bound_at FROM gateway_customer_bindings",
         )
         .fetch_all(&self.pool)
-        .await?;
+        .await
+        .source_raw_err(StoreReason::Sql, "list customer bindings")?;
         Ok(rows
             .into_iter()
             .map(
@@ -883,7 +932,8 @@ mod tests {
             .create_gateway(&gateway_id, "other-token")
             .await
             .expect_err("conflict");
-        assert!(matches!(err, StoreError::Conflict(ref gid) if gid == &gateway_id));
+        assert_eq!(err.reason(), &StoreReason::Conflict);
+        assert_eq!(err.detail().as_deref(), Some(gateway_id.as_str()));
 
         // 清理测试数据。
         sqlx::query("DELETE FROM gateways WHERE gateway_id = $1")

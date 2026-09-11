@@ -23,6 +23,8 @@ insight-control = { path = "../insight-control" }
 wist-observed = { path = "../wist-observed" }
 wist-security = { path = "../wist-security" }
 wist-reporting = { path = "../wist-reporting" }
+wist-error = { path = "../wist-error" }
+orion-error = { version = "0.8", features = ["derive", "serde_json"] }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

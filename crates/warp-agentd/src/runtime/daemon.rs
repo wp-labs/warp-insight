@@ -6,10 +6,12 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use wist_contracts::agent_config::AgentConfigContract;
-use wist_contracts::gateway::AgentHello;
+use wist_contracts::gateway::{AgentHello, AgentWorkState, AgentWorkStateChange};
 use wist_shared::time::now_rfc3339;
 
 use crate::enrollment::enrollment_http_client;
+
+use crate::error::RuntimeResult;
 
 use crate::discovery::DiscoveryProbe;
 use crate::discovery::container::ContainerDiscoveryProbe;
@@ -146,6 +148,7 @@ async fn report_status_to_control_plane(
     config: &AgentConfigContract,
     cpu_percent: Option<f64>,
     last_latency_ms: Option<u64>,
+    work_state_changes: Option<Vec<AgentWorkStateChange>>,
 ) -> Option<u64> {
     let Some(endpoint) = config.control_plane.endpoint.as_deref() else {
         return None;
@@ -164,6 +167,7 @@ async fn report_status_to_control_plane(
         memory_bytes: current_rss_bytes(),
         cpu_percent,
         admin_latency_ms: last_latency_ms,
+        work_state_changes,
     };
     let client = match enrollment_http_client(config) {
         Ok(client) => client,
@@ -204,12 +208,29 @@ use metrics_support::{
     failure_signatures as metrics_failure_signatures,
     filter_new_failures as filter_new_metrics_failures, process_metrics_tick,
 };
-use recovery_support::recover_incomplete_executions_impl;
+use recovery_support::recover_incomplete_executions_impl_async;
 use runtime_state_support::{
-    count_reporting_entries, count_running_entries, emit_telemetry_failure,
-    emit_telemetry_failures, failure_signatures, filter_new_failures, instance_id,
+    count_reporting_entries_async, count_running_entries_async, emit_telemetry_failure,
+    emit_telemetry_failures, emit_work_state_notification, emit_work_state_notifications,
+    failure_signatures, filter_new_failures, instance_id, paused_input_signatures,
+    work_state_changes,
 };
-use telemetry_support::process_telemetry_inputs;
+use telemetry_support::{TelemetryWorkState, WorkState, process_telemetry_inputs};
+
+fn to_agent_work_state_changes(changes: &[TelemetryWorkState]) -> Vec<AgentWorkStateChange> {
+    changes
+        .iter()
+        .map(|change| AgentWorkStateChange {
+            input_id: change.input_id.clone(),
+            state: match change.state {
+                WorkState::Paused => AgentWorkState::Paused,
+                WorkState::Resumed => AgentWorkState::Resumed,
+            },
+            reason: change.reason.clone(),
+            at: change.at.clone(),
+        })
+        .collect()
+}
 
 #[derive(::jumo_derive::Jumo)]
 #[jumo(kind = "struct", domain = "Reporting", module = "Reporting.Pipeline")]
@@ -218,23 +239,27 @@ pub struct DaemonLoop<'a> {
     pub exec_bin: &'a Path,
 }
 
-pub async fn run_forever_async(loop_ctx: DaemonLoop<'_>) -> io::Result<()> {
+pub async fn run_forever_async(loop_ctx: DaemonLoop<'_>) -> RuntimeResult<()> {
     let sleep_interval = Duration::from_millis(250);
     let mut previous_telemetry_failures = BTreeSet::new();
     let mut previous_metrics_failures = BTreeSet::new();
+    let mut previous_telemetry_paused = BTreeSet::new();
     let mut last_report_at = Instant::now();
     let mut last_cpu_sample = cpu_ticks().map(|ticks| CpuSample {
         ticks,
         at: Instant::now(),
     });
     let mut last_latency_ms: Option<u64> = None;
+    let mut pending_work_state_changes: Vec<TelemetryWorkState> = Vec::new();
     loop {
-        let snapshot = run_once_with_failure_cache(
+        let (snapshot, changes) = run_once_with_failure_cache(
             &loop_ctx,
             Some(&mut previous_telemetry_failures),
             Some(&mut previous_metrics_failures),
+            Some(&mut previous_telemetry_paused),
         )
         .await?;
+        pending_work_state_changes.extend(changes);
         emit(&snapshot);
         if last_report_at.elapsed() >= STATUS_REPORT_INTERVAL {
             last_report_at = Instant::now();
@@ -245,8 +270,19 @@ pub async fn run_forever_async(loop_ctx: DaemonLoop<'_>) -> io::Result<()> {
             if let Some(ticks) = cpu_ticks() {
                 last_cpu_sample = Some(CpuSample { ticks, at: now });
             }
-            if let Some(latency) =
-                report_status_to_control_plane(loop_ctx.config, cpu_percent, last_latency_ms).await
+            let changes = std::mem::take(&mut pending_work_state_changes);
+            let changes = if changes.is_empty() {
+                None
+            } else {
+                Some(to_agent_work_state_changes(&changes))
+            };
+            if let Some(latency) = report_status_to_control_plane(
+                loop_ctx.config,
+                cpu_percent,
+                last_latency_ms,
+                changes,
+            )
+            .await
             {
                 last_latency_ms = Some(latency);
             }
@@ -255,19 +291,22 @@ pub async fn run_forever_async(loop_ctx: DaemonLoop<'_>) -> io::Result<()> {
     }
 }
 
-pub async fn run_once_async(loop_ctx: &DaemonLoop<'_>) -> io::Result<RuntimeHealthSnapshot> {
-    run_once_with_failure_cache(loop_ctx, None, None).await
+pub async fn run_once_async(loop_ctx: &DaemonLoop<'_>) -> RuntimeResult<RuntimeHealthSnapshot> {
+    run_once_with_failure_cache(loop_ctx, None, None, None)
+        .await
+        .map(|(snapshot, _)| snapshot)
 }
 
 async fn run_once_with_failure_cache(
     loop_ctx: &DaemonLoop<'_>,
     previous_telemetry_failures: Option<&mut BTreeSet<String>>,
     previous_metrics_failures: Option<&mut BTreeSet<String>>,
-) -> io::Result<RuntimeHealthSnapshot> {
+    previous_telemetry_paused: Option<&mut BTreeSet<String>>,
+) -> RuntimeResult<(RuntimeHealthSnapshot, Vec<TelemetryWorkState>)> {
     let run_dir = Path::new(&loop_ctx.config.paths.run_dir);
     let state_dir = Path::new(&loop_ctx.config.paths.state_dir);
     let instance_id = instance_id(loop_ctx.config);
-    let discovery = refresh_discovery_snapshot(loop_ctx.config, state_dir)?;
+    let discovery = refresh_discovery_snapshot(loop_ctx.config, state_dir).await;
     let metrics_tick = process_metrics_tick(state_dir);
     emit_metrics_tick(&metrics_tick);
     if let Some(previous) = previous_metrics_failures {
@@ -287,10 +326,22 @@ async fn run_once_with_failure_cache(
     } else {
         emit_telemetry_failures(&telemetry_tick.failures);
     }
+    let current_paused = paused_input_signatures(&telemetry_tick.notifications);
+    let tick_changes = if let Some(previous) = previous_telemetry_paused {
+        let changes = work_state_changes(previous, &telemetry_tick.notifications, &current_paused);
+        for change in &changes {
+            emit_work_state_notification(change);
+        }
+        *previous = current_paused.clone();
+        changes
+    } else {
+        emit_work_state_notifications(&telemetry_tick.notifications);
+        Vec::new()
+    };
     let telemetry_active = telemetry_tick.is_active();
     let metrics_active = metrics_tick.is_active();
 
-    recover_incomplete_executions(state_dir, &instance_id)?;
+    recover_incomplete_executions_impl_async(state_dir, &instance_id).await?;
 
     // Step 0: export unified-envelope output alongside existing cache files
     let agent_id = loop_ctx
@@ -300,7 +351,7 @@ async fn run_once_with_failure_cache(
         .as_deref()
         .unwrap_or("unknown");
     let export_source = ExporterSource::new(agent_id, &instance_id);
-    exporter::export_all(state_dir, &export_source);
+    exporter::export_all_async(state_dir, &export_source).await;
 
     let drained = scheduler::drain_next_async(&scheduler::DrainRequest {
         run_dir: run_dir.to_path_buf(),
@@ -313,9 +364,10 @@ async fn run_once_with_failure_cache(
     })
     .await?;
 
-    let queue = execution_queue::load_or_default(&execution_queue::path_for(state_dir))?;
-    let running_count = count_running_entries(state_dir)?;
-    let reporting_count = count_reporting_entries(state_dir)?;
+    let queue =
+        execution_queue::load_or_default_async(&execution_queue::path_for(state_dir)).await?;
+    let running_count = count_running_entries_async(state_dir).await?;
+    let reporting_count = count_reporting_entries_async(state_dir).await?;
     let metrics = metrics_tick.health_snapshot();
     let health = RuntimeHealthSnapshot {
         state: if telemetry_active
@@ -332,17 +384,18 @@ async fn run_once_with_failure_cache(
         queue_depth: queue.items.len(),
         running_count,
         reporting_count,
+        paused_inputs: current_paused.into_iter().collect(),
         discovery: discovery.snapshot,
         metrics,
         updated_at: now_rfc3339(),
     };
 
     let runtime_path = agent_runtime::path_for(state_dir);
-    let mut runtime_state = agent_runtime::load_or_default(&runtime_path)?;
+    let mut runtime_state = agent_runtime::load_or_default_async(&runtime_path).await?;
     runtime_state.updated_at = health.updated_at.clone();
-    agent_runtime::store(&runtime_path, &runtime_state)?;
+    agent_runtime::store_async(&runtime_path, &runtime_state).await?;
 
-    Ok(health)
+    Ok((health, tick_changes))
 }
 
 #[derive(::jumo_derive::Jumo)]
@@ -351,14 +404,14 @@ struct DiscoveryHealth {
     snapshot: DiscoveryHealthSnapshot,
 }
 
-fn refresh_discovery_snapshot(
+async fn refresh_discovery_snapshot(
     config: &AgentConfigContract,
     state_dir: &Path,
-) -> io::Result<DiscoveryHealth> {
+) -> DiscoveryHealth {
     let mut runtime = DiscoveryRuntime::new(discovery_probes(config));
-    let (cached, cache_load_failure) = runtime.load_from_state_dir(state_dir)?;
-    let (cached_meta, meta_load_failure) = runtime.load_meta_from_state_dir(state_dir)?;
-    let mut result = runtime.refresh_and_store(state_dir)?;
+    let (cached, cache_load_failure) = runtime.load_from_state_dir_async(state_dir).await;
+    let (cached_meta, meta_load_failure) = runtime.load_meta_from_state_dir_async(state_dir).await;
+    let mut result = runtime.refresh_and_store_async(state_dir).await;
     let candidates = planner_bridge::build_collection_candidates(&result.persisted_snapshot);
     let host_candidates: Vec<_> = candidates
         .iter()
@@ -375,37 +428,47 @@ fn refresh_discovery_snapshot(
         .filter(|candidate| candidate.collection_kind == "container_metrics")
         .cloned()
         .collect();
-    let planner_store_result = planner_candidates::store(
-        &planner_candidates::host_metrics_path_for(state_dir),
-        &host_candidates,
-    )
-    .and_then(|_| {
-        planner_candidates::store(
+    let planner_store_result: io::Result<()> = async {
+        planner_candidates::store_async(
+            &planner_candidates::host_metrics_path_for(state_dir),
+            &host_candidates,
+        )
+        .await?;
+        planner_candidates::store_async(
             &planner_candidates::process_metrics_path_for(state_dir),
             &process_candidates,
         )
-    })
-    .and_then(|_| {
-        planner_candidates::store(
+        .await?;
+        planner_candidates::store_async(
             &planner_candidates::container_metrics_path_for(state_dir),
             &container_candidates,
         )
-    });
+        .await
+    }
+    .await;
     if let Err(err) = planner_store_result {
         result.last_error = Some(format!("planner candidate store failed: {err}"));
         result.store_failure = Some(crate::discovery::runtime::DiscoveryStoreFailure {
             phase: "planner_store",
             detail: format!("planner candidate store failed: {err}"),
         });
-    } else if let Err(err) =
-        target_view::build_metrics_target_view(state_dir, &result.persisted_snapshot.generated_at)
-            .and_then(|view| target_view::store(&target_view::path_for(state_dir), &view))
-    {
-        result.last_error = Some(format!("metrics target view store failed: {err}"));
-        result.store_failure = Some(crate::discovery::runtime::DiscoveryStoreFailure {
-            phase: "metrics_target_view_store",
-            detail: format!("metrics target view store failed: {err}"),
-        });
+    } else {
+        let target_view_result: io::Result<()> = async {
+            let view = target_view::build_metrics_target_view_async(
+                state_dir,
+                &result.persisted_snapshot.generated_at,
+            )
+            .await?;
+            target_view::store_async(&target_view::path_for(state_dir), &view).await
+        }
+        .await;
+        if let Err(err) = target_view_result {
+            result.last_error = Some(format!("metrics target view store failed: {err}"));
+            result.store_failure = Some(crate::discovery::runtime::DiscoveryStoreFailure {
+                phase: "metrics_target_view_store",
+                detail: format!("metrics target view store failed: {err}"),
+            });
+        }
     }
     let probes = build_probe_health(
         &result,
@@ -424,7 +487,7 @@ fn refresh_discovery_snapshot(
         DiscoveryReadiness::NotReady
     };
 
-    Ok(DiscoveryHealth {
+    DiscoveryHealth {
         snapshot: DiscoveryHealthSnapshot {
             readiness,
             cached_snapshot_loaded: cached.is_some(),
@@ -442,7 +505,7 @@ fn refresh_discovery_snapshot(
             updated_at: result.refreshed_snapshot.generated_at.clone(),
             probes,
         },
-    })
+    }
 }
 
 fn discovery_probes(config: &AgentConfigContract) -> Vec<Box<dyn DiscoveryProbe + Send + Sync>> {
@@ -486,10 +549,18 @@ fn build_probe_health(
     }
 
     for error in &result.errors {
-        let source = error.source.as_str().to_string();
-        let probe = error.probe.clone();
+        let source = error
+            .context_metadata()
+            .get_str("source")
+            .unwrap_or("unknown")
+            .to_string();
+        let probe = error
+            .context_metadata()
+            .get_str("probe")
+            .unwrap_or("unknown")
+            .to_string();
         let phase = "refresh".to_string();
-        let detail = error.detail.clone();
+        let detail = error.detail().clone().unwrap_or_else(|| error.to_string());
         if seen_failures.insert((source.clone(), probe.clone(), phase.clone(), detail.clone())) {
             probes.push(DiscoveryProbeHealth {
                 source,
@@ -570,15 +641,21 @@ fn emit_discovery_refresh(result: &DiscoveryRefreshResult, probes: &[DiscoveryPr
     }
 }
 
-pub fn run_once(loop_ctx: &DaemonLoop<'_>) -> io::Result<RuntimeHealthSnapshot> {
+pub fn run_once(loop_ctx: &DaemonLoop<'_>) -> RuntimeResult<RuntimeHealthSnapshot> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?
         .block_on(run_once_async(loop_ctx))
 }
 
-pub fn recover_incomplete_executions(state_dir: &Path, instance_id: &str) -> io::Result<()> {
-    recover_incomplete_executions_impl(state_dir, instance_id)
+pub fn recover_incomplete_executions(state_dir: &Path, instance_id: &str) -> RuntimeResult<()> {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?
+        .block_on(recover_incomplete_executions_impl_async(
+            state_dir,
+            instance_id,
+        ))
 }
 
 #[cfg(test)]
@@ -663,20 +740,52 @@ mod tests {
             let (mut socket, _) = listener.accept().await.expect("accept");
             let request = read_http_request(&mut socket).await;
             assert!(request.contains("/api/v1/agent/status"));
-            assert!(request
-                .to_lowercase()
-                .contains("authorization: bearer wic_test_token"));
+            assert!(
+                request
+                    .to_lowercase()
+                    .contains("authorization: bearer wic_test_token")
+            );
             assert!(request.contains("\"agent_id\":\"agent-x\""));
             assert!(request.contains("\"memory_bytes\":"));
             assert!(request.contains("\"cpu_percent\":"));
             assert!(request.contains("\"admin_latency_ms\":"));
-            let response = "HTTP/1.1 202 Accepted\r\ncontent-length: 0\r\nconnection: close\r\n\r\n";
+            assert!(request.contains("\"work_state_changes\":null"));
+            let response =
+                "HTTP/1.1 202 Accepted\r\ncontent-length: 0\r\nconnection: close\r\n\r\n";
             socket.write_all(response.as_bytes()).await.expect("write");
         });
 
         let mut config = test_config();
         config.control_plane.endpoint = Some(endpoint);
-        let latency = report_status_to_control_plane(&config, Some(12.5), Some(3)).await;
+        let latency = report_status_to_control_plane(&config, Some(12.5), Some(3), None).await;
+        server.await.expect("server task");
+        assert!(latency.is_some());
+    }
+
+    #[tokio::test]
+    async fn report_status_posts_work_state_changes() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let endpoint = format!("http://{}", listener.local_addr().expect("addr"));
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.expect("accept");
+            let request = read_http_request(&mut socket).await;
+            assert!(request.contains("\"work_state_changes\":["));
+            assert!(request.contains("\"input_id\":\"app\""));
+            assert!(request.contains("\"state\":\"paused\""));
+            let response =
+                "HTTP/1.1 202 Accepted\r\ncontent-length: 0\r\nconnection: close\r\n\r\n";
+            socket.write_all(response.as_bytes()).await.expect("write");
+        });
+
+        let mut config = test_config();
+        config.control_plane.endpoint = Some(endpoint);
+        let changes = Some(vec![wist_contracts::gateway::AgentWorkStateChange {
+            input_id: "app".to_string(),
+            state: wist_contracts::gateway::AgentWorkState::Paused,
+            reason: "spool over limit".to_string(),
+            at: "now".to_string(),
+        }]);
+        let latency = report_status_to_control_plane(&config, Some(12.5), Some(3), changes).await;
         server.await.expect("server task");
         assert!(latency.is_some());
     }
@@ -685,7 +794,7 @@ mod tests {
     async fn report_status_skips_when_not_enrolled() {
         let mut config = test_config();
         config.control_plane.bearer_token = None;
-        let latency = report_status_to_control_plane(&config, None, None).await;
+        let latency = report_status_to_control_plane(&config, None, None, None).await;
         assert!(latency.is_none());
     }
 

@@ -7,13 +7,21 @@ use wist_center::infra::{FileStore, PgStore, Store};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let config = wist_center::config::CenterConfig::load_from_env()?;
+    let config =
+        wist_center::config::CenterConfig::load_from_env().map_err(|err| err.into_boxed_std())?;
     // 开发期配置 WARP_INSIGHT_CENTER_DATABASE_URL → PostgreSQL；未配置 → JSON 文件回退。
     let store: Arc<dyn Store> = match &config.database_url {
-        Some(database_url) => Arc::new(PgStore::connect(database_url).await?),
+        Some(database_url) => Arc::new(
+            PgStore::connect(database_url)
+                .await
+                .map_err(|err| err.into_boxed_std())?,
+        ),
         None => Arc::new(FileStore::new(config.store_path.clone())),
     };
-    store.seed(&config.gateway_credentials).await?;
+    store
+        .seed(&config.gateway_credentials)
+        .await
+        .map_err(|err| err.into_boxed_std())?;
     let addr = config.listen_addr.clone();
     let app = wist_center::api::router(config, store);
     let listener = tokio::net::TcpListener::bind(&addr).await?;

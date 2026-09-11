@@ -19,7 +19,7 @@ use insight_control::{
     GatewayRuntimeStatus, GlobalPolicyDispatch, UpgradeStep, UpgradeTarget,
 };
 
-use crate::infra::{StoreError, StoredGateway, UpgradePlanRecord};
+use crate::infra::{StoreReason, StoredGateway, UpgradePlanRecord};
 
 use super::{
     admin_auth::require_admin_bearer, build_control_center_trust_bundle,
@@ -99,7 +99,11 @@ pub async fn admin_create_gateway_instance(
             Err(reason) => return (StatusCode::INTERNAL_SERVER_ERROR, reason).into_response(),
         },
     };
-    match state.store.create_gateway(gateway_id, &bootstrap_token).await {
+    match state
+        .store
+        .create_gateway(gateway_id, &bootstrap_token)
+        .await
+    {
         Ok(stored) => {
             let init_endpoint = format!(
                 "{}/api/v1/gateway/initial-config?instance_id={}",
@@ -153,7 +157,7 @@ pub async fn admin_create_gateway_instance(
             )
                 .into_response()
         }
-        Err(StoreError::Conflict(_)) => (
+        Err(err) if err.reason() == &StoreReason::Conflict => (
             StatusCode::CONFLICT,
             format!("gateway {gateway_id} already exists"),
         )
@@ -746,7 +750,7 @@ pub async fn admin_approve_upgrade_plan(
         .await
     {
         Ok(plan) => Json(plan).into_response(),
-        Err(StoreError::Conflict(_)) => (
+        Err(err) if err.reason() == &StoreReason::Conflict => (
             StatusCode::NOT_FOUND,
             format!("upgrade plan {} not found", request.plan_id),
         )
@@ -1623,7 +1627,6 @@ mod tests {
             );
         }
     }
-
 }
 
 /// 下发全局策略（DispatchGlobalPolicyFlow）：记录一次全局策略下发回执。
@@ -1640,9 +1643,7 @@ pub async fn admin_dispatch_global_policy(
     Json(GlobalPolicyDispatch {
         dispatch_id: format!(
             "policy-{}",
-            chrono::Utc::now()
-                .timestamp_nanos_opt()
-                .unwrap_or_default()
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()
         ),
         policy_version: input.policy_version,
         target_count: input.gateway_ids.len() as i64,
@@ -1666,9 +1667,7 @@ pub async fn admin_dispatch_agent_fleet_command(
     Json(AgentFleetDispatchReceipt {
         dispatch_id: format!(
             "fleet-{}",
-            chrono::Utc::now()
-                .timestamp_nanos_opt()
-                .unwrap_or_default()
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()
         ),
         command_kind: input.command_kind,
         target_count: input.agent_ids.len() as i64,

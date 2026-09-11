@@ -40,22 +40,24 @@ pub(crate) fn inspect_running_state(
     ))
 }
 
-pub(crate) fn handle_expired_running_state(
+pub(crate) async fn handle_expired_running_state_async(
     state: &mut running::RunningExecutionState,
     running_path: &Path,
 ) -> io::Result<bool> {
-    force_stop_expired_process(state, running_path)
+    force_stop_expired_process_async(state, running_path).await
 }
 
-pub(crate) fn record_signal_request(
+pub(crate) async fn record_signal_request_async(
     running_path: &Path,
     kind: SignalRequestKind,
 ) -> io::Result<()> {
-    if !running_path.exists() {
-        return Ok(());
+    match tokio::fs::metadata(running_path).await {
+        Ok(_) => {}
+        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(err) => return Err(err),
     }
 
-    let mut state = running::load(running_path)?;
+    let mut state = running::load_async(running_path).await?;
     let requested_at = now_rfc3339();
     match kind {
         SignalRequestKind::Cancel => {
@@ -70,7 +72,7 @@ pub(crate) fn record_signal_request(
         }
     }
     state.updated_at = requested_at;
-    running::store(running_path, &state)
+    running::store_async(running_path, &state).await
 }
 
 pub(crate) fn deadline_has_elapsed(deadline_at: Option<&str>) -> bool {
@@ -83,7 +85,7 @@ pub(crate) fn deadline_has_elapsed(deadline_at: Option<&str>) -> bool {
     deadline <= OffsetDateTime::now_utc()
 }
 
-fn force_stop_expired_process(
+async fn force_stop_expired_process_async(
     state: &mut running::RunningExecutionState,
     running_path: &Path,
 ) -> io::Result<bool> {
@@ -92,14 +94,12 @@ fn force_stop_expired_process(
     };
     match process_identity_state(pid, state.process_identity.as_deref())? {
         ProcessIdentityState::MissingProcess | ProcessIdentityState::Mismatch => return Ok(false),
-        // Identity became unreadable after spawn. Stay blocked rather than recovering or
-        // signaling a process we can no longer verify belongs to this execution.
         ProcessIdentityState::Unavailable => return Ok(true),
         ProcessIdentityState::Matches => {}
     }
 
-    record_signal_request(running_path, SignalRequestKind::Kill)?;
-    state.kill_requested_at = running::load(running_path)?.kill_requested_at;
+    record_signal_request_async(running_path, SignalRequestKind::Kill).await?;
+    state.kill_requested_at = running::load_async(running_path).await?.kill_requested_at;
     force_kill(pid)
 }
 

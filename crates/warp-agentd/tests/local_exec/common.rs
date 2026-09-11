@@ -170,6 +170,11 @@ pub(crate) fn standalone_config_with_file_input(
                 multiline_mode: "none".to_string(),
             }],
             file_inputs_file: None,
+            max_line_bytes: 1_048_576,
+            max_read_bytes_per_tick: 4_194_304,
+            max_lines_per_tick: 4096,
+            spool_max_bytes: 268_435_456,
+            spool_over_limit: "pause".to_string(),
             in_memory_buffer_bytes: 1_048_576,
             spool_dir: root
                 .join("state")
@@ -200,6 +205,11 @@ pub(crate) fn standalone_config_with_file_inputs(
         logs: LogsSection {
             file_inputs,
             file_inputs_file: None,
+            max_line_bytes: 1_048_576,
+            max_read_bytes_per_tick: 4_194_304,
+            max_lines_per_tick: 4096,
+            spool_max_bytes: 268_435_456,
+            spool_over_limit: "pause".to_string(),
             in_memory_buffer_bytes: 1_048_576,
             spool_dir: root
                 .join("state")
@@ -238,6 +248,11 @@ pub(crate) fn standalone_config_with_tcp_file_input(
                 multiline_mode: "none".to_string(),
             }],
             file_inputs_file: None,
+            max_line_bytes: 1_048_576,
+            max_read_bytes_per_tick: 4_194_304,
+            max_lines_per_tick: 4096,
+            spool_max_bytes: 268_435_456,
+            spool_over_limit: "pause".to_string(),
             in_memory_buffer_bytes: 1_048_576,
             spool_dir: root
                 .join("state")

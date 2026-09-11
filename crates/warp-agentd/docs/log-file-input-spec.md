@@ -369,6 +369,15 @@ LineBufferConfig {
 - `skip_long_lines`
 - `skip_empty_lines`
 
+**v1 决策（长行保护）**：超长行采用「**截断提交 + 计数**」——
+
+- `max_line_bytes`（默认 1 MiB）：单行超过上限时按上限截断后作为一条记录提交，不阻塞读取、不丢后续行；
+- 固定 `truncate_long_lines = true`、`skip_long_lines = false`；
+- 每次截断累加计数 `agent_log_lines_truncated_total`，并在状态变化时告警一次；
+- 目的：避免“无换行大文件”把内存拖垮或让读取永久不推进。
+
+> 精确边界语义（行边界结算、恰等于上限不截断、EOF 截断提交、分块回放等）见 §7.6。
+
 ### 7.4 `checkpoint`
 
 ```text
@@ -411,6 +420,81 @@ FileLogBuffering {
 - `static_batch_size`
 - `event_batch_size`
 
+**v1 决策（spool 超限）**：spool（落盘待发队列，见 [`telemetry/spool`]）必须有上限；
+超限时「**暂停采集 + 告警**」——保完整、不丢数据：
+
+```text
+FileLogBuffering {
+  mem_buf_limit_bytes?
+  static_batch_size_bytes?
+  event_batch_size_bytes?
+  spool_max_bytes?             # 全局 spool 上限
+  spool_over_limit = "pause"   # pause（默认）| drop_oldest（显式备选，非默认）
+}
+```
+
+超限（`pause`）语义：
+
+1. 停止读取新行与 checkpoint 推进（已读未发数据留在 spool，源文件继续增长，恢复后从 checkpoint 续读）；
+2. spool 保持不动，继续按 tick 回放；回放到低水位后**自动恢复**采集；
+3. 进入/退出该状态各产生一次**工作状态通知**（work-state notification，非告警/非失败）并**上报**；
+   状态与原因可被自观测读取（见 §7.6）；
+4. 若期间源文件被系统轮转/清理掉，属于系统侧行为，agent 不再保证该部分（见 §12）。
+
+### 7.6 边界语义与实现一致性（v1 实现，已由 5 轮 review 固化）
+
+本节把 §7.3 / §7.5 的意图收敛成**可测试的精确语义**，与
+`telemetry/logs/files/{file_reader,file}.rs`、`telemetry/spool.rs` 的实现一致。
+
+**读取预算（`max_read_bytes_per_tick` / `max_lines_per_tick`）**
+
+- 预算与行数只在**行边界**结算：`line_consumed == 0` 时才可能因预算停读；
+- **行内不因预算中断**——单行可能超过 `max_read_bytes_per_tick`，但绝不会被切成两半；
+  否则「行长 > 预算且跨多个缓冲块」会让每轮从行首重读、`committed_end_offset` 永不前进（已修，见下表）；
+- 停读点保证下次从**行首**续读（`committed_end_offset` 落在行边界）。
+
+**截断（`max_line_bytes`）**
+
+- 只提交**完整行**；文件尾部的半行不提交（下次继续）；
+- 单行**恰等于** `max_line_bytes`：不截断；**超出**即截断提交（保留前 `max_line_bytes`），
+  跳过该行剩余到行尾后原子提交，并计入 `truncated_lines`；
+- 截断行的 `end_offset` 指向**真实行尾**（checkpoint 不会卡住）；到 EOF 无换行时也提交截断行；
+- `ReadLimits` 对上限做 `max(1)` 夹取，避免 0 预算导致零推进。
+
+**背压 / 暂停（`spool_max_bytes` / `spool_over_limit`）**
+
+- 触发：回放（replay）失败**且** `spool_bytes >= spool_max_bytes`（含恰好相等）；
+- **回放优先**：只要 sink 能回放成功，即使 spool 已超限也先回放清空，不进入暂停；
+- 暂停/恢复是**工作状态变化（work-state notification）**，不是告警、不是失败；
+  命名不能用 “告警”。进入与退出（恢复）是同一类通知的两个事件：`paused` / `resumed`；
+- 暂停期间：不读源、不推进 checkpoint、`spool` 保持不变；回放至清空后**自动恢复**；
+- **应上报**：进入/退出各产生一次工作状态通知并上报（不能只落本地日志）；
+  接收方与通道见 [`development-plan.md`](./development-plan.md) §W1「待办（follow-up）」。
+- 当前 v1 实现：仅经 `ProcessOutcomeKind::SpoolPaused` 暴露，作为 `SpoolPaused` 事件走
+  既有失败缓存（`filter_new_failures`）去重后 `eprintln`——**仅本地输出、尚未上报，且仅覆盖“进入”**；
+  这属于待补，不是最终形态。
+- `drop_oldest` 可配置，但 **v1 仅实现 `pause` 语义**（保完整优先），未实现按优先级丢弃。
+
+**配置校验**
+
+- `spool_over_limit ∈ {pause, drop_oldest}`，否则 `invalid_logs_spool_over_limit`；
+- `max_line_bytes` / `max_read_bytes_per_tick` / `max_lines_per_tick` / `spool_max_bytes`
+  必须 > 0，否则分别返回 `invalid_logs_max_line_bytes` / `invalid_logs_max_read_bytes_per_tick` /
+  `invalid_logs_max_lines_per_tick` / `invalid_logs_spool_max_bytes`（避免 0 值造成永久暂停或零预算）。
+
+**review 固化的缺陷与修复（与用例对应）**
+
+| # | 问题 | 类型 | 修复 | 测试 |
+|---|---|---|---|---|
+| 1 | 行长 > 预算且跨缓冲块时每轮从行首重读、永不推进 | 缺陷 | 预算只在行边界结算 | `long_line_larger_than_read_budget_still_completes`、`line_over_read_budget_is_delivered_without_loss` |
+| 2 | （无新缺陷）分块/预算在 Processor 层行为 | 验证 | — | `chunked_read_by_max_lines_advances_checkpoint_each_tick_without_loss`、`resumes_from_line_start_after_byte_budget_stop` |
+| 3 | （无新缺陷）截断边界语义 | 验证 | — | `line_exactly_at_max_line_bytes_is_not_truncated`、`line_one_byte_over_max_line_bytes_is_truncated_and_counted`、`truncated_line_without_trailing_newline_is_committed_at_eof`、`multiple_truncated_lines_are_each_counted`、`truncated_long_line_with_small_budget_still_completes`、`read_limits_clamp_zero_to_one_and_still_make_progress` |
+| 4 | （无新缺陷）背压边界（相等即暂停、健康即回放） | 验证 | — | `spool_exactly_at_limit_pauses`、`spool_over_limit_with_healthy_sink_replays_without_pausing` |
+| 5 | 上限为 `0` 被接受 → 永久暂停 / 零预算 | 健壮性 | 上限非零校验 | `config_with_zero_{spool_max_bytes,max_line_bytes,max_read_bytes_per_tick,max_lines_per_tick}_is_rejected`、`config_with_drop_oldest_spool_over_limit_is_accepted` |
+
+> 表中「工作状态通知的上报」「`drop_oldest`」两项已登记为待办，见
+> [`development-plan.md`](./development-plan.md) §W1「待办（follow-up）」。
+
 ---
 
 ## 8. 本地状态与 checkpoint
@@ -438,6 +522,9 @@ checkpoint 不能在“刚读到文件内容”时立即推进。
 - 若启用了 spool，则以 durable spool 接纳成功为 `commit point`
 - 若未启用 spool，则以 input 认可的本地 buffer 安全接纳点作为 `commit point`
 - 之后再推进 checkpoint
+
+**序号（`seq`）持久化**：每个 input 维护单调递增的 `next_seq`，**与 checkpoint 同一次原子写提交**（见 §11.1.1）；
+重启后从 state 续号，同 input 内不回退。
 
 这样可以保证：
 
@@ -562,6 +649,29 @@ multiline 组装必须受以下限制：
 - `source.file_id`
 - `source.device_id`
 - `source.inode`
+- **`seq`（序号，v1 必须）**：per-input 单调递增 `u64`，用于下游去重与缺口检测
+
+### 11.1.1 `seq` 与去重规则（v1 已决：方案 B）
+
+**为什么不用 offset 单键**：truncate 后 offset 会复用、文件被替换但路径不变，旧键会把新数据误判为重复。
+
+**`seq` 定义**：
+
+- 粒度：`per input_id`；形态：`u64` 单调递增；
+- 分配：记录生成时取号；**`next_seq` 与 checkpoint 同文件、同一次原子写**（checkpoint 推进时一并提交）；
+- 重启：从 state 续号；同 input 内**只要求不回退**（不要求连续）。
+
+**上送帧**：在信封中新增 `seq`（与 `input_id`/`source_path`/`file_offset`/`file_offset_end` 并列），原文仍在 `RAW:` 之后。
+
+**下游去重（数据面规则，按优先级）**：
+
+1. 主键 `(agent_id, input_id, seq)` → 命中即丢弃；
+2. 辅助判据 `(agent_id, input_id, file_id, offset_start, offset_end)` → `seq` 不同但位置完全相同判为重复；
+   > 原因：崩溃窗口内“已 spool、未提交 `next_seq`”的记录重读时会重新取号：同一行会出现 **`seq` 不同、位置相同**的重复。
+3. **世代隔离**：`file_id`（`dev:ino`，不可得时用 fingerprint）变化（truncate / 轮转 / 文件替换）后，
+   位置判据只在同一 `file_id` 内有效；跨世代一律以 `seq` 为准，避免 offset 复用导致的误丢弃。
+
+**缺口检测**：同 `(input_id, file_id)` 内 `seq` 不连续即为可疑丢行，可上报告警（与 `agent_log_records_dropped_total` 关联）。
 
 ### 11.2 resource binding
 
@@ -605,8 +715,8 @@ multiline 组装必须受以下限制：
 
 - 每文件独立读取 buffer 上限
 - 每 input 级 `mem_buf_limit_bytes`
-- 全局 telemetry queue / spool 上限
-- 长行跳过或截断策略
+- 全局 telemetry queue / spool 上限（超限**暂停采集 + 告警**，不丢数据）
+- 长行**截断提交 + 计数**（见 §7.3 `max_line_bytes`）
 - 当进入 `degraded` / `protect` 时降低扫描和读取强度
 
 ### 12.2 退化顺序
@@ -617,7 +727,8 @@ multiline 组装必须受以下限制：
 2. 暂停低优先级 input 的新文件发现
 3. 减少单轮静态文件批处理量
 4. 限制 multiline 暂存
-5. 在达到硬上限时按 input 优先级丢弃，并记录原因
+5. 达到 spool 硬上限时**暂停该 input 采集并告警**（保完整，不丢数据）；
+   仅当显式配置 `spool_over_limit = "drop_oldest"` 时才按 input 优先级丢弃，并记录原因
 
 ### 12.3 与 Fluent Bit 对标
 
@@ -700,3 +811,8 @@ multiline 组装必须受以下限制：
 - 配置、checkpoint、rotate、multiline、budget 必须一起设计，不能拆成零散补丁
 - `file.tail` 不能替代常驻文件日志采集
 - `M4` 先落受控单路径替代切片，`M8` 再扩展为通用 `file input` runtime
+- **长行策略**固定为“截断提交 + 计数”（`max_line_bytes`，默认 1 MiB，见 §7.3）
+- **spool 有上限，超限策略**固定为“暂停采集 + 告警”（保完整，见 §7.5/§12）；`drop_oldest` 仅为显式备选
+- **交付语义**为 at-least-once（可能重复、不丢）：spool 接纳成功即推进 checkpoint；去重采用**方案 B**：
+  per-input `seq`（`next_seq` 与 checkpoint 同次原子写）+ 下游组合键去重（见 §11.1.1）
+- **源日志默认不清理**（只读采集）：轮转/清理交给系统或中心策略；agent 自身的 spool 与本地输出必须有界并轮转

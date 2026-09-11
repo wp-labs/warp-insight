@@ -1,6 +1,9 @@
 // WarpInsightCenter 运行配置（env 驱动）。
 
-use std::{env, error, fmt, path::PathBuf};
+use std::{env, path::PathBuf};
+
+use orion_error::conversion::ToStructError;
+use wist_error::{ConfigError, ConfigReason};
 
 use crate::infra::sha256_hex;
 
@@ -87,14 +90,12 @@ pub struct GatewayCredentialSeed {
 
 impl CenterConfig {
     pub fn load_from_env() -> Result<Self, ConfigError> {
-        let listen_addr =
-            env::var(ENV_LISTEN).unwrap_or_else(|_| DEFAULT_LISTEN.to_string());
+        let listen_addr = env::var(ENV_LISTEN).unwrap_or_else(|_| DEFAULT_LISTEN.to_string());
         let store_path = PathBuf::from(
             env::var(ENV_STORE_PATH).unwrap_or_else(|_| DEFAULT_STORE_PATH.to_string()),
         );
-        let gateway_credentials = parse_gateway_credentials(
-            &env::var(ENV_GATEWAY_CREDENTIALS).unwrap_or_default(),
-        )?;
+        let gateway_credentials =
+            parse_gateway_credentials(&env::var(ENV_GATEWAY_CREDENTIALS).unwrap_or_default())?;
         let admin_token = env::var(ENV_ADMIN_TOKEN)
             .ok()
             .filter(|value| !value.trim().is_empty());
@@ -104,10 +105,10 @@ impl CenterConfig {
         // 有值 → 状态上报推送 VictoriaMetrics；未设置/空 → 不启用时序推送。
         let victoriametrics_url = parse_optional_env_url(ENV_VICTORIAMETRICS_URL);
         // 有值 → 用配置的对外地址/镜像；空 → 默认值。
-        let public_url = env::var(ENV_PUBLIC_URL)
-            .unwrap_or_else(|_| DEFAULT_PUBLIC_URL.to_string());
-        let gateway_image = env::var(ENV_GATEWAY_IMAGE)
-            .unwrap_or_else(|_| DEFAULT_GATEWAY_IMAGE.to_string());
+        let public_url =
+            env::var(ENV_PUBLIC_URL).unwrap_or_else(|_| DEFAULT_PUBLIC_URL.to_string());
+        let gateway_image =
+            env::var(ENV_GATEWAY_IMAGE).unwrap_or_else(|_| DEFAULT_GATEWAY_IMAGE.to_string());
         let artifact_dir = PathBuf::from(
             env::var(ENV_ARTIFACT_DIR).unwrap_or_else(|_| DEFAULT_ARTIFACT_DIR.to_string()),
         );
@@ -131,29 +132,26 @@ impl CenterConfig {
         // 信任根：从 WARP_INSIGHT_CENTER_CA_CERT_PATH 读取 control-center.pem；
         // 默认 ~/.warpinsight-center/ca/control-center.pem；文件不存在 → None。
         let ca_cert = {
-            let default_path =
-                std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-                    .join(".warpinsight-center")
-                    .join("ca")
-                    .join("control-center.pem");
+            let default_path = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+                .join(".warpinsight-center")
+                .join("ca")
+                .join("control-center.pem");
             let path = env::var(ENV_CA_CERT_PATH)
                 .map(PathBuf::from)
                 .unwrap_or(default_path);
             std::fs::read_to_string(&path).ok()
         };
-        let protocol_version =
-            env::var(ENV_PROTOCOL_VERSION).unwrap_or_else(|_| "1.0".to_string());
+        let protocol_version = env::var(ENV_PROTOCOL_VERSION).unwrap_or_else(|_| "1.0".to_string());
         // RegistToken 派生密钥：生产必须显式配置；未配置 → dev 固定默认值。
-        let hmac_secret = env::var(ENV_HMAC_SECRET).unwrap_or_else(|_| {
-            "dev-center-hmac-secret-change-me".to_string()
-        });
+        let hmac_secret = env::var(ENV_HMAC_SECRET)
+            .unwrap_or_else(|_| "dev-center-hmac-secret-change-me".to_string());
         // 运行期凭据有效期：默认 30 天。
         let credential_ttl_seconds = env::var(ENV_CREDENTIAL_TTL_SECONDS)
             .ok()
             .and_then(|value| value.trim().parse::<i64>().ok())
             .unwrap_or(30 * 24 * 3600);
         if listen_addr.trim().is_empty() {
-            return Err(ConfigError::new("listen addr must not be empty"));
+            return Err(config_validation("listen addr must not be empty"));
         }
         Ok(Self {
             listen_addr,
@@ -185,16 +183,20 @@ fn parse_optional_env_url(key: &str) -> Option<String> {
 /// 解析 `gateway_id:token,gateway_id:token,...`。
 fn parse_gateway_credentials(raw: &str) -> Result<Vec<GatewayCredentialSeed>, ConfigError> {
     let mut seeds = Vec::new();
-    for entry in raw.split(',').map(str::trim).filter(|entry| !entry.is_empty()) {
+    for entry in raw
+        .split(',')
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+    {
         let Some((gateway_id, token)) = entry.split_once(':') else {
-            return Err(ConfigError::new(format!(
+            return Err(config_validation(format!(
                 "invalid gateway credential entry {entry:?}: expected gateway_id:token"
             )));
         };
         let gateway_id = gateway_id.trim();
         let token = token.trim();
         if gateway_id.is_empty() || token.is_empty() {
-            return Err(ConfigError::new(format!(
+            return Err(config_validation(format!(
                 "invalid gateway credential entry {entry:?}: gateway_id and token must not be empty"
             )));
         }
@@ -207,22 +209,9 @@ fn parse_gateway_credentials(raw: &str) -> Result<Vec<GatewayCredentialSeed>, Co
     Ok(seeds)
 }
 
-#[derive(Debug, Clone)]
-pub struct ConfigError(String);
-
-impl ConfigError {
-    fn new(message: impl Into<String>) -> Self {
-        Self(message.into())
-    }
+fn config_validation(message: impl Into<String>) -> ConfigError {
+    ConfigReason::Validation.to_err().with_detail(message)
 }
-
-impl fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl error::Error for ConfigError {}
 
 #[cfg(test)]
 mod tests {

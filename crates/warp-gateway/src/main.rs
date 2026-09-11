@@ -28,17 +28,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if args.first().map(String::as_str) == Some("init-config") {
         return init_config_command(args.get(1).map(String::as_str));
     }
-    let config = warp_gateway::infra::AdminConfig::load_from_env()?;
+    let config =
+        warp_gateway::infra::AdminConfig::load_from_env().map_err(|err| err.into_boxed_std())?;
     let addr = config.listen_addr.clone();
     let tls_config = warp_gateway::infra::load_admin_tls_config(&config)?;
     let listener = TcpListener::bind(&addr).await?;
     println!("warp-gateway listening on https://{addr}");
-    serve_tls(
-        listener,
-        warp_gateway::api::router(config),
-        tls_config,
-    )
-    .await?;
+    serve_tls(listener, warp_gateway::api::router(config), tls_config).await?;
     Ok(())
 }
 

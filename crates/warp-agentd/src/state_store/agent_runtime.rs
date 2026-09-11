@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 use wist_contracts::state_exec::AgentRuntimeState;
 use wist_contracts::state_exec::RuntimeMode;
 use wist_shared::fs::{read_json, write_json_private_atomic};
+
+use crate::fs_async::{read_json_async, write_json_private_atomic_async};
 use wist_shared::paths::AGENT_RUNTIME_FILE;
 use wist_shared::time::now_rfc3339;
 
@@ -33,6 +35,18 @@ pub fn load_or_default(path: &Path) -> io::Result<AgentRuntimeState> {
 
 pub fn store(path: &Path, state: &AgentRuntimeState) -> io::Result<()> {
     write_json_private_atomic(path, state)
+}
+
+pub async fn load_or_default_async(path: &Path) -> io::Result<AgentRuntimeState> {
+    match tokio::fs::metadata(path).await {
+        Ok(_) => read_json_async(path).await,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(load_default()),
+        Err(err) => Err(err),
+    }
+}
+
+pub async fn store_async(path: &Path, state: &AgentRuntimeState) -> io::Result<()> {
+    write_json_private_atomic_async(path, state).await
 }
 
 fn default_instance_id() -> String {
@@ -72,7 +86,9 @@ fn hostname_from_file() -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{default_instance_id_from_sources, path_for, store};
+    use super::{
+        default_instance_id_from_sources, load_or_default_async, path_for, store, store_async,
+    };
     use std::time::{SystemTime, UNIX_EPOCH};
     use wist_contracts::state_exec::{AgentRuntimeState, RuntimeMode};
 
@@ -135,6 +151,29 @@ mod tests {
         assert_eq!(file_mode, 0o600);
 
         let _ = std::fs::remove_dir_all(state_dir);
+    }
+
+    #[tokio::test]
+    async fn store_and_load_async_round_trip() {
+        let state_dir = std::env::temp_dir().join(format!(
+            "warp-agentd-agent-runtime-async-{}",
+            unique_suffix()
+        ));
+        let path = path_for(&state_dir);
+        let mut state = AgentRuntimeState::new(
+            "agent-a".to_string(),
+            "instance-a".to_string(),
+            "v0.1.0".to_string(),
+            RuntimeMode::Normal,
+            "2026-07-29T00:00:00Z".to_string(),
+        );
+        state.bearer_token = Some("bearer-secret".to_string());
+
+        store_async(&path, &state).await.expect("store");
+        let loaded = load_or_default_async(&path).await.expect("load");
+
+        assert_eq!(loaded, state);
+        let _ = tokio::fs::remove_dir_all(&state_dir).await;
     }
 
     fn unique_suffix() -> u128 {

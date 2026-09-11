@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    error, fmt, fs,
+    fs,
     fs::OpenOptions,
     io,
     io::Write,
@@ -8,7 +8,11 @@ use std::{
     sync::{Arc, Mutex, MutexGuard, OnceLock, Weak},
 };
 
+use orion_error::{conversion::ToStructError, prelude::*};
 use serde::{Deserialize, Serialize};
+
+use insight_control::AgentWorkStateChange;
+use wist_error::StoreReason;
 
 #[derive(Debug, Clone)]
 pub struct AdminStore {
@@ -16,34 +20,7 @@ pub struct AdminStore {
     lock: Arc<Mutex<()>>,
 }
 
-#[derive(Debug)]
-pub enum StoreError {
-    Io(io::Error),
-    Json(serde_json::Error),
-}
-
-impl fmt::Display for StoreError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Io(err) => write!(f, "admin store io error: {err}"),
-            Self::Json(err) => write!(f, "admin store json error: {err}"),
-        }
-    }
-}
-
-impl error::Error for StoreError {}
-
-impl From<io::Error> for StoreError {
-    fn from(value: io::Error) -> Self {
-        Self::Io(value)
-    }
-}
-
-impl From<serde_json::Error> for StoreError {
-    fn from(value: serde_json::Error) -> Self {
-        Self::Json(value)
-    }
-}
+pub use wist_error::StoreError;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -114,6 +91,8 @@ pub struct StoredAgentRegistration {
     /// Rolling window of the most recent reported status samples (newest last).
     #[serde(default)]
     pub metrics_history: Vec<AgentMetricSample>,
+    /// 最近一次状态上报携带的工作状态变化（paused/resumed），非告警/失败。
+    pub work_state_changes: Option<Vec<AgentWorkStateChange>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -178,10 +157,11 @@ impl AdminStore {
     }
 
     fn lock(&self) -> Result<StoreLockGuard<'_>, StoreError> {
-        let process_guard = self
-            .lock
-            .lock()
-            .map_err(|_| StoreError::Io(io::Error::other("admin store lock poisoned")))?;
+        let process_guard = self.lock.lock().map_err(|_| {
+            StoreReason::Io
+                .to_err()
+                .with_detail("admin store lock poisoned")
+        })?;
         let file_guard = FileLockGuard::lock(&lock_file_path(&self.path))?;
         Ok(StoreLockGuard {
             _process_guard: process_guard,
@@ -193,18 +173,19 @@ impl AdminStore {
         if !self.path.exists() {
             return Ok(AdminStoreSnapshot::default());
         }
-        let content = fs::read_to_string(&self.path)?;
+        let content = fs::read_to_string(&self.path).source_err(StoreReason::Io, "read store")?;
         if content.trim().is_empty() {
             return Ok(AdminStoreSnapshot::default());
         }
-        Ok(serde_json::from_str(&content)?)
+        Ok(serde_json::from_str(&content).source_err(StoreReason::Json, "parse store")?)
     }
 
     fn save_snapshot(&self, snapshot: &AdminStoreSnapshot) -> Result<(), StoreError> {
         if let Some(parent) = self.path.parent() {
-            fs::create_dir_all(parent)?;
+            fs::create_dir_all(parent).source_err(StoreReason::Io, "create store dir")?;
         }
-        let content = serde_json::to_string_pretty(snapshot)?;
+        let content = serde_json::to_string_pretty(snapshot)
+            .source_err(StoreReason::Json, "serialize store")?;
         let temp_path = temp_store_path(&self.path);
         let write_result = (|| -> Result<(), StoreError> {
             let mut options = OpenOptions::new();
@@ -214,18 +195,23 @@ impl AdminStore {
                 use std::os::unix::fs::OpenOptionsExt;
                 options.mode(0o600);
             }
-            let mut file = options.open(&temp_path)?;
-            file.write_all(content.as_bytes())?;
-            file.write_all(b"\n")?;
-            file.sync_all()?;
-            fs::rename(&temp_path, &self.path)?;
+            let mut file = options
+                .open(&temp_path)
+                .source_err(StoreReason::Io, "open temp store file")?;
+            file.write_all(content.as_bytes())
+                .source_err(StoreReason::Io, "write store")?;
+            file.write_all(b"\n")
+                .source_err(StoreReason::Io, "write store")?;
+            file.sync_all().source_err(StoreReason::Io, "sync store")?;
+            fs::rename(&temp_path, &self.path).source_err(StoreReason::Io, "rename store")?;
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                fs::set_permissions(&self.path, fs::Permissions::from_mode(0o600))?;
+                fs::set_permissions(&self.path, fs::Permissions::from_mode(0o600))
+                    .source_err(StoreReason::Io, "set store permissions")?;
             }
             if let Some(parent) = self.path.parent() {
-                sync_directory(parent)?;
+                sync_directory(parent).source_err(StoreReason::Io, "sync store dir")?;
             }
             Ok(())
         })();
@@ -293,14 +279,15 @@ struct FileLockGuard {
 impl FileLockGuard {
     fn lock(path: &Path) -> Result<Self, StoreError> {
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
+            fs::create_dir_all(parent).source_err(StoreReason::Io, "create store dir")?;
         }
         let file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(path)?;
-        lock_file_exclusive(&file)?;
+            .open(path)
+            .source_err(StoreReason::Io, "open lock file")?;
+        lock_file_exclusive(&file).source_err(StoreReason::Io, "lock store file")?;
         Ok(Self { file })
     }
 }

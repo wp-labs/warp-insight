@@ -9,7 +9,7 @@ use wist_contracts::discovery::{DiscoveredResource, DiscoveredTarget, DiscoveryO
 use wist_shared::time::now_rfc3339;
 
 use super::host::default_host_id;
-use super::{DiscoveryProbe, DiscoveryProbeError, DiscoverySourceKind, ProbeOutput};
+use super::{DiscoveryError, DiscoveryProbe, DiscoverySourceKind, ProbeOutput};
 
 #[derive(::jumo_derive::Jumo)]
 #[jumo(kind = "struct", domain = "Discovery", module = "Discovery.Probe")]
@@ -28,14 +28,14 @@ impl DiscoveryProbe for EndpointDiscoveryProbe {
         std::time::Duration::from_secs(30)
     }
 
-    fn refresh(&self, _now: std::time::SystemTime) -> Result<ProbeOutput, DiscoveryProbeError> {
+    fn refresh(&self, _now: std::time::SystemTime) -> Result<ProbeOutput, DiscoveryError> {
         let discovered_at = now_rfc3339();
         let host_id = default_host_id();
         let source = self.source().as_str().to_string();
         let observed_at = discovered_at.clone();
         let origin_id = format!("{}:{}:{}", source, self.name(), observed_at);
         let endpoints = discover_service_endpoints().map_err(|err| {
-            DiscoveryProbeError::new(
+            super::probe_failed(
                 self.name(),
                 self.source(),
                 format!("endpoint discovery failed: {err}"),

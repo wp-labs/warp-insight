@@ -3,6 +3,7 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::fs_async::{read_json_async, write_json_atomic_async};
 use serde::{Deserialize, Serialize};
 use wist_contracts::SCHEMA_VERSION_V1;
 use wist_shared::fs::{read_json, write_json_atomic};
@@ -55,4 +56,12 @@ pub fn load(path: &Path) -> io::Result<ExecutionHistoryRecord> {
 
 pub fn store(path: &Path, record: &ExecutionHistoryRecord) -> io::Result<()> {
     write_json_atomic(path, record)
+}
+
+pub async fn load_async(path: &Path) -> io::Result<ExecutionHistoryRecord> {
+    read_json_async(path).await
+}
+
+pub async fn store_async(path: &Path, record: &ExecutionHistoryRecord) -> io::Result<()> {
+    write_json_atomic_async(path, record).await
 }

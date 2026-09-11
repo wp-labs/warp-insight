@@ -3,6 +3,7 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::fs_async::{read_json_async, write_json_atomic_async};
 use serde::{Deserialize, Serialize};
 use wist_contracts::SCHEMA_VERSION_V1;
 use wist_shared::fs::{read_json, write_json_atomic};
@@ -153,6 +154,18 @@ pub fn load_or_default(path: &Path) -> io::Result<ExecutionQueueState> {
 
 pub fn store(path: &Path, state: &ExecutionQueueState) -> io::Result<()> {
     write_json_atomic(path, state)
+}
+
+pub async fn load_or_default_async(path: &Path) -> io::Result<ExecutionQueueState> {
+    match tokio::fs::metadata(path).await {
+        Ok(_) => read_json_async(path).await,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(ExecutionQueueState::new()),
+        Err(err) => Err(err),
+    }
+}
+
+pub async fn store_async(path: &Path, state: &ExecutionQueueState) -> io::Result<()> {
+    write_json_atomic_async(path, state).await
 }
 
 #[cfg(test)]

@@ -4,7 +4,9 @@ pub mod bootstrap;
 pub mod config;
 pub mod control;
 pub mod discovery;
+pub mod error;
 pub mod exec;
+pub(crate) mod fs_async;
 pub mod reporting;
 pub mod runtime;
 pub mod state_store;
@@ -18,6 +20,6 @@ pub use exec::{
 pub use reporting::{exporter, reporting_pipeline};
 pub use runtime::{daemon, scheduler, self_observability};
 
-pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run() -> error::AgentdResult<()> {
     control::run().await
 }

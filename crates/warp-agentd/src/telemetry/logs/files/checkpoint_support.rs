@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::state_store::log_checkpoint_state::{LogCheckpointState, TrackedFileCheckpoint};
 use crate::telemetry::logs::files::file_reader::{
-    ObservedFileIdentity, checkpoint_probe, inspect_path, stable_file_id,
+    ObservedFileIdentity, checkpoint_probe_async, inspect_path_async, stable_file_id_async,
 };
 
 pub(super) fn checkpoint_for_path(
@@ -34,20 +34,20 @@ pub(super) fn relocate_checkpoint_path(
     }
 }
 
-pub(super) fn find_rotated_path(
+pub(super) async fn find_rotated_path_async(
     source_path: &Path,
     previous: &TrackedFileCheckpoint,
 ) -> io::Result<Option<PathBuf>> {
     let Some(parent) = source_path.parent() else {
         return Ok(None);
     };
-    for entry in fs::read_dir(parent)? {
-        let entry = entry?;
+    let mut dir = tokio::fs::read_dir(parent).await?;
+    while let Some(entry) = dir.next_entry().await? {
         let path = entry.path();
         if path == source_path {
             continue;
         }
-        let metadata = entry.metadata()?;
+        let metadata = entry.metadata().await?;
         let device_id = metadata_device_id(&metadata);
         let inode = metadata_inode(&metadata);
         if previous.device_id.is_some()
@@ -57,22 +57,20 @@ pub(super) fn find_rotated_path(
         {
             return Ok(Some(path));
         }
-        if previous.device_id.is_none()
-            && previous.inode.is_none()
-            && previous.fingerprint.as_deref().is_some_and(|fingerprint| {
-                match inspect_path(&path) {
-                    Ok(identity) => identity.fingerprint.as_deref() == Some(fingerprint),
-                    Err(_) => false,
+        if previous.device_id.is_none() && previous.inode.is_none() {
+            if let Some(fingerprint) = previous.fingerprint.as_deref() {
+                if let Ok(identity) = inspect_path_async(&path).await {
+                    if identity.fingerprint.as_deref() == Some(fingerprint) {
+                        return Ok(Some(path));
+                    }
                 }
-            })
-        {
-            return Ok(Some(path));
+            }
         }
     }
     Ok(None)
 }
 
-pub(super) fn upsert_checkpoint(
+pub(super) async fn upsert_checkpoint_async(
     state: &mut LogCheckpointState,
     source_path: &Path,
     identity: &ObservedFileIdentity,
@@ -81,8 +79,9 @@ pub(super) fn upsert_checkpoint(
     rotated_from_path: Option<String>,
 ) {
     let source_path = source_path.display().to_string();
-    let file_id = stable_file_id(Path::new(&source_path), identity);
-    let checkpoint_probe = checkpoint_probe(Path::new(&source_path), checkpoint_offset)
+    let file_id = stable_file_id_async(Path::new(&source_path), identity).await;
+    let checkpoint_probe = checkpoint_probe_async(Path::new(&source_path), checkpoint_offset)
+        .await
         .ok()
         .flatten();
     if let Some(existing) = state.files.iter_mut().find(|entry| {
@@ -114,6 +113,34 @@ pub(super) fn upsert_checkpoint(
         last_commit_point_at: Some(observed_at.to_string()),
         rotated_from_path,
     });
+}
+
+#[cfg(test)]
+pub(super) fn upsert_checkpoint(
+    state: &mut LogCheckpointState,
+    source_path: &Path,
+    identity: &ObservedFileIdentity,
+    checkpoint_offset: u64,
+    observed_at: &str,
+    rotated_from_path: Option<String>,
+) {
+    block_on(upsert_checkpoint_async(
+        state,
+        source_path,
+        identity,
+        checkpoint_offset,
+        observed_at,
+        rotated_from_path,
+    ))
+}
+
+#[cfg(test)]
+fn block_on<T>(future: impl std::future::Future<Output = T>) -> T {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build tokio runtime")
+        .block_on(future)
 }
 
 fn stored_identity_matches(

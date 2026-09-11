@@ -1,7 +1,7 @@
 // Agentd 角色：向 WarpGateWay 上报 Agent 状态 / 动作结果。
 
-use insight_control::{AgentHello, ReportActionResult};
 use insight_control::types::DateTime;
+use insight_control::{AgentHello, ReportActionResult};
 use wist_reporting::{ActionResultContract, ResultAttestation};
 
 use crate::{client, config::SimConfig};
@@ -68,6 +68,7 @@ fn build_agent_hello(config: &SimConfig) -> AgentHello {
         memory_bytes: Some(512 * 1024 * 1024),
         cpu_percent: Some(20.0 + (config.id.len() as f64) * 2.5),
         admin_latency_ms: Some(8),
+        work_state_changes: None,
     }
 }
 
@@ -131,6 +132,7 @@ mod tests {
             fetch_config: false,
             report_agents: false,
             report_action: true,
+            run_dir: None,
         }
     }
 
@@ -142,7 +144,7 @@ mod tests {
         assert_eq!(json["instance_id"], "inst-sim");
         assert_eq!(json["version"], "v0.3.2");
         // 网关 handler 解码 insight_control::AgentHello，字段名即 snake_case。
-        assert!(json["memory_bytes"].is_null());
+        assert_eq!(json["memory_bytes"].as_i64(), Some(512 * 1024 * 1024));
     }
 
     #[test]

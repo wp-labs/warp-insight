@@ -9,6 +9,7 @@ warp-agentd（edge daemon）实现时最重要的设计文档，与全仓设计�
 
 ## 阅读顺序建议
 
+0. [development-plan.md](./development-plan.md) — 开发计划（当前差距 → 批次落地 → 验收标准）
 1. [agentd-architecture.md](./agentd-architecture.md) — daemon 总体架构与边界
 2. [agentd-state-and-boundaries.md](./agentd-state-and-boundaries.md) — 状态与边界
 3. [agentd-state-schema.md](./agentd-state-schema.md) — 本地状态 schema

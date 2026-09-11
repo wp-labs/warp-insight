@@ -67,6 +67,20 @@ pub fn has_records(path: &Path) -> io::Result<bool> {
     block_on_io(has_records_async(path))
 }
 
+/// spool 当前字节数；文件不存在视为 0，用于上限（背压）判断。
+pub async fn size_async(path: &Path) -> io::Result<u64> {
+    match tokio::fs::metadata(path).await {
+        Ok(metadata) => Ok(metadata.len()),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(0),
+        Err(err) => Err(err),
+    }
+}
+
+#[cfg(test)]
+pub fn size(path: &Path) -> io::Result<u64> {
+    block_on_io(size_async(path))
+}
+
 pub async fn replay_records_async<S: RecordSink>(
     path: &Path,
     sink: &mut S,
@@ -152,7 +166,7 @@ mod tests {
 
     use super::{
         append_records, append_records_async, clear, has_records, has_records_async, load_records,
-        replay_records, replay_records_async,
+        replay_records, replay_records_async, size,
     };
     use crate::telemetry::warp_parse::RecordSink;
     use wist_contracts::telemetry_record::TelemetryRecordContract;
@@ -197,6 +211,18 @@ mod tests {
         clear(&path).expect("clear");
 
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn size_is_zero_when_missing_and_bytes_when_present() {
+        let path = temp_file("size");
+
+        assert_eq!(size(&path).expect("size missing"), 0);
+
+        append_records(&path, &[record("a")]).expect("append");
+
+        assert!(size(&path).expect("size present") > 0);
+        fs::remove_file(path).ok();
     }
 
     #[derive(Default)]

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::{
-    ConfigError, default_config_template, ensure_default_config, load_from_path, load_or_init,
+    default_config_template, ensure_default_config, load_from_path, load_or_init,
     resolve_config_path,
 };
 
@@ -255,10 +255,7 @@ default_stderr_limit_bytes = 1048576
     .expect("write config");
 
     let err = load_from_path(&config_path).expect_err("unsupported max running actions");
-    assert!(matches!(
-        err,
-        ConfigError::Validation("unsupported_max_running_actions")
-    ));
+    assert!(err.to_string().contains("unsupported_max_running_actions"));
 }
 
 #[test]
@@ -353,10 +350,7 @@ container_enabled = false
     .expect("write config");
 
     let err = load_from_path(&config_path).expect_err("missing discovery probe");
-    assert!(matches!(
-        err,
-        ConfigError::Validation("missing_discovery_probe")
-    ));
+    assert!(err.to_string().contains("missing_discovery_probe"));
 }
 
 #[test]

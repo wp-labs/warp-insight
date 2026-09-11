@@ -11,12 +11,12 @@ use wist_contracts::action_result::{
     ActionOutputs, ActionResultContract, FinalStatus, StepActionRecord, StepStatus,
 };
 use wist_contracts::state_exec::ExecProgressState;
-use wist_shared::fs::write_json_atomic;
+use crate::fs_async::write_json_atomic_async;
 use wist_shared::paths::WORKDIR_STATE_FILE;
 use wist_shared::time::now_rfc3339;
 
 use crate::local_exec::LocalExecRequest;
-use crate::process_control::{SignalRequestKind, record_signal_request, send_terminate};
+use crate::process_control::{SignalRequestKind, record_signal_request_async, send_terminate};
 
 const STREAM_TRUNCATED_MARKER: &str = "\n[truncated by warp-agentd]\n";
 
@@ -27,7 +27,7 @@ pub(super) enum ExitClassification {
     TimedOut,
 }
 
-pub(super) fn write_timed_out_result(
+pub(super) async fn write_timed_out_result_async(
     request: &LocalExecRequest,
     workdir: &Path,
     result_path: &Path,
@@ -38,15 +38,16 @@ pub(super) fn write_timed_out_result(
         "agentd_total_timeout",
         "timed_out",
     );
-    write_json_atomic(result_path, &result)?;
-    write_exec_state(
+    write_json_atomic_async(result_path, &result).await?;
+    write_exec_state_async(
         workdir,
         &request.execution_id,
         &request.plan.meta.action_id,
         "timed_out",
         Some("agentd_total_timeout".to_string()),
         "agentd timed out execution and synthesized final result",
-    )?;
+    )
+    .await?;
     Ok(result)
 }
 
@@ -70,7 +71,7 @@ pub(super) async fn wait_for_child(
         return Ok(ExitClassification::Completed(status));
     }
 
-    record_signal_request(running_path, SignalRequestKind::Cancel)?;
+    record_signal_request_async(running_path, SignalRequestKind::Cancel).await?;
     if let Some(pid) = child.id()
         && let Err(err) = send_terminate(pid)
     {
@@ -85,7 +86,7 @@ pub(super) async fn wait_for_child(
     match tokio::time::timeout(Duration::from_millis(cancel_grace_ms.max(1)), child.wait()).await {
         Ok(status) => Ok(ExitClassification::CompletedAfterTimeout(status?)),
         Err(_) => {
-            record_signal_request(running_path, SignalRequestKind::Kill)?;
+            record_signal_request_async(running_path, SignalRequestKind::Kill).await?;
             if let Err(err) = child.start_kill() {
                 if child.try_wait()?.is_none() && err.kind() != io::ErrorKind::InvalidInput {
                     return Err(err);
@@ -206,7 +207,7 @@ pub(super) fn synthesize_result(
     }
 }
 
-pub(super) fn write_exec_state(
+pub(super) async fn write_exec_state_async(
     workdir: &Path,
     execution_id: &str,
     action_id: &str,
@@ -215,7 +216,7 @@ pub(super) fn write_exec_state(
     detail: &str,
 ) -> io::Result<()> {
     let state_path = workdir.join(WORKDIR_STATE_FILE);
-    write_json_atomic(
+    write_json_atomic_async(
         &state_path,
         &ExecProgressState {
             execution_id: execution_id.to_string(),
@@ -228,4 +229,5 @@ pub(super) fn write_exec_state(
             detail: Some(detail.to_string()),
         },
     )
+    .await
 }

@@ -31,6 +31,7 @@ pub(super) struct CollectedReadBatch {
     pub(super) pending_multiline: Option<PendingMultilineState>,
     pub(super) checkpoints: Vec<PendingCheckpoint>,
     pub(super) checkpoint_offset: u64,
+    pub(super) truncated_lines: usize,
     pub(super) resume: ResumeDecision,
 }
 
@@ -41,6 +42,7 @@ impl CollectedReadBatch {
             pending_multiline: None,
             checkpoints: Vec::new(),
             checkpoint_offset: 0,
+            truncated_lines: 0,
             resume,
         }
     }

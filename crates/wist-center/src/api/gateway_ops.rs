@@ -16,12 +16,13 @@ use insight_control::{
     GatewayCredentialBundle, GatewayCredentialVerificationResult, GatewayEnrollmentResult,
     GatewayEnrollmentResultReturned, GatewayInitialConfig, GatewayInitializationStatus,
     GatewayInstanceLifecycleState, GatewayStatusAccepted, GatewayStatusAcceptedReturned,
-    QueryGatewayInitializationStatus, RegisterGateway, ReportGatewayStatus, VerifyGatewayCredential,
+    QueryGatewayInitializationStatus, RegisterGateway, ReportGatewayStatus,
+    VerifyGatewayCredential,
 };
 
 use crate::infra::{
     derive_regist_token, new_secret_token, sha256_hex, EnrollmentTokenIssue, GatewayStatusUpdate,
-    StoreError, StoredAgent, StoredGateway, StoredGatewayCredentialStatus,
+    StoreReason, StoredAgent, StoredGateway, StoredGatewayCredentialStatus,
 };
 
 use super::{build_control_center_trust_bundle, control_center_tls_required, rate_limit, ApiState};
@@ -171,8 +172,12 @@ pub async fn register_gateway(
         .await
     {
         Ok(token) => token,
-        Err(StoreError::Enrollment(reason)) => {
+        Err(err) if err.reason() == &StoreReason::Enrollment => {
             rate_limit::record_auth_failure(&state, &client_key, GATEWAY_REGISTER_SCOPE);
+            let reason = err
+                .detail()
+                .as_deref()
+                .unwrap_or("enrollment token rejected");
             return (
                 StatusCode::UNAUTHORIZED,
                 format!("enrollment token rejected: {reason}"),
@@ -218,7 +223,11 @@ pub async fn register_gateway(
         };
     let updated = state
         .store
-        .update_gateway_credential(&consumed.gateway_id, &credential_hash, credential_expires_at)
+        .update_gateway_credential(
+            &consumed.gateway_id,
+            &credential_hash,
+            credential_expires_at,
+        )
         .await
         .unwrap_or(false);
     if !updated {
@@ -324,7 +333,11 @@ pub async fn get_gateway_initial_config(
     // 未初始化 → 置备路径。
     if gateway.credential_token_hash.is_empty() && !gateway.bootstrap_token_hash.is_empty() {
         return provision_gateway_initial_config(
-            &state, &headers, instance_id, &gateway, &client_key,
+            &state,
+            &headers,
+            instance_id,
+            &gateway,
+            &client_key,
         )
         .await;
     }
@@ -339,7 +352,8 @@ pub async fn get_gateway_initial_config(
                 .flatten()
                 .map(|token| token.token_id)
                 .unwrap_or_default();
-            let config = build_initial_config_json(&state, &gateway, instance_id, &enrollment_token_id);
+            let config =
+                build_initial_config_json(&state, &gateway, instance_id, &enrollment_token_id);
             Json(InitialConfigReturned {
                 config,
                 regist_token: None,
@@ -403,7 +417,11 @@ async fn provision_gateway_initial_config(
         }
     };
     // 成功落库 RegistToken 后才消费 bootstrap（一次性；网络抖动可重试置备）。
-    match state.store.consume_bootstrap_token(instance_id, bootstrap_token).await {
+    match state
+        .store
+        .consume_bootstrap_token(instance_id, bootstrap_token)
+        .await
+    {
         Ok(true) => {}
         Ok(false) => {
             return (
@@ -533,14 +551,16 @@ pub async fn renew_gateway_credential(
     let client_key = rate_limit::client_key(client);
     match authenticate_gateway(&state, &headers, &input.gateway_id, &client_key).await {
         Ok(_) => {
-            let (bundle, credential_hash, credential_expires_at) =
-                match issue_runtime_credential(&state.config, &input.gateway_id, &input.instance_id)
-                {
-                    Ok(issued) => issued,
-                    Err(reason) => {
-                        return (StatusCode::INTERNAL_SERVER_ERROR, reason).into_response();
-                    }
-                };
+            let (bundle, credential_hash, credential_expires_at) = match issue_runtime_credential(
+                &state.config,
+                &input.gateway_id,
+                &input.instance_id,
+            ) {
+                Ok(issued) => issued,
+                Err(reason) => {
+                    return (StatusCode::INTERNAL_SERVER_ERROR, reason).into_response();
+                }
+            };
             let updated = state
                 .store
                 .update_gateway_credential(
@@ -902,7 +922,11 @@ mod tests {
         assert_eq!(returned.result.instance_id, "inst-1");
         // 注册后签发独立运行期凭据（RUNTIME_TOKEN）：随机 bearer + 过期时间。
         let bundle = &returned.result.credential_bundle;
-        assert!(bundle.bearer_token.starts_with("wic_"), "runtime token: {}", bundle.bearer_token);
+        assert!(
+            bundle.bearer_token.starts_with("wic_"),
+            "runtime token: {}",
+            bundle.bearer_token
+        );
         assert_eq!(bundle.auth_scheme, "bearer");
         assert_eq!(bundle.gateway_id, "gw-001");
         assert_eq!(bundle.instance_id, "inst-1");
@@ -998,7 +1022,10 @@ mod tests {
             .get(header::CONTENT_TYPE)
             .and_then(|value| value.to_str().ok())
             .unwrap_or_default();
-        assert!(content_type.contains("application/json"), "content-type: {content_type}");
+        assert!(
+            content_type.contains("application/json"),
+            "content-type: {content_type}"
+        );
         let body = response
             .into_body()
             .collect()
@@ -1009,9 +1036,15 @@ mod tests {
         // 派生 RegistToken 通过 JSON 响应的 regist_token 字段返回。
         let expected_regist =
             crate::infra::derive_regist_token("test-hmac-secret", "gw-p", "identity-p");
-        assert_eq!(returned.regist_token.as_deref(), Some(expected_regist.as_str()));
+        assert_eq!(
+            returned.regist_token.as_deref(),
+            Some(expected_regist.as_str())
+        );
         assert!(!returned.config.server_tls_required);
-        assert!(returned.config.enrollment_token_id.starts_with("enroll-gw-p"));
+        assert!(returned
+            .config
+            .enrollment_token_id
+            .starts_with("enroll-gw-p"));
 
         // bootstrap 一次性：置备成功后复用 → 401（已消费，且无运行期凭据）。
         let response = app
@@ -1247,7 +1280,12 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(response.status(), StatusCode::OK);
-        let body = response.into_body().collect().await.expect("body").to_bytes();
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("body")
+            .to_bytes();
         let status: GatewayInitializationStatus = serde_json::from_slice(&body).expect("json");
         assert_eq!(status.gateway_id, "gw-p");
         assert_eq!(
@@ -1271,7 +1309,12 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(response.status(), StatusCode::OK);
-        let body = response.into_body().collect().await.expect("body").to_bytes();
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("body")
+            .to_bytes();
         let status: GatewayInitializationStatus = serde_json::from_slice(&body).expect("json");
         assert_eq!(
             status.lifecycle_state,

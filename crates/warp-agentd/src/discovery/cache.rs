@@ -3,6 +3,10 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
+use orion_error::prelude::*;
+
+use crate::error::{DiscoveryReason, DiscoveryResult};
+use crate::fs_async::{read_json_async, write_json_atomic_async};
 use wist_contracts::discovery::{DiscoveryCacheMeta, DiscoverySnapshotContract};
 use wist_shared::fs::{read_json, write_json_atomic};
 
@@ -125,7 +129,7 @@ pub fn store_snapshot(
     snapshot: &DiscoverySnapshotContract,
     last_success_at: Option<&str>,
     last_error: Option<String>,
-) -> io::Result<()> {
+) -> DiscoveryResult<()> {
     let meta = DiscoveryCacheMeta::new(
         snapshot.snapshot_id.clone(),
         snapshot.revision,
@@ -134,9 +138,152 @@ pub fn store_snapshot(
         last_success_at.map(str::to_string),
         last_error,
     );
-    write_json_atomic(&paths.resources, &snapshot.resources)?;
-    write_json_atomic(&paths.targets, &snapshot.targets)?;
+    write_json_atomic(&paths.resources, &snapshot.resources)
+        .source_err(DiscoveryReason::CacheIo, "write discovery resources")?;
+    write_json_atomic(&paths.targets, &snapshot.targets)
+        .source_err(DiscoveryReason::CacheIo, "write discovery targets")?;
     write_json_atomic(&paths.meta, &meta)
+        .source_err(DiscoveryReason::CacheIo, "write discovery meta")
+}
+
+pub async fn load_snapshot_async(
+    paths: &DiscoveryCachePaths,
+) -> (
+    Option<DiscoverySnapshotContract>,
+    Option<DiscoveryCacheLoadFailure>,
+) {
+    let (meta_exists, meta_err) = metadata_exists(&paths.meta, "cache_load_meta").await;
+    if let Some(failure) = meta_err {
+        return (None, Some(failure));
+    }
+    let (resources_exists, resources_err) =
+        metadata_exists(&paths.resources, "cache_load_resources").await;
+    if let Some(failure) = resources_err {
+        return (None, Some(failure));
+    }
+    let (targets_exists, targets_err) = metadata_exists(&paths.targets, "cache_load_targets").await;
+    if let Some(failure) = targets_err {
+        return (None, Some(failure));
+    }
+    if !meta_exists || !resources_exists || !targets_exists {
+        return (None, None);
+    }
+
+    let meta: DiscoveryCacheMeta = match read_json_async(&paths.meta).await {
+        Ok(meta) => meta,
+        Err(err) => {
+            return (
+                None,
+                Some(DiscoveryCacheLoadFailure {
+                    phase: "cache_load_meta",
+                    detail: format!("discovery cache load failed: {err}"),
+                }),
+            );
+        }
+    };
+    let resources = match read_json_async(&paths.resources).await {
+        Ok(resources) => resources,
+        Err(err) => {
+            return (
+                None,
+                Some(DiscoveryCacheLoadFailure {
+                    phase: "cache_load_resources",
+                    detail: format!("discovery cache load failed: {err}"),
+                }),
+            );
+        }
+    };
+    let targets = match read_json_async(&paths.targets).await {
+        Ok(targets) => targets,
+        Err(err) => {
+            return (
+                None,
+                Some(DiscoveryCacheLoadFailure {
+                    phase: "cache_load_targets",
+                    detail: format!("discovery cache load failed: {err}"),
+                }),
+            );
+        }
+    };
+    (
+        Some(DiscoverySnapshotContract {
+            schema_version: meta.schema_version,
+            snapshot_id: meta.snapshot_id,
+            revision: meta.revision,
+            generated_at: meta.generated_at,
+            origins: meta.origins,
+            resources,
+            targets,
+        }),
+        None,
+    )
+}
+
+pub async fn load_meta_async(
+    paths: &DiscoveryCachePaths,
+) -> (
+    Option<DiscoveryCacheMeta>,
+    Option<DiscoveryCacheLoadFailure>,
+) {
+    let (meta_exists, meta_err) = metadata_exists(&paths.meta, "cache_load_meta").await;
+    if let Some(failure) = meta_err {
+        return (None, Some(failure));
+    }
+    if !meta_exists {
+        return (None, None);
+    }
+    match read_json_async(&paths.meta).await {
+        Ok(meta) => (Some(meta), None),
+        Err(err) => (
+            None,
+            Some(DiscoveryCacheLoadFailure {
+                phase: "cache_load_meta",
+                detail: format!("discovery cache load failed: {err}"),
+            }),
+        ),
+    }
+}
+
+pub async fn store_snapshot_async(
+    paths: &DiscoveryCachePaths,
+    snapshot: &DiscoverySnapshotContract,
+    last_success_at: Option<&str>,
+    last_error: Option<String>,
+) -> DiscoveryResult<()> {
+    let meta = DiscoveryCacheMeta::new(
+        snapshot.snapshot_id.clone(),
+        snapshot.revision,
+        snapshot.generated_at.clone(),
+        snapshot.origins.clone(),
+        last_success_at.map(str::to_string),
+        last_error,
+    );
+    write_json_atomic_async(&paths.resources, &snapshot.resources)
+        .await
+        .source_err(DiscoveryReason::CacheIo, "write discovery resources")?;
+    write_json_atomic_async(&paths.targets, &snapshot.targets)
+        .await
+        .source_err(DiscoveryReason::CacheIo, "write discovery targets")?;
+    write_json_atomic_async(&paths.meta, &meta)
+        .await
+        .source_err(DiscoveryReason::CacheIo, "write discovery meta")
+}
+
+async fn metadata_exists(
+    path: &Path,
+    phase: &'static str,
+) -> (bool, Option<DiscoveryCacheLoadFailure>) {
+    match tokio::fs::metadata(path).await {
+        Ok(_) => (true, None),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => (false, None),
+        Err(err) => (
+            false,
+            Some(DiscoveryCacheLoadFailure {
+                phase,
+                detail: format!("discovery cache load failed: {err}"),
+            }),
+        ),
+    }
 }
 
 #[cfg(test)]

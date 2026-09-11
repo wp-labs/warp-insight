@@ -1,6 +1,8 @@
 //! Kubernetes discovery probe skeleton.
 
-use super::{DiscoveryProbe, DiscoveryProbeError, DiscoverySourceKind, ProbeOutput};
+use orion_error::conversion::ToStructError;
+
+use super::{DiscoveryError, DiscoveryProbe, DiscoveryReason, DiscoverySourceKind, ProbeOutput};
 
 #[derive(::jumo_derive::Jumo)]
 #[jumo(kind = "struct", domain = "Discovery", module = "Discovery.Probe")]
@@ -19,11 +21,10 @@ impl DiscoveryProbe for K8sDiscoveryProbe {
         std::time::Duration::from_secs(30)
     }
 
-    fn refresh(&self, _now: std::time::SystemTime) -> Result<ProbeOutput, DiscoveryProbeError> {
-        Err(DiscoveryProbeError::new(
-            self.name(),
-            self.source(),
-            "k8s discovery probe is not implemented",
-        ))
+    fn refresh(&self, _now: std::time::SystemTime) -> Result<ProbeOutput, DiscoveryError> {
+        Err(DiscoveryReason::NotImplemented
+            .to_err()
+            .with_detail("k8s discovery probe is not implemented")
+            .with_context(super::probe_error_context(self.name(), self.source())))
     }
 }

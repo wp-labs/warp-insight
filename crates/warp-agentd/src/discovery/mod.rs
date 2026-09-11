@@ -11,7 +11,11 @@ pub mod runtime;
 
 use std::time::SystemTime;
 
+use orion_error::{conversion::ToStructError, runtime::OperationContext};
+
 use wist_contracts::discovery::{DiscoveredResource, DiscoveredTarget, DiscoveryOrigin};
+
+pub use crate::error::{DiscoveryError, DiscoveryReason};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiscoverySourceKind {
@@ -47,27 +51,25 @@ pub trait DiscoveryProbe {
     fn name(&self) -> &'static str;
     fn source(&self) -> DiscoverySourceKind;
     fn refresh_interval(&self) -> std::time::Duration;
-    fn refresh(&self, now: SystemTime) -> Result<ProbeOutput, DiscoveryProbeError>;
+    fn refresh(&self, now: SystemTime) -> Result<ProbeOutput, DiscoveryError>;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, ::jumo_derive::Jumo)]
-#[jumo(kind = "struct", domain = "Discovery", module = "Discovery.Probe")]
-pub struct DiscoveryProbeError {
-    pub probe: String,
-    pub source: DiscoverySourceKind,
-    pub detail: String,
+/// Structured context shared by every probe failure, so observability can
+/// recover the originating probe and source from the [`DiscoveryError`].
+pub(crate) fn probe_error_context(probe: &str, source: DiscoverySourceKind) -> OperationContext {
+    OperationContext::doing("discover")
+        .with_meta("probe", probe)
+        .with_meta("source", source.as_str())
 }
 
-impl DiscoveryProbeError {
-    pub fn new(
-        probe: impl Into<String>,
-        source: DiscoverySourceKind,
-        detail: impl Into<String>,
-    ) -> Self {
-        Self {
-            probe: probe.into(),
-            source,
-            detail: detail.into(),
-        }
-    }
+/// Build a [`DiscoveryError`] for a probe whose refresh failed.
+pub(crate) fn probe_failed(
+    probe: &str,
+    source: DiscoverySourceKind,
+    detail: impl Into<String>,
+) -> DiscoveryError {
+    DiscoveryReason::ProbeFailed
+        .to_err()
+        .with_detail(detail)
+        .with_context(probe_error_context(probe, source))
 }

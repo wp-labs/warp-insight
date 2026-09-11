@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::state_store::log_checkpoint_state::TrackedFileCheckpoint;
 
-use super::file_reader::{ObservedFileIdentity, checkpoint_probe};
+use super::file_reader::{ObservedFileIdentity, checkpoint_probe_async};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StartupPosition {
@@ -22,7 +22,7 @@ pub struct ResumeDecision {
     pub rotated: bool,
 }
 
-pub fn decide_resume(
+pub async fn decide_resume_async(
     source_path: &Path,
     current: &ObservedFileIdentity,
     previous: Option<&TrackedFileCheckpoint>,
@@ -57,7 +57,9 @@ pub fn decide_resume(
 
     if same_identity {
         if previous.checkpoint_offset > current.file_len
-            || !checkpoint_probe_matches(Path::new(&source_path), previous).unwrap_or(false)
+            || !checkpoint_probe_matches_async(Path::new(&source_path), previous)
+                .await
+                .unwrap_or(false)
         {
             return ResumeDecision {
                 start_offset: 0,
@@ -124,14 +126,44 @@ fn short_file_append_keeps_prefix(
         && current_fingerprint.starts_with(previous_fingerprint)
 }
 
-fn checkpoint_probe_matches(path: &Path, previous: &TrackedFileCheckpoint) -> io::Result<bool> {
+async fn checkpoint_probe_matches_async(
+    path: &Path,
+    previous: &TrackedFileCheckpoint,
+) -> io::Result<bool> {
     if previous.checkpoint_offset == 0 {
         return Ok(true);
     }
     let Some(expected) = previous.checkpoint_probe.as_deref() else {
         return Ok(true);
     };
-    Ok(checkpoint_probe(path, previous.checkpoint_offset)?.as_deref() == Some(expected))
+    Ok(checkpoint_probe_async(path, previous.checkpoint_offset)
+        .await?
+        .as_deref()
+        == Some(expected))
+}
+
+#[cfg(test)]
+pub fn decide_resume(
+    source_path: &Path,
+    current: &ObservedFileIdentity,
+    previous: Option<&TrackedFileCheckpoint>,
+    startup_position: StartupPosition,
+) -> ResumeDecision {
+    block_on(decide_resume_async(
+        source_path,
+        current,
+        previous,
+        startup_position,
+    ))
+}
+
+#[cfg(test)]
+fn block_on<T>(future: impl std::future::Future<Output = T>) -> T {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build tokio runtime")
+        .block_on(future)
 }
 
 #[cfg(test)]

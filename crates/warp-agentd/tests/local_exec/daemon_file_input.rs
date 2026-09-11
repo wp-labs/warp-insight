@@ -5,15 +5,15 @@ use std::thread;
 use std::time::Duration;
 
 use serde::Deserialize;
+use warp_agentd::bootstrap;
+use warp_agentd::daemon;
+use warp_agentd::self_observability::DiscoveryReadiness;
 use wist_contracts::agent_config::{DiscoverySection, LogFileInputSection};
 use wist_contracts::discovery::{
     CandidateCollectionTarget, DiscoveredResource, DiscoveredTarget, DiscoveryCacheMeta,
 };
 use wist_contracts::telemetry_record::TelemetryRecordContract;
 use wist_shared::fs::read_json;
-use warp_agentd::bootstrap;
-use warp_agentd::daemon;
-use warp_agentd::self_observability::DiscoveryReadiness;
 
 use super::common::{
     TestLogCheckpointState, standalone_config_with_file_input, standalone_config_with_file_inputs,
@@ -26,6 +26,19 @@ fn bind_tcp_listener(addr: &str) -> Option<TcpListener> {
         Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => None,
         Err(err) => panic!("bind tcp listener: {err}"),
     }
+}
+
+/// 从 `{json} RAW: <raw>` 帧中提取原始日志正文，供 TCP 输出断言使用。
+fn raw_body_sections(payload: &str) -> Vec<String> {
+    payload
+        .lines()
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            line.rsplit_once(" RAW: ")
+                .map(|(_, raw)| raw.to_string())
+                .expect("tcp frame should carry a RAW section")
+        })
+        .collect()
 }
 
 #[derive(Debug, Deserialize)]
@@ -877,7 +890,11 @@ fn daemon_run_once_sends_raw_log_lines_to_tcp_output() {
         snapshot.state,
         warp_agentd::self_observability::HealthState::Active
     );
-    assert_eq!(payload, "alpha\nbeta\n");
+    let raws = raw_body_sections(&payload);
+    assert_eq!(raws, vec!["alpha".to_string(), "beta".to_string()]);
+    assert!(payload.contains("\"input_id\":\"app\""));
+    assert!(payload.contains("\"file_offset\":0"));
+    assert!(payload.contains("\"file_offset_end\":11"));
     assert_eq!(checkpoint.files.len(), 1);
     assert_eq!(
         checkpoint.files[0].checkpoint_offset,
@@ -968,11 +985,98 @@ fn daemon_run_once_replays_spool_when_tcp_output_recovers() {
         second_snapshot.state,
         warp_agentd::self_observability::HealthState::Active
     );
-    assert_eq!(payload, "first\nsecond\nthird\n");
+    assert_eq!(
+        raw_body_sections(&payload),
+        vec![
+            "first".to_string(),
+            "second".to_string(),
+            "third".to_string()
+        ]
+    );
     assert!(!spool_path.exists());
     assert_eq!(checkpoint.files.len(), 1);
     assert_eq!(
         checkpoint.files[0].checkpoint_offset,
         "first\nsecond\nthird\n".len() as u64
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn daemon_run_once_exposes_paused_input_and_recovers_in_health_snapshot() {
+    let root = temp_dir("daemon-file-input-pause");
+    let run_dir = root.join("run");
+    let state_dir = root.join("state");
+    let log_dir = root.join("log");
+    let input_path = root.join("app.log");
+    bootstrap::initialize(&root, &run_dir, &state_dir, &log_dir).expect("bootstrap");
+    fs::write(&input_path, "first\nsecond\n").expect("write input log");
+
+    // 预留一个端口后立即释放，模拟 TCP 输出不可达，从而触发 spool。
+    let Some(reserved) = bind_tcp_listener("127.0.0.1:0") else {
+        return;
+    };
+    let port = reserved.local_addr().expect("listener addr").port();
+    drop(reserved);
+
+    let mut failing_config =
+        standalone_config_with_tcp_file_input(&root, &input_path, "127.0.0.1", port, "line");
+    // 任意非空 spool 都视为超限，便于固定背压路径。
+    failing_config.telemetry.logs.spool_max_bytes = 1;
+
+    // 第一次：尚无 spool，先落 spool，不进入暂停。
+    let first_snapshot = daemon::run_once(&daemon::DaemonLoop {
+        config: &failing_config,
+        exec_bin: &test_exec_bin(&root),
+    })
+    .expect("first daemon run once");
+    assert!(first_snapshot.paused_inputs.is_empty());
+
+    // 第二次：spool 已存在且上报仍不通，进入暂停，健康快照应暴露该输入。
+    let paused_snapshot = daemon::run_once(&daemon::DaemonLoop {
+        config: &failing_config,
+        exec_bin: &test_exec_bin(&root),
+    })
+    .expect("paused daemon run once");
+    assert_eq!(paused_snapshot.paused_inputs, vec!["app".to_string()]);
+
+    // 恢复：TCP 可连后 spool 回放成功，退出暂停。
+    let Some(listener) = bind_tcp_listener(&format!("127.0.0.1:{port}")) else {
+        return;
+    };
+    let server = thread::spawn(move || {
+        let (mut socket, _) = listener.accept().expect("accept");
+        socket
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .expect("set timeout");
+        let mut buf = Vec::new();
+        let mut chunk = [0u8; 128];
+        loop {
+            match socket.read(&mut chunk) {
+                Ok(0) => break,
+                Ok(n) => buf.extend_from_slice(&chunk[..n]),
+                Err(err)
+                    if matches!(
+                        err.kind(),
+                        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                    ) =>
+                {
+                    break;
+                }
+                Err(err) => panic!("read tcp payload: {err}"),
+            }
+        }
+        String::from_utf8(buf).expect("utf8 payload")
+    });
+
+    let recovered_config =
+        standalone_config_with_tcp_file_input(&root, &input_path, "127.0.0.1", port, "line");
+    let recovered_snapshot = daemon::run_once(&daemon::DaemonLoop {
+        config: &recovered_config,
+        exec_bin: &test_exec_bin(&root),
+    })
+    .expect("recovered daemon run once");
+    let _payload = server.join().expect("join server");
+
+    assert!(recovered_snapshot.paused_inputs.is_empty());
 }

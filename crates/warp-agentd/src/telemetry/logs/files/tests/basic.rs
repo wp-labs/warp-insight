@@ -1,7 +1,8 @@
 use std::fs;
 
 use super::{
-    FileInputProcessor, TestSink, config, log_checkpoints, read_json, read_output_records, temp_dir,
+    FileInputProcessor, ReadLimits, TestSink, config, log_checkpoints, read_json,
+    read_output_records, temp_dir,
 };
 use crate::telemetry::logs::files::file_watcher::StartupPosition;
 use crate::telemetry::warp_parse::FileRecordSink;
@@ -124,4 +125,68 @@ fn startup_position_tail_skips_existing_content_until_new_append() {
     assert_eq!(second_outcome.records_processed, 1);
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].body, "new\n");
+}
+
+#[test]
+fn over_long_line_is_truncated_committed_and_counted() {
+    let root = temp_dir("truncate-long-line");
+    let source_path = root.join("app.log");
+    fs::create_dir_all(root.join("state")).expect("create state");
+    let long_line = "x".repeat(2048);
+    let content = format!("{long_line}\nnext\n");
+    fs::write(&source_path, &content).expect("write log");
+    let mut cfg = config(&root, &source_path);
+    cfg.read_limits = ReadLimits::new(1024, 1_048_576, 64);
+    let mut processor = FileInputProcessor::new(cfg, TestSink::default());
+
+    let outcome = processor.process_once().expect("process");
+
+    assert_eq!(outcome.truncated_lines, 1);
+    assert_eq!(outcome.records_processed, 2);
+    assert_eq!(outcome.checkpoint_offset, content.len() as u64);
+}
+
+#[test]
+fn chunked_read_by_max_lines_advances_checkpoint_each_tick_without_loss() {
+    let root = temp_dir("chunked-process");
+    let source_path = root.join("app.log");
+    fs::create_dir_all(root.join("state")).expect("create state");
+    fs::write(&source_path, "one\ntwo\nthree\n").expect("write log");
+    let mut cfg = config(&root, &source_path);
+    cfg.read_limits = ReadLimits::new(1_048_576, 1_048_576, 1);
+
+    let mut first = FileInputProcessor::new(cfg.clone(), TestSink::default());
+    let a = first.process_once().expect("first");
+    assert_eq!(a.records_processed, 1);
+    assert_eq!(a.checkpoint_offset, "one\n".len() as u64);
+
+    let mut second = FileInputProcessor::new(cfg.clone(), TestSink::default());
+    let b = second.process_once().expect("second");
+    assert_eq!(b.records_processed, 1);
+    assert_eq!(b.checkpoint_offset, "one\ntwo\n".len() as u64);
+
+    let mut third = FileInputProcessor::new(cfg, TestSink::default());
+    let c = third.process_once().expect("third");
+    assert_eq!(c.records_processed, 1);
+    assert_eq!(c.checkpoint_offset, "one\ntwo\nthree\n".len() as u64);
+}
+
+#[test]
+fn line_over_read_budget_is_delivered_without_loss() {
+    let root = temp_dir("over-budget-line");
+    let source_path = root.join("app.log");
+    fs::create_dir_all(root.join("state")).expect("create state");
+    let long_line = "z".repeat(20_000);
+    let content = format!("{long_line}\nnext\n");
+    fs::write(&source_path, &content).expect("write log");
+    let mut cfg = config(&root, &source_path);
+    // 预算 16 字节 << 行长；单行上限 64KiB 不截断。
+    cfg.read_limits = ReadLimits::new(65_536, 16, 64);
+
+    let mut processor = FileInputProcessor::new(cfg, TestSink::default());
+    let outcome = processor.process_once().expect("process");
+
+    assert_eq!(outcome.truncated_lines, 0);
+    assert_eq!(outcome.records_processed, 1);
+    assert_eq!(outcome.checkpoint_offset, (long_line.len() + 1) as u64);
 }

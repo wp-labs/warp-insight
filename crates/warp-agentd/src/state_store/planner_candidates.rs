@@ -3,6 +3,7 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::fs_async::{read_json_async, write_json_atomic_async};
 use wist_contracts::discovery::CandidateCollectionTarget;
 use wist_shared::fs::{read_json, write_json_atomic};
 
@@ -38,6 +39,18 @@ pub fn load_or_default(path: &Path) -> io::Result<Vec<CandidateCollectionTarget>
 
 pub fn store(path: &Path, candidates: &[CandidateCollectionTarget]) -> io::Result<()> {
     write_json_atomic(path, &candidates.to_vec())
+}
+
+pub async fn load_or_default_async(path: &Path) -> io::Result<Vec<CandidateCollectionTarget>> {
+    match tokio::fs::metadata(path).await {
+        Ok(_) => read_json_async(path).await,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(err) => Err(err),
+    }
+}
+
+pub async fn store_async(path: &Path, candidates: &[CandidateCollectionTarget]) -> io::Result<()> {
+    write_json_atomic_async(path, &candidates.to_vec()).await
 }
 
 #[cfg(test)]

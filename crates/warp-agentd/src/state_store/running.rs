@@ -3,6 +3,7 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::fs_async::{read_json_async, write_json_atomic_async};
 use serde::{Deserialize, Serialize};
 use wist_contracts::SCHEMA_VERSION_V1;
 use wist_shared::fs::{read_json, write_json_atomic};
@@ -168,9 +169,25 @@ pub fn store(path: &Path, state: &RunningExecutionState) -> io::Result<()> {
     write_json_atomic(path, state)
 }
 
+pub async fn load_async(path: &Path) -> io::Result<RunningExecutionState> {
+    read_json_async(path).await
+}
+
+pub async fn store_async(path: &Path, state: &RunningExecutionState) -> io::Result<()> {
+    write_json_atomic_async(path, state).await
+}
+
 pub fn remove(path: &Path) -> io::Result<()> {
     if path.exists() {
         std::fs::remove_file(path)?;
     }
     Ok(())
+}
+
+pub async fn remove_async(path: &Path) -> io::Result<()> {
+    match tokio::fs::remove_file(path).await {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(err),
+    }
 }

@@ -8,7 +8,7 @@ use wist_shared::fs::{read_json, write_json_atomic};
 use super::{FileInputConfig, FileInputProcessor, upsert_checkpoint};
 use crate::state_store::log_checkpoint_state::LogCheckpointState;
 use crate::state_store::log_checkpoints;
-use crate::telemetry::logs::files::file_reader::ObservedFileIdentity;
+use crate::telemetry::logs::files::file_reader::{ObservedFileIdentity, ReadLimits};
 use crate::telemetry::logs::files::file_watcher::StartupPosition;
 use crate::telemetry::logs::multiline::MultilineMode;
 use crate::telemetry::spool;
@@ -18,6 +18,8 @@ mod basic;
 mod checkpoint_state;
 mod missing;
 mod multiline;
+#[cfg(unix)]
+mod permissions;
 mod rotation;
 mod spool_replay;
 
@@ -59,6 +61,8 @@ fn config(root: &Path, source_path: &Path) -> FileInputConfig {
         startup_position: StartupPosition::Head,
         multiline_mode: MultilineMode::None,
         in_memory_budget_bytes: 4096,
+        read_limits: ReadLimits::new(1_048_576, 4_194_304, 4096),
+        spool_max_bytes: 268_435_456,
     }
 }
 

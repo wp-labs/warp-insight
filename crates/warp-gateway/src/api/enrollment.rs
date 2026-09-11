@@ -31,8 +31,7 @@ pub async fn enroll_agent(
     Json(input): Json<SubmitEnrollmentRequest>,
 ) -> Response {
     let client_key = rate_limit::client_key(client);
-    if let Some(response) =
-        rate_limit::check_rate_limit(&state, &client_key, ENROLLMENT_AUTH_SCOPE)
+    if let Some(response) = rate_limit::check_rate_limit(&state, &client_key, ENROLLMENT_AUTH_SCOPE)
     {
         return response;
     }
@@ -295,6 +294,7 @@ fn commit_reserved_registration(
                     last_cpu_percent: None,
                     last_admin_latency_ms: None,
                     metrics_history: Vec::new(),
+                    work_state_changes: None,
                 },
             );
             Ok(())

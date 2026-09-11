@@ -5,18 +5,21 @@ use axum::{
     Json,
 };
 
+use crate::infra::{
+    new_secret_token, sha256_hex, AgentMetricSample, StoredAgentRegistration,
+    StoredCredentialStatus,
+};
+use insight_control::types::DateTime;
 use insight_control::{
     ActionResultAccepted, AgentControlCommandsReturned, AgentHello, AgentStatusAccepted,
     PollControlCommands, ReportActionResult,
 };
-use insight_control::types::{DateTime};
-use wist_reporting::{ActionResultReceipt, HealthState, MetricsHealthSnapshot, RuntimeHealthSnapshot};
-use crate::infra::{
-    new_secret_token, sha256_hex, AgentMetricSample, StoredAgentRegistration, StoredCredentialStatus,
-};
 use wist_contracts::enrollment::{
     AgentCredentialBundle, AgentCredentialRenewed, RenewAgentCredential,
     RENEW_AGENT_CREDENTIAL_KIND,
+};
+use wist_reporting::{
+    ActionResultReceipt, HealthState, MetricsHealthSnapshot, RuntimeHealthSnapshot,
 };
 
 use super::ApiState;
@@ -44,6 +47,7 @@ pub async fn submit_agent_status(
                     stored.last_memory_bytes = memory_bytes;
                     stored.last_cpu_percent = cpu_percent;
                     stored.last_admin_latency_ms = admin_latency_ms;
+                    stored.work_state_changes = input.work_state_changes.clone();
                     append_status_sample(
                         stored,
                         AgentMetricSample {

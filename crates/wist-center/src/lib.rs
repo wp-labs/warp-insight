@@ -3,11 +3,11 @@
 
 pub use insight_control::*;
 pub use wist_observed::*;
-pub use wist_security::*;
 pub use wist_reporting::*;
+pub use wist_security::*;
 
 pub mod api;
 pub mod config;
 pub mod infra;
 
-pub type AppError = Box<dyn std::error::Error + Send + Sync>;
+pub type AppError = wist_error::AppError;

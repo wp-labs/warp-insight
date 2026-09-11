@@ -1859,6 +1859,8 @@ checksum = "d6fb344e4055f4f9507d475314c22e085ee3e6cc68643d48e3657f76abf88d01"
 dependencies = [
  "log",
  "orion-error-derive",
+ "serde",
+ "serde_json",
  "smol_str",
  "thiserror",
 ]
@@ -3269,6 +3271,7 @@ version = "0.1.1"
 dependencies = [
  "jumo-derive 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc",
+ "orion-error",
  "reqwest",
  "serde",
  "serde_json",
@@ -3291,6 +3294,7 @@ dependencies = [
  "hyper-util",
  "insight-control",
  "jumo-derive 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orion-error",
  "ring",
  "rustls 0.23.42",
  "rustls-pki-types",
@@ -3302,6 +3306,7 @@ dependencies = [
  "toml",
  "tower",
  "wist-contracts",
+ "wist-error",
  "wist-reporting",
 ]
 
@@ -3647,6 +3652,7 @@ dependencies = [
  "http-body-util",
  "insight-control",
  "jumo-derive 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orion-error",
  "reqwest",
  "ring",
  "serde",
@@ -3655,6 +3661,7 @@ dependencies = [
  "tokio",
  "tower",
  "wist-contracts",
+ "wist-error",
  "wist-observed",
  "wist-reporting",
  "wist-security",
@@ -3666,6 +3673,13 @@ version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "wist-error"
+version = "0.1.1"
+dependencies = [
+ "orion-error",
 ]
 
 [[package]]

@@ -439,6 +439,11 @@ fn config_with_duplicate_log_input_ids_is_rejected() {
                 },
             ],
             file_inputs_file: None,
+            max_line_bytes: 1_048_576,
+            max_read_bytes_per_tick: 4_194_304,
+            max_lines_per_tick: 4096,
+            spool_max_bytes: 268_435_456,
+            spool_over_limit: "pause".to_string(),
             in_memory_buffer_bytes: 1024,
             spool_dir: "/tmp/root/state/spool/logs".to_string(),
             output: LogsOutputSection {
@@ -497,6 +502,11 @@ fn config_with_invalid_log_startup_position_is_rejected() {
                 multiline_mode: "none".to_string(),
             }],
             file_inputs_file: None,
+            max_line_bytes: 1_048_576,
+            max_read_bytes_per_tick: 4_194_304,
+            max_lines_per_tick: 4096,
+            spool_max_bytes: 268_435_456,
+            spool_over_limit: "pause".to_string(),
             in_memory_buffer_bytes: 1024,
             spool_dir: "/tmp/root/state/spool/logs".to_string(),
             output: LogsOutputSection {
@@ -511,6 +521,114 @@ fn config_with_invalid_log_startup_position_is_rejected() {
 
     let err = validate_config(&fixture).expect_err("config should be rejected");
     assert_eq!(err.code, "invalid_log_startup_position");
+}
+
+#[test]
+fn config_with_invalid_log_spool_over_limit_is_rejected() {
+    let fixture = AgentConfigContract::new(
+        AgentSection {
+            agent_id: Some("agent-001".to_string()),
+            environment_id: Some("prod".to_string()),
+            instance_name: Some("instance-001".to_string()),
+        },
+        ControlPlaneSection {
+            enabled: false,
+            endpoint: None,
+            enrollment_token: None,
+            credential_request: None,
+            credential_id: None,
+            bearer_token: None,
+            credential_expires_at: None,
+            tls_mode: None,
+            trust_bundle: None,
+            auth_mode: None,
+        },
+        PathsSection {
+            root_dir: "/tmp/root".to_string(),
+            run_dir: "/tmp/root/run".to_string(),
+            state_dir: "/tmp/root/state".to_string(),
+            log_dir: "/tmp/root/log".to_string(),
+        },
+        ExecutionSection {
+            max_running_actions: 1,
+            cancel_grace_ms: 5_000,
+            default_stdout_limit_bytes: 1024,
+            default_stderr_limit_bytes: 1024,
+        },
+    )
+    .with_telemetry(TelemetrySection {
+        logs: LogsSection {
+            file_inputs: vec![LogFileInputSection {
+                input_id: "app".to_string(),
+                path: "/tmp/root/app.log".to_string(),
+                startup_position: "head".to_string(),
+                multiline_mode: "none".to_string(),
+            }],
+            file_inputs_file: None,
+            max_line_bytes: 1_048_576,
+            max_read_bytes_per_tick: 4_194_304,
+            max_lines_per_tick: 4096,
+            spool_max_bytes: 268_435_456,
+            spool_over_limit: "grow".to_string(),
+            in_memory_buffer_bytes: 1024,
+            spool_dir: "/tmp/root/state/spool/logs".to_string(),
+            output: LogsOutputSection {
+                kind: "file".to_string(),
+                file: LogsFileOutputSection {
+                    path: "/tmp/root/log/records.ndjson".to_string(),
+                },
+                ..LogsOutputSection::default()
+            },
+        },
+    });
+
+    let err = validate_config(&fixture).expect_err("config should be rejected");
+    assert_eq!(err.code, "invalid_logs_spool_over_limit");
+}
+
+#[test]
+fn config_with_drop_oldest_spool_over_limit_is_accepted() {
+    let mut fixture = config_fixture("contracts/config/valid/standalone.toml");
+    fixture.telemetry.logs.spool_over_limit = "drop_oldest".to_string();
+
+    validate_config(&fixture).expect("drop_oldest is an allowed spool policy");
+}
+
+#[test]
+fn config_with_zero_spool_max_bytes_is_rejected() {
+    let mut fixture = config_fixture("contracts/config/valid/standalone.toml");
+    fixture.telemetry.logs.spool_max_bytes = 0;
+
+    let err = validate_config(&fixture).expect_err("zero spool_max_bytes should be rejected");
+    assert_eq!(err.code, "invalid_logs_spool_max_bytes");
+}
+
+#[test]
+fn config_with_zero_max_line_bytes_is_rejected() {
+    let mut fixture = config_fixture("contracts/config/valid/standalone.toml");
+    fixture.telemetry.logs.max_line_bytes = 0;
+
+    let err = validate_config(&fixture).expect_err("zero max_line_bytes should be rejected");
+    assert_eq!(err.code, "invalid_logs_max_line_bytes");
+}
+
+#[test]
+fn config_with_zero_max_read_bytes_per_tick_is_rejected() {
+    let mut fixture = config_fixture("contracts/config/valid/standalone.toml");
+    fixture.telemetry.logs.max_read_bytes_per_tick = 0;
+
+    let err =
+        validate_config(&fixture).expect_err("zero max_read_bytes_per_tick should be rejected");
+    assert_eq!(err.code, "invalid_logs_max_read_bytes_per_tick");
+}
+
+#[test]
+fn config_with_zero_max_lines_per_tick_is_rejected() {
+    let mut fixture = config_fixture("contracts/config/valid/standalone.toml");
+    fixture.telemetry.logs.max_lines_per_tick = 0;
+
+    let err = validate_config(&fixture).expect_err("zero max_lines_per_tick should be rejected");
+    assert_eq!(err.code, "invalid_logs_max_lines_per_tick");
 }
 
 #[test]
@@ -555,6 +673,11 @@ fn config_with_invalid_tcp_output_framing_is_rejected() {
                 multiline_mode: "none".to_string(),
             }],
             file_inputs_file: None,
+            max_line_bytes: 1_048_576,
+            max_read_bytes_per_tick: 4_194_304,
+            max_lines_per_tick: 4096,
+            spool_max_bytes: 268_435_456,
+            spool_over_limit: "pause".to_string(),
             in_memory_buffer_bytes: 1024,
             spool_dir: "/tmp/root/state/spool/logs".to_string(),
             output: LogsOutputSection {

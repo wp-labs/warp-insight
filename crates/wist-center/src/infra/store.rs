@@ -6,7 +6,7 @@
 
 use std::{
     collections::HashMap,
-    error, fmt, fs,
+    fs,
     fs::OpenOptions,
     io,
     io::Write,
@@ -16,58 +16,18 @@ use std::{
 
 use insight_control::types::DateTime;
 use insight_control::{GatewayInstanceLifecycleState, UpgradeStep, UpgradeTarget};
+use orion_error::{conversion::ToStructError, prelude::*};
 use serde::{Deserialize, Serialize};
 
 use super::sha256_hex;
 use crate::config::GatewayCredentialSeed;
 
+pub use wist_error::{StoreError, StoreReason};
+
 #[derive(Debug, Clone)]
 pub struct FileStore {
     path: PathBuf,
     lock: Arc<Mutex<()>>,
-}
-
-#[derive(Debug)]
-pub enum StoreError {
-    Io(io::Error),
-    Json(serde_json::Error),
-    Sql(sqlx::Error),
-    /// 网关已存在（create_gateway 幂等冲突）。
-    Conflict(String),
-    /// 注册 Token 校验失败：无效/过期/已耗尽/被吊销。
-    Enrollment(String),
-}
-
-impl fmt::Display for StoreError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Io(err) => write!(f, "center store io error: {err}"),
-            Self::Json(err) => write!(f, "center store json error: {err}"),
-            Self::Sql(err) => write!(f, "center store sql error: {err}"),
-            Self::Conflict(gateway_id) => write!(f, "gateway {gateway_id} already exists"),
-            Self::Enrollment(reason) => write!(f, "enrollment token rejected: {reason}"),
-        }
-    }
-}
-
-impl error::Error for StoreError {}
-
-impl From<io::Error> for StoreError {
-    fn from(value: io::Error) -> Self {
-        Self::Io(value)
-    }
-}
-
-impl From<serde_json::Error> for StoreError {
-    fn from(value: serde_json::Error) -> Self {
-        Self::Json(value)
-    }
-}
-
-impl From<sqlx::Error> for StoreError {
-    fn from(value: sqlx::Error) -> Self {
-        Self::Sql(value)
-    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -451,7 +411,9 @@ impl FileStore {
     ) -> Result<StoredGateway, StoreError> {
         let stored = self.update(|snapshot| {
             if snapshot.gateways.contains_key(gateway_id) {
-                return Err(StoreError::Conflict(gateway_id.to_string()));
+                return Err(StoreReason::Conflict
+                    .to_err()
+                    .with_detail(gateway_id.to_string()));
             }
             let bootstrap_hash = if token.is_empty() {
                 String::new()
@@ -460,7 +422,7 @@ impl FileStore {
             };
             let mut stored = StoredGateway::provisioned(
                 gateway_id.to_string(),
-                format!("inst-{gateway_id}"),
+                String::new(),
                 String::new(),
                 None,
             );
@@ -532,10 +494,14 @@ impl FileStore {
     ) -> Result<StoredEnrollmentToken, StoreError> {
         self.update(|snapshot| {
             let Some(token) = snapshot.enrollment_tokens.get_mut(token_id) else {
-                return Err(StoreError::Enrollment("token not found".to_string()));
+                return Err(StoreReason::Enrollment
+                    .to_err()
+                    .with_detail("token not found"));
             };
             if token.gateway_id != gateway_id {
-                return Err(StoreError::Enrollment("token gateway mismatch".to_string()));
+                return Err(StoreReason::Enrollment
+                    .to_err()
+                    .with_detail("token gateway mismatch"));
             }
             token.status = "Revoked".to_string();
             token.revoked_at = Some(DateTime::now());
@@ -570,12 +536,15 @@ impl FileStore {
                 .enrollment_tokens
                 .values_mut()
                 .find(|t| !t.token_hash.is_empty() && t.token_hash == token_hash)
-                .ok_or_else(|| StoreError::Enrollment("token not found".to_string()))?;
+                .ok_or_else(|| {
+                    StoreReason::Enrollment
+                        .to_err()
+                        .with_detail("token not found")
+                })?;
             if found.status != "Active" && found.status != "Used" {
-                return Err(StoreError::Enrollment(format!(
-                    "token status {}",
-                    found.status
-                )));
+                return Err(StoreReason::Enrollment
+                    .to_err()
+                    .with_detail(format!("token status {}", found.status)));
             }
             if found
                 .expires_at
@@ -583,11 +552,15 @@ impl FileStore {
                 .is_some_and(|exp| exp.to_chrono() < chrono::Utc::now())
             {
                 found.status = "Expired".to_string();
-                return Err(StoreError::Enrollment("token expired".to_string()));
+                return Err(StoreReason::Enrollment
+                    .to_err()
+                    .with_detail("token expired"));
             }
             if found.used_count >= found.max_uses {
                 found.status = "Exhausted".to_string();
-                return Err(StoreError::Enrollment("token exhausted".to_string()));
+                return Err(StoreReason::Enrollment
+                    .to_err()
+                    .with_detail("token exhausted"));
             }
             found.used_count += 1;
             found.status = if found.used_count >= found.max_uses {
@@ -782,7 +755,9 @@ impl FileStore {
                 .iter_mut()
                 .find(|plan| plan.plan_id == plan_id)
             else {
-                return Err(StoreError::Conflict(plan_id.to_string()));
+                return Err(StoreReason::Conflict
+                    .to_err()
+                    .with_detail(plan_id.to_string()));
             };
             plan.status = "approved".to_string();
             plan.approved_by = Some(approved_by.to_string());
@@ -839,10 +814,11 @@ impl FileStore {
     }
 
     fn lock(&self) -> Result<StoreLockGuard<'_>, StoreError> {
-        let process_guard = self
-            .lock
-            .lock()
-            .map_err(|_| StoreError::Io(io::Error::other("center store lock poisoned")))?;
+        let process_guard = self.lock.lock().map_err(|_| {
+            StoreReason::Io
+                .to_err()
+                .with_detail("center store lock poisoned")
+        })?;
         let file_guard = FileLockGuard::lock(&lock_file_path(&self.path))?;
         Ok(StoreLockGuard {
             _process_guard: process_guard,
@@ -854,18 +830,19 @@ impl FileStore {
         if !self.path.exists() {
             return Ok(CenterStoreSnapshot::default());
         }
-        let content = fs::read_to_string(&self.path)?;
+        let content = fs::read_to_string(&self.path).source_err(StoreReason::Io, "read store")?;
         if content.trim().is_empty() {
             return Ok(CenterStoreSnapshot::default());
         }
-        Ok(serde_json::from_str(&content)?)
+        Ok(serde_json::from_str(&content).source_err(StoreReason::Json, "parse store")?)
     }
 
     fn save_snapshot(&self, snapshot: &CenterStoreSnapshot) -> Result<(), StoreError> {
         if let Some(parent) = self.path.parent() {
-            fs::create_dir_all(parent)?;
+            fs::create_dir_all(parent).source_err(StoreReason::Io, "create store dir")?;
         }
-        let content = serde_json::to_string_pretty(snapshot)?;
+        let content = serde_json::to_string_pretty(snapshot)
+            .source_err(StoreReason::Json, "serialize store")?;
         let temp_path = temp_store_path(&self.path);
         let write_result = (|| -> Result<(), StoreError> {
             let mut options = OpenOptions::new();
@@ -875,18 +852,23 @@ impl FileStore {
                 use std::os::unix::fs::OpenOptionsExt;
                 options.mode(0o600);
             }
-            let mut file = options.open(&temp_path)?;
-            file.write_all(content.as_bytes())?;
-            file.write_all(b"\n")?;
-            file.sync_all()?;
-            fs::rename(&temp_path, &self.path)?;
+            let mut file = options
+                .open(&temp_path)
+                .source_err(StoreReason::Io, "open temp store file")?;
+            file.write_all(content.as_bytes())
+                .source_err(StoreReason::Io, "write store")?;
+            file.write_all(b"\n")
+                .source_err(StoreReason::Io, "write store")?;
+            file.sync_all().source_err(StoreReason::Io, "sync store")?;
+            fs::rename(&temp_path, &self.path).source_err(StoreReason::Io, "rename store")?;
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                fs::set_permissions(&self.path, fs::Permissions::from_mode(0o600))?;
+                fs::set_permissions(&self.path, fs::Permissions::from_mode(0o600))
+                    .source_err(StoreReason::Io, "set store permissions")?;
             }
             if let Some(parent) = self.path.parent() {
-                sync_directory(parent)?;
+                sync_directory(parent).source_err(StoreReason::Io, "sync store dir")?;
             }
             Ok(())
         })();
@@ -1145,14 +1127,15 @@ struct FileLockGuard {
 impl FileLockGuard {
     fn lock(path: &Path) -> Result<Self, StoreError> {
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
+            fs::create_dir_all(parent).source_err(StoreReason::Io, "create store dir")?;
         }
         let file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(path)?;
-        lock_file_exclusive(&file)?;
+            .open(path)
+            .source_err(StoreReason::Io, "open lock file")?;
+        lock_file_exclusive(&file).source_err(StoreReason::Io, "lock store file")?;
         Ok(Self { file })
     }
 }
@@ -1299,7 +1282,8 @@ mod tests {
         let err = store
             .create_gateway("gw-100", "tok-y")
             .expect_err("conflict");
-        assert!(matches!(err, StoreError::Conflict(ref gateway_id) if gateway_id == "gw-100"));
+        assert_eq!(err.reason(), &StoreReason::Conflict);
+        assert_eq!(err.detail().as_deref(), Some("gw-100"));
 
         // 空 token → bootstrap hash 也空（无引导凭据网关无法置备）。
         let stored = store
@@ -1409,10 +1393,7 @@ mod tests {
         let err = store
             .consume_enrollment_token("enroll-tok-1")
             .expect_err("anti-replay");
-        assert!(
-            matches!(err, StoreError::Enrollment(_)),
-            "expected enrollment rejection, got {err}"
-        );
+        assert_eq!(err.reason(), &StoreReason::Enrollment);
 
         // 吊销：Revoked 后消费被拒；归属不符拒绝吊销。
         let token2 = store
@@ -1433,14 +1414,15 @@ mod tests {
         let err = store
             .consume_enrollment_token("enroll-tok-2")
             .expect_err("revoked reject");
-        assert!(
-            matches!(err, StoreError::Enrollment(ref reason) if reason.starts_with("token status")),
-            "expected revoked rejection, got {err}"
-        );
+        assert_eq!(err.reason(), &StoreReason::Enrollment);
+        assert!(err
+            .detail()
+            .as_deref()
+            .is_some_and(|reason| reason.starts_with("token status")));
         let err = store
             .revoke_enrollment_token("gw-999", &token2.token_id)
             .expect_err("gateway mismatch");
-        assert!(matches!(err, StoreError::Enrollment(_)));
+        assert_eq!(err.reason(), &StoreReason::Enrollment);
 
         let _ = fs::remove_file(path);
     }

@@ -1,7 +1,10 @@
 use std::fs;
 use std::io;
 
-use super::{FileInputProcessor, TestSink, config, read_output_records, spool, temp_dir};
+use super::{
+    FileInputProcessor, TestSink, config, log_checkpoints, read_json, read_output_records, spool,
+    temp_dir,
+};
 use crate::telemetry::warp_parse::FileRecordSink;
 
 #[test]
@@ -100,4 +103,133 @@ fn replay_failure_is_reported_when_spool_exists_but_sink_is_still_unavailable() 
             .join("input-app.ndjson")
             .exists()
     );
+}
+
+#[test]
+fn spool_over_limit_pauses_source_read_and_resumes_after_drain() {
+    let root = temp_dir("spool-limit");
+    let source_path = root.join("app.log");
+    let output_path = root.join("log").join("records.ndjson");
+    fs::create_dir_all(root.join("state")).expect("create state");
+    fs::create_dir_all(root.join("log")).expect("create log");
+    fs::write(&source_path, "first\nsecond\n").expect("write log");
+
+    let mut cfg = config(&root, &source_path);
+    // 任意非空 spool 都视为超限，便于固定背压路径。
+    cfg.spool_max_bytes = 1;
+    let checkpoint_path = log_checkpoints::path_for(&root.join("state"), "input-app");
+
+    // tick 1：sink 不可用 → 记录落入 spool，checkpoint 推进。
+    let mut spooling = FileInputProcessor::new(
+        cfg.clone(),
+        TestSink {
+            fail_writes: true,
+            ..Default::default()
+        },
+    );
+    let first = spooling.process_once().expect("first process");
+    assert!(!first.paused);
+    assert_eq!(first.spooled, 2);
+    let checkpoint_after_first: crate::state_store::log_checkpoint_state::LogCheckpointState =
+        read_json(&checkpoint_path).expect("read checkpoint");
+
+    // tick 2：回放仍失败且 spool 超限 → 暂停，不读源、不推进 checkpoint。
+    let mut paused = FileInputProcessor::new(
+        cfg.clone(),
+        TestSink {
+            fail_writes: true,
+            ..Default::default()
+        },
+    );
+    let second = paused.process_once().expect("second process");
+    assert!(second.paused);
+    assert_eq!(
+        second.kind,
+        crate::telemetry::logs::files::file::ProcessOutcomeKind::SpoolPaused
+    );
+    assert!(second.spool_bytes > 0);
+    let checkpoint_after_second: crate::state_store::log_checkpoint_state::LogCheckpointState =
+        read_json(&checkpoint_path).expect("read checkpoint");
+    assert_eq!(
+        checkpoint_after_second.files[0].checkpoint_offset,
+        checkpoint_after_first.files[0].checkpoint_offset
+    );
+
+    // tick 3：sink 恢复 → 回放清空 spool，采集自动恢复。
+    let mut resumed = FileInputProcessor::new(cfg, FileRecordSink::new(output_path.clone()));
+    let third = resumed.process_once().expect("third process");
+    assert!(!third.paused);
+    assert_eq!(third.replayed_spool, 2);
+    assert!(
+        !spool::has_records(&root.join("state").join("spool").join("input-app.ndjson"))
+            .expect("spool presence")
+    );
+    assert_eq!(read_output_records(&output_path).len(), 2);
+}
+
+#[test]
+fn spool_exactly_at_limit_pauses() {
+    let root = temp_dir("spool-at-limit");
+    let source_path = root.join("app.log");
+    fs::create_dir_all(root.join("state")).expect("create state");
+    fs::write(&source_path, "first\n").expect("write log");
+    let spool_path = root.join("state").join("spool").join("input-app.ndjson");
+
+    let mut cfg = config(&root, &source_path);
+    cfg.spool_max_bytes = 1;
+    let mut spooling = FileInputProcessor::new(
+        cfg.clone(),
+        TestSink {
+            fail_writes: true,
+            ..Default::default()
+        },
+    );
+    spooling.process_once().expect("spool first");
+
+    let spool_bytes = fs::metadata(&spool_path).expect("spool meta").len();
+    cfg.spool_max_bytes = spool_bytes; // 恰好等于上限：`>=` 应视为超限
+
+    let mut paused = FileInputProcessor::new(
+        cfg,
+        TestSink {
+            fail_writes: true,
+            ..Default::default()
+        },
+    );
+    let outcome = paused.process_once().expect("process");
+
+    assert!(outcome.paused);
+    assert_eq!(outcome.spool_bytes, spool_bytes);
+}
+
+#[test]
+fn spool_over_limit_with_healthy_sink_replays_without_pausing() {
+    let root = temp_dir("spool-over-limit-healthy");
+    let source_path = root.join("app.log");
+    let output_path = root.join("log").join("records.ndjson");
+    fs::create_dir_all(root.join("state")).expect("create state");
+    fs::create_dir_all(root.join("log")).expect("create log");
+    fs::write(&source_path, "first\nsecond\n").expect("write log");
+    let spool_path = root.join("state").join("spool").join("input-app.ndjson");
+
+    let mut cfg = config(&root, &source_path);
+    cfg.spool_max_bytes = 1;
+    let mut spooling = FileInputProcessor::new(
+        cfg.clone(),
+        TestSink {
+            fail_writes: true,
+            ..Default::default()
+        },
+    );
+    spooling.process_once().expect("spool first");
+    assert!(spool::has_records(&spool_path).expect("spool presence"));
+
+    // spool 已超限，但 sink 健康：应先回放清空，而不是暂停。
+    let mut replay = FileInputProcessor::new(cfg, FileRecordSink::new(output_path.clone()));
+    let outcome = replay.process_once().expect("replay");
+
+    assert!(!outcome.paused);
+    assert_eq!(outcome.replayed_spool, 2);
+    assert!(!spool_path.exists());
+    assert_eq!(read_output_records(&output_path).len(), 2);
 }
