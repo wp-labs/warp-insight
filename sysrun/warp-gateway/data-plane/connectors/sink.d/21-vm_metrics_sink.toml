@@ -1,0 +1,15 @@
+[[connectors]]
+allow_override = ["endpoint", "headers", "fmt", "batch_size", "timeout_secs"]
+id = "vm_metrics_sink"
+type = "http"
+
+[connectors.params]
+endpoint = "http://127.0.0.1:18429/api/v1/import"
+method = "POST"
+fmt = "ndjson"
+batch_size = 64
+timeout_secs = 5
+compression = "none"
+
+[connectors.params.headers]
+Content-Type = "application/json"

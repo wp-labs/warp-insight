@@ -206,7 +206,7 @@ async fn report_status_to_control_plane(
 use metrics_support::{
     emit_metrics_failure, emit_metrics_failures, emit_metrics_tick,
     failure_signatures as metrics_failure_signatures,
-    filter_new_failures as filter_new_metrics_failures, process_metrics_tick,
+    filter_new_failures as filter_new_metrics_failures, process_metrics_tick, write_metrics_uplink,
 };
 use recovery_support::recover_incomplete_executions_impl_async;
 use runtime_state_support::{
@@ -215,7 +215,10 @@ use runtime_state_support::{
     failure_signatures, filter_new_failures, instance_id, paused_input_signatures,
     work_state_changes,
 };
-use telemetry_support::{TelemetryWorkState, WorkState, process_telemetry_inputs};
+use telemetry_support::{
+    TelemetryWorkState, WorkState, build_telemetry_sink, invalid_output_tick,
+    process_telemetry_inputs,
+};
 
 fn to_agent_work_state_changes(changes: &[TelemetryWorkState]) -> Vec<AgentWorkStateChange> {
     changes
@@ -306,6 +309,12 @@ async fn run_once_with_failure_cache(
     let run_dir = Path::new(&loop_ctx.config.paths.run_dir);
     let state_dir = Path::new(&loop_ctx.config.paths.state_dir);
     let instance_id = instance_id(loop_ctx.config);
+    let agent_id = loop_ctx
+        .config
+        .agent
+        .agent_id
+        .as_deref()
+        .unwrap_or("unknown");
     let discovery = refresh_discovery_snapshot(loop_ctx.config, state_dir).await;
     let metrics_tick = process_metrics_tick(state_dir);
     emit_metrics_tick(&metrics_tick);
@@ -317,7 +326,18 @@ async fn run_once_with_failure_cache(
     } else {
         emit_metrics_failures(&metrics_tick.failures);
     }
-    let telemetry_tick = process_telemetry_inputs(loop_ctx.config).await;
+    let telemetry_tick = match build_telemetry_sink(loop_ctx.config) {
+        Ok(mut sink) => {
+            // 指标优先：先上送指标帧（与日志共用同一 sink/连接），再处理日志。
+            if let Some(snapshot) = metrics_tick.snapshot.as_ref() {
+                if let Err(err) = write_metrics_uplink(&mut sink, agent_id, snapshot).await {
+                    eprintln!("warp-agentd metrics uplink failed: {err}");
+                }
+            }
+            process_telemetry_inputs(loop_ctx.config, &mut sink).await
+        }
+        Err(err) => invalid_output_tick(loop_ctx.config, err.to_string()),
+    };
     if let Some(previous) = previous_telemetry_failures {
         for failure in filter_new_failures(&telemetry_tick.failures, previous) {
             emit_telemetry_failure(failure);
@@ -344,12 +364,6 @@ async fn run_once_with_failure_cache(
     recover_incomplete_executions_impl_async(state_dir, &instance_id).await?;
 
     // Step 0: export unified-envelope output alongside existing cache files
-    let agent_id = loop_ctx
-        .config
-        .agent
-        .agent_id
-        .as_deref()
-        .unwrap_or("unknown");
     let export_source = ExporterSource::new(agent_id, &instance_id);
     exporter::export_all_async(state_dir, &export_source).await;
 

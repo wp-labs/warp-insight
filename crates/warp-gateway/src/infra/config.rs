@@ -42,6 +42,7 @@ pub struct AdminConfig {
     pub install_script_signing_public_key_pem: String,
     pub tenant_id: String,
     pub environment_id: String,
+    pub victoria_metrics_url: String,
 }
 
 pub use wist_error::ConfigError;
@@ -71,6 +72,8 @@ struct RawServerConfig {
     tls_cert_file: String,
     tls_key_file: String,
     admin_api_token: String,
+    #[serde(default = "default_victoria_metrics_url")]
+    victoria_metrics_url: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -169,6 +172,9 @@ impl AdminConfig {
             .map_err(config_validation)?,
             tenant_id: expand_env(&raw.agent.tenant_id)?,
             environment_id: expand_env(&raw.agent.environment_id)?,
+            victoria_metrics_url: trim_trailing_slash(expand_env(
+                &raw.server.victoria_metrics_url,
+            )?),
         })
     }
 
@@ -199,6 +205,7 @@ impl AdminConfig {
         )?;
         require_non_empty("agent.tenant_id", &self.tenant_id)?;
         require_non_empty("agent.environment_id", &self.environment_id)?;
+        require_non_empty("server.victoria_metrics_url", &self.victoria_metrics_url)?;
         Ok(())
     }
 
@@ -224,6 +231,10 @@ fn default_bootstrap_token_ttl_seconds() -> i64 {
 
 fn default_credential_ttl_seconds() -> i64 {
     30 * 24 * 60 * 60
+}
+
+fn default_victoria_metrics_url() -> String {
+    "http://127.0.0.1:18429".to_string()
 }
 
 fn default_store_file() -> String {

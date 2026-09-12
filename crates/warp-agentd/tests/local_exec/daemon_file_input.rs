@@ -29,15 +29,12 @@ fn bind_tcp_listener(addr: &str) -> Option<TcpListener> {
 }
 
 /// 从 `{json} RAW: <raw>` 帧中提取原始日志正文，供 TCP 输出断言使用。
+/// 指标帧（` METRICS: `）与日志帧（` RAW: `）共用同一连接、指标优先，这里只取日志正文。
 fn raw_body_sections(payload: &str) -> Vec<String> {
     payload
         .lines()
         .filter(|line| !line.is_empty())
-        .map(|line| {
-            line.rsplit_once(" RAW: ")
-                .map(|(_, raw)| raw.to_string())
-                .expect("tcp frame should carry a RAW section")
-        })
+        .filter_map(|line| line.rsplit_once(" RAW: ").map(|(_, raw)| raw.to_string()))
         .collect()
 }
 
@@ -896,6 +893,15 @@ fn daemon_run_once_sends_raw_log_lines_to_tcp_output() {
     );
     let raws = raw_body_sections(&payload);
     assert_eq!(raws, vec!["alpha".to_string(), "beta".to_string()]);
+    // 指标帧与日志帧共用同一 TCP 连接，且指标优先（先于日志帧）。
+    let metrics_pos = payload
+        .find(" METRICS: ")
+        .expect("metrics frame on shared uplink");
+    let raw_pos = payload.find(" RAW: ").expect("raw log frame");
+    assert!(
+        metrics_pos < raw_pos,
+        "metrics frame should precede log frames"
+    );
     assert!(payload.contains("\"schema\":\"v1\""));
     assert!(payload.contains("\"agent\":\"agent-001\""));
     assert!(payload.contains("\"seq\":0"));

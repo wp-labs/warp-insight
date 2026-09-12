@@ -76,6 +76,20 @@ impl From<&TelemetryRecordContract> for DataFrame {
     }
 }
 
+impl DataFrame {
+    /// 新建一帧数据帧信封（信号无关，`schema` 固定为 v1）。
+    ///
+    /// 用于无 `TelemetryRecordContract` 的信号（如指标），调用方自定 `seq`。
+    pub fn new(agent_id: impl Into<String>, observed_at: impl Into<String>, seq: u64) -> Self {
+        Self {
+            schema_version: SCHEMA_VERSION_V1.to_string(),
+            agent_id: agent_id.into(),
+            observed_at: observed_at.into(),
+            seq,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{DataFrame, TelemetryRecordContract};

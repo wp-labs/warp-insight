@@ -1,5 +1,6 @@
 import styles from "./SubsystemRecentOnlineRegisteredAgentCard.module.css";
 import { Sparkline } from "./Sparkline";
+import { Link } from "react-router-dom";
 import type { RecentOnlineRegisteredAgent } from "../api";
 
 interface SubsystemRecentOnlineRegisteredAgentCardProps {
@@ -112,6 +113,14 @@ export function SubsystemRecentOnlineRegisteredAgentCard({
           <div className={styles.label}>上线时间</div>
           <div className={styles.value}>{formatDateTime(agent.onlineSince)}</div>
         </div>
+      </div>
+      <div className={styles.footer}>
+        <Link
+          className={styles.metricsLink}
+          to={`/agents/${encodeURIComponent(agent.agentId)}/metrics`}
+        >
+          查看主机指标 →
+        </Link>
       </div>
     </article>
   );

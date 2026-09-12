@@ -4,6 +4,7 @@ public_base_url = "https://127.0.0.1:3000"
 tls_cert_file = "state/admin-tls.crt.pem"
 tls_key_file = "state/admin-tls.key.pem"
 admin_api_token = "${WARP_INSIGHT_ADMIN_TOKEN}"
+victoria_metrics_url = "http://127.0.0.1:18429"
 
 [agent]
 package_file = "../../target/debug/warp-agentd"

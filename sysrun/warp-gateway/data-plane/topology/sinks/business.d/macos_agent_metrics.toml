@@ -1,0 +1,25 @@
+# macOS agent 指标（warp-agentd ` METRICS:` 帧）独立 sink 分组。
+# 与 business.d/macos_agent.toml（日志）并存：指标走本分组，本地落 JSON + 通用 VM sink 写入 VictoriaMetrics。
+[sink_group]
+name = "macos-agent-metrics"
+oml = ["macos_agent_metrics"]
+tags = ["biz:macos-agent"]
+batch_size = 1024
+batch_timeout_ms = 300
+
+[[sink_group.sinks]]
+name = "json"
+connect = "file_json_sink"
+tags = ["sink:json"]
+
+[sink_group.sinks.params]
+file = "macos-agent-metrics.json"
+
+# 通用 VM sink：基于 http_sink，把 OML 产出的 VM JSON line（metric+value）按 ndjson POST 到 VM 导入端点。
+[[sink_group.sinks]]
+name = "vm_metrics"
+connect = "vm_metrics_sink"
+tags = ["sink:vmetrics"]
+
+[sink_group.sinks.params]
+endpoint = "http://127.0.0.1:18429/api/v1/import"

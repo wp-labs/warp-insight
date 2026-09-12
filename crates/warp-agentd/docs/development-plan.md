@@ -134,6 +134,26 @@ flowchart LR
   4. 与日志共用 uplink 的互不影响（日志洪峰不挤掉指标，反之亦然）。
 - 验收：单测覆盖 target_view/samples 生成；集成：采集 → 上报 → 数据面查询可见；日志与指标并发压测无相互阻塞。
 
+落地进展（本轮）：
+
+- 指标帧序列化 + uplink 接入：`TcpRecordSink::write_metrics`（` METRICS:` 帧）已接入 daemon 主循环——
+  每 tick 在 `process_metrics_tick` 产出运行时快照后，经 `samples::build_samples_snapshot` 规范化，
+  与日志共用同一 TCP sink 上送（指标优先、无样本时跳过）；`write_metrics` 的 `#[allow(dead_code)]` 已移除。
+- 集成覆盖：`tests/local_exec/daemon_file_input` 验证指标帧与日志帧共连、指标先于日志帧。
+- 遗留（对齐 W2 全局 `seq`）：指标帧信封 `seq` 暂以批内单调 `batch_seq` 占位，待 agent 级全局 `seq`
+  落地后统一（见 `write_metrics_uplink` 的 `TODO(W2)`）。
+- **Batch A 采集补齐（host/process/disk，跨 Linux/macOS）**：
+  - 采集库：host + disk 用 [`sysinfo`](https://crates.io/crates/sysinfo) 0.36（MSRV 1.85 约束下能用的最高版；
+    0.39 需 rust 1.95，暂不升）；process 因 sysinfo 在 macOS 用 `proc_pidinfo` 读不到 root/他用户进程（`EPERM`），
+    保留手写（Linux `/proc` + macOS `ps`）。
+  - host：`system.target.count`、`system.load_average.{1m,5m,15m}`、`system.uptime`、
+    `system.memory.{total,available}`、`system.disk.{usage,total,available}`（`System` + `Disks`）。
+  - process：`process.memory.rss`、`process.state`；Linux 读 `/proc/<pid>/stat`，macOS 走 `ps -o state=,rss=,comm=`。
+    **进程 CPU 的 user/system 累计 ticks 暂不实现**（sysinfo 只有总量/百分比，不做拆分）。
+  - disk：`Disks`；macOS 先选 `/System/Volumes/Data`（APFS 数据卷）再回退 `/`
+    （`/` 在 macOS 只反映封存系统卷，非用户数据）；`usage = (total − available) / total`。
+  - 实测：macOS P0 实例（host 1 + process ~1044 目标）在 VM 可查到上述 series。
+
 ### W4 指标扩展机制（设计 + 落地）
 
 **目标**：新增一类指标或一类目标时，只需“加 spec + 映射”，不必改核心引擎。
@@ -226,8 +246,8 @@ jumo-code code-quality <repo>/warp-insight --coverage <repo>/warp-insight/covera
 1. ~~W1/W2：信封是否引入 `seq`~~ → **已决**：per-`agent` 全局 `seq`，`next_seq` 与 checkpoint 同次原子写；
    下游按 `(agent, seq)` 去重（`input_id` 留在契约内部做 spool/路由、不进帧），见 `data-loss-prevention.md` §5.3/§7；
 2. ~~spool 上限与背压策略~~ → **已决**：“暂停采集 + 告警”（保完整），见 `log-file-input-spec.md` §7.5/§12；
-3. **W4**：provider 的扩展方式——编译期注册（v1 建议）还是允许运行期加载；脚本型指标是否统一走 `wist-exec` opcode——待定；
-4. **W3**：指标与日志是否共用同一 uplink 通道（建议共用但分优先级）——待定；
+3. ~~**W4**：provider 的扩展方式~~ → **已决**：编译期注册（`MetricProvider` trait + 静态注册表）；脚本型指标统一走 `wist-exec` opcode 后续再议；
+4. ~~**W3**：指标与日志是否共用同一 uplink 通道~~ → **已决**：共用同一 TCP 连接，信封不动、靠帧标记 ` RAW:`/` METRICS:` 区分，指标优先 + 背压隔离（见 `metrics-integration-roadmap.md` §11）；
 5. **W5**：升级制品来源（网关/对象存储）与验签信任根——待定；
 6. **W1**：目录/新文件输入（L`/Library/Logs/DiagnosticReports/*.ips`）是否纳入 W1（建议划 Phase2）——待定；
 7. **W1**：长行上限默认值（1 MiB）是否合适（大日志平台上是否有更优默认）——待定。

@@ -5,7 +5,7 @@ use wist_contracts::agent_config::{AgentConfigContract, LogFileInputSection};
 use wist_shared::time::now_rfc3339;
 
 use crate::telemetry::logs::files::{FileInputProcessor, ProcessOutcome};
-use crate::telemetry::warp_parse::RecordSink;
+use crate::telemetry::warp_parse::{RecordSink, TelemetryRecordSink};
 
 #[path = "daemon_telemetry_support.rs"]
 mod support;
@@ -67,29 +67,42 @@ impl TelemetryTick {
     }
 }
 
-pub(super) async fn process_telemetry_inputs(config: &AgentConfigContract) -> TelemetryTick {
+/// 构建共享的遥测上送 sink（日志与指标共用同一连接）。
+pub(super) fn build_telemetry_sink(
+    config: &AgentConfigContract,
+) -> io::Result<TelemetryRecordSink> {
+    build_record_sink(config)
+}
+
+/// 当 sink 无法构建（非法输出配置）时，为每个输入生成一条 `InvalidOutput` 失败。
+pub(super) fn invalid_output_tick(config: &AgentConfigContract, detail: String) -> TelemetryTick {
+    let failures = config
+        .telemetry
+        .logs
+        .file_inputs
+        .iter()
+        .map(|input| invalid_output_failure(input, detail.clone()))
+        .collect();
+    TelemetryTick {
+        outcomes: Vec::new(),
+        failures,
+        notifications: Vec::new(),
+    }
+}
+
+pub(super) async fn process_telemetry_inputs(
+    config: &AgentConfigContract,
+    sink: &mut TelemetryRecordSink,
+) -> TelemetryTick {
     let mut outcomes = Vec::new();
     let mut failures = Vec::new();
     let mut notifications = Vec::new();
-    let mut sink = match build_record_sink(config) {
-        Ok(sink) => sink,
-        Err(err) => {
-            for input in &config.telemetry.logs.file_inputs {
-                failures.push(invalid_output_failure(input, err.to_string()));
-            }
-            return TelemetryTick {
-                outcomes,
-                failures,
-                notifications,
-            };
-        }
-    };
 
     for input in &config.telemetry.logs.file_inputs {
         process_telemetry_input(
             config,
             input,
-            &mut sink,
+            sink,
             &mut outcomes,
             &mut failures,
             &mut notifications,

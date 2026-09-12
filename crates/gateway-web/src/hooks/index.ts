@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   ADMIN_AUTH_CHANGED_EVENT,
+  fetchAgentHostMetrics,
   fetchAgentInstallCode,
   fetchAgentOverview,
+  fetchAllAgentsHostMetrics,
   getAdminApiToken,
   initializeGatewayViaUrl,
   pauseAgent,
@@ -28,6 +30,40 @@ export function useAgentOverview() {
   return useQuery({
     queryKey: ["agent-overview"],
     queryFn: fetchAgentOverview,
+    enabled,
+    refetchInterval: enabled ? 5_000 : false,
+  });
+}
+
+export function useAgentHostMetrics(agentId: string) {
+  const [, setAuthVersion] = useState(0);
+  useEffect(() => {
+    const onAuthChanged = () => setAuthVersion((version) => version + 1);
+    window.addEventListener(ADMIN_AUTH_CHANGED_EVENT, onAuthChanged);
+    return () =>
+      window.removeEventListener(ADMIN_AUTH_CHANGED_EVENT, onAuthChanged);
+  }, []);
+  const enabled = Boolean(getAdminApiToken()) && Boolean(agentId);
+  return useQuery({
+    queryKey: ["agent-host-metrics", agentId],
+    queryFn: () => fetchAgentHostMetrics(agentId),
+    enabled,
+    refetchInterval: enabled ? 5_000 : false,
+  });
+}
+
+export function useAllAgentsHostMetrics() {
+  const [, setAuthVersion] = useState(0);
+  useEffect(() => {
+    const onAuthChanged = () => setAuthVersion((version) => version + 1);
+    window.addEventListener(ADMIN_AUTH_CHANGED_EVENT, onAuthChanged);
+    return () =>
+      window.removeEventListener(ADMIN_AUTH_CHANGED_EVENT, onAuthChanged);
+  }, []);
+  const enabled = Boolean(getAdminApiToken());
+  return useQuery({
+    queryKey: ["all-agents-host-metrics"],
+    queryFn: fetchAllAgentsHostMetrics,
     enabled,
     refetchInterval: enabled ? 5_000 : false,
   });

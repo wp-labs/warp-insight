@@ -2,13 +2,17 @@ use std::collections::BTreeSet;
 use std::io;
 use std::path::Path;
 
+use wist_contracts::telemetry_record::DataFrame;
 use wist_shared::fs::read_json;
+use wist_shared::time::{now_rfc3339, now_ts_ms};
 
 use crate::self_observability::MetricsHealthSnapshot;
 use crate::telemetry::metrics::{
     runtime::{self, MetricsRuntimeSnapshot},
+    samples,
     target_view::{self, MetricsTargetView},
 };
+use crate::telemetry::warp_parse::TelemetryRecordSink;
 
 #[derive(::jumo_derive::Jumo)]
 #[jumo(kind = "struct", domain = "Reporting", module = "Reporting.Health")]
@@ -94,6 +98,31 @@ impl MetricsTick {
             updated_at,
         }
     }
+}
+
+/// 把指标运行时快照规范化成样本并拍平成 VM JSON lines 逐帧上送。无样本时跳过（避免空帧占用 uplink）。
+pub(super) async fn write_metrics_uplink(
+    sink: &mut TelemetryRecordSink,
+    agent_id: &str,
+    snapshot: &MetricsRuntimeSnapshot,
+) -> io::Result<()> {
+    let samples = samples::build_samples_snapshot(snapshot);
+    let lines = samples::build_vm_metric_lines(&samples, agent_id, now_ts_ms());
+    if lines.is_empty() {
+        return Ok(());
+    }
+    let observed_at = now_rfc3339();
+    for (index, line) in lines.iter().enumerate() {
+        // TODO(W2)：信封 `seq` 应统一为 agent 级全局 `seq`（与日志同源、跨重启不回退）；
+        // 在 W2 全局计数器落地前，以 batch_seq 为基 + 批内序号占位，保证批内各帧 `(agent, seq)` 唯一。
+        let seq = samples
+            .batch_seq
+            .saturating_mul(10_000)
+            .saturating_add(index as u64);
+        let envelope = DataFrame::new(agent_id, observed_at.clone(), seq);
+        sink.write_metrics(&envelope, line).await?;
+    }
+    Ok(())
 }
 
 pub(super) fn process_metrics_tick(state_dir: &Path) -> MetricsTick {
@@ -236,13 +265,18 @@ mod tests {
     use wist_contracts::discovery::StringKeyValue;
     use wist_shared::fs::read_json;
 
-    use super::process_metrics_tick;
+    use super::{process_metrics_tick, write_metrics_uplink};
     use crate::telemetry::metrics::runtime::{
-        MetricsRuntimeSnapshot, path_for as runtime_path_for,
+        MetricsCollectionOutcome, MetricsCollectionTargetSample, MetricsRuntimeSnapshot,
+        path_for as runtime_path_for,
     };
     use crate::telemetry::metrics::target_view::{
         MetricsTargetView, MetricsTargetViewEntry, path_for as target_view_path_for, store,
     };
+    use crate::telemetry::warp_parse::{TcpFraming, TcpRecordSink, TelemetryRecordSink};
+
+    use tokio::io::AsyncReadExt;
+    use tokio::net::TcpListener;
 
     fn temp_dir(name: &str) -> PathBuf {
         let suffix = SystemTime::now()
@@ -344,5 +378,64 @@ mod tests {
         assert_eq!(tick.snapshot, Some(cached));
         assert_eq!(tick.failures.len(), 1);
         assert_eq!(tick.failures[0].phase, "target_view_load");
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn write_metrics_uplink_sends_metrics_frame() {
+        let listener = match TcpListener::bind("127.0.0.1:0").await {
+            Ok(listener) => listener,
+            Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => return,
+            Err(err) => panic!("bind listener: {err}"),
+        };
+        let port = listener.local_addr().expect("listener addr").port();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.expect("accept");
+            let mut buf = vec![0u8; 2048];
+            let n = socket.read(&mut buf).await.expect("read");
+            String::from_utf8_lossy(&buf[..n]).into_owned()
+        });
+        let mut sink = TelemetryRecordSink::Tcp(TcpRecordSink::new(
+            "127.0.0.1".to_string(),
+            port,
+            TcpFraming::Line,
+        ));
+
+        let snapshot = MetricsRuntimeSnapshot {
+            generated_at: "2026-04-19T00:00:00Z".to_string(),
+            total_targets: 1,
+            host_targets: 1,
+            process_targets: 0,
+            container_targets: 0,
+            outcomes: vec![MetricsCollectionOutcome {
+                collection_kind: "host_metrics".to_string(),
+                status: "succeeded".to_string(),
+                attempted_targets: 1,
+                succeeded_targets: 1,
+                failed_targets: 0,
+                last_error: None,
+                runtime_facts: vec![StringKeyValue::new("host.loadavg.1m", "0.25")],
+                sample_targets: vec![MetricsCollectionTargetSample {
+                    candidate_id: "host-1".to_string(),
+                    target_ref: "host-1:host".to_string(),
+                    status: "succeeded".to_string(),
+                    last_error: None,
+                    resource_ref: "host-1".to_string(),
+                    execution_hints: vec![StringKeyValue::new("host.name", "host-a")],
+                    runtime_facts: vec![StringKeyValue::new("host.loadavg.1m", "0.25")],
+                }],
+            }],
+        };
+
+        write_metrics_uplink(&mut sink, "agent-001", &snapshot)
+            .await
+            .expect("write metrics uplink");
+
+        let body = server.await.expect("join");
+        assert!(body.contains(" METRICS: "), "frame: {body}");
+        assert!(body.contains("\"agent\":\"agent-001\""), "frame: {body}");
+        assert!(
+            body.contains("system.load_average.1m"),
+            "normalized sample: {body}"
+        );
     }
 }

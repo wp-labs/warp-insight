@@ -14,6 +14,7 @@ mod admin_auth;
 mod admin_ops;
 mod agent_ops;
 mod enrollment;
+mod host_metrics;
 mod install;
 mod overview;
 mod rate_limit;
@@ -29,6 +30,7 @@ use agent_ops::{
     poll_control_commands, renew_agent_credential, report_action_result, submit_agent_status,
 };
 use enrollment::enroll_agent;
+use host_metrics::{get_agent_host_metrics, get_all_agents_host_metrics};
 use install::{
     download_agent_package, get_agent_initial_config_with_token, get_agent_install_code,
     get_agent_install_script, get_agent_install_script_signature,
@@ -81,8 +83,16 @@ pub fn router(config: AdminConfig) -> Router {
         .route("/api/v1/agent/action-results", post(report_action_result))
         .route("/api/v1/admin/agents/overview", get(get_agent_overview))
         .route(
+            "/api/v1/admin/agents/host-metrics",
+            get(get_all_agents_host_metrics),
+        )
+        .route(
             "/api/v1/admin/agents/:agent_id/runtime-status",
             get(get_agent_runtime_status),
+        )
+        .route(
+            "/api/v1/admin/agents/:agent_id/host-metrics",
+            get(get_agent_host_metrics),
         )
         .route("/api/v1/admin/agents/:agent_id/pause", post(pause_agent))
         .route(

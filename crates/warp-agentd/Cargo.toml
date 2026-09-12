@@ -7,6 +7,7 @@ rust-version.workspace = true
 
 [dependencies]
 libc = "0.2"
+sysinfo = { version = "0.36", default-features = false, features = ["system", "disk"] }
 jumo-derive = "0.1"
 orion-error.workspace = true
 serde.workspace = true

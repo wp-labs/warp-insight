@@ -10,6 +10,8 @@ use wist_contracts::agent_config::LogsOutputSection;
 use wist_contracts::telemetry_record::{DataFrame, TelemetryRecordContract};
 use wist_shared::fs::ensure_parent;
 
+use crate::telemetry::metrics::samples::VmMetricLine;
+
 pub(crate) trait RecordSink {
     async fn write_records(&mut self, records: &[TelemetryRecordContract]) -> io::Result<()>;
 }
@@ -53,6 +55,19 @@ impl TelemetryRecordSink {
                 io::ErrorKind::InvalidInput,
                 format!("unsupported telemetry output kind: {other}"),
             )),
+        }
+    }
+
+    /// 上送一帧指标帧。指标走 TCP uplink，与日志复用同一连接、靠 ` METRICS:` 帧标记区分；
+    /// 文件输出仅承载日志（本地调试），不承载指标，返回 Ok 跳过。
+    pub(crate) async fn write_metrics(
+        &mut self,
+        envelope: &DataFrame,
+        metrics: &VmMetricLine,
+    ) -> io::Result<()> {
+        match self {
+            Self::File(_) => Ok(()),
+            Self::Tcp(sink) => sink.write_metrics(envelope, metrics).await,
         }
     }
 }
@@ -133,6 +148,28 @@ impl TcpRecordSink {
         }
         Ok(self.stream.as_mut().expect("stream initialized"))
     }
+
+    /// 写一段已分帧的字节到连接；失败时重置连接以便下次重连。
+    async fn write_payload(&mut self, payload: &[u8]) -> io::Result<()> {
+        match self.stream().await?.write_all(payload).await {
+            Ok(()) => Ok(()),
+            Err(err) => {
+                self.stream = None;
+                Err(err)
+            }
+        }
+    }
+
+    /// 写入一帧指标帧（` METRICS: ` 标记 + 结构化 JSON 正文）。
+    pub(crate) async fn write_metrics(
+        &mut self,
+        envelope: &DataFrame,
+        metrics: &VmMetricLine,
+    ) -> io::Result<()> {
+        let frame = build_metrics_frame(envelope, metrics)?;
+        self.write_payload(&build_payload_bytes(&frame, self.framing))
+            .await
+    }
 }
 
 impl RecordSink for TcpRecordSink {
@@ -147,13 +184,7 @@ impl RecordSink for TcpRecordSink {
             payload.extend_from_slice(&build_payload_bytes(&frame, self.framing));
         }
 
-        match self.stream().await?.write_all(&payload).await {
-            Ok(()) => Ok(()),
-            Err(err) => {
-                self.stream = None;
-                Err(err)
-            }
-        }
+        self.write_payload(&payload).await
     }
 }
 
@@ -168,6 +199,19 @@ fn build_record_frame(record: &TelemetryRecordContract) -> io::Result<Vec<u8>> {
     // RAW: 后跟一个空格分隔帧标记与原文，保证原文从正文首字符开始、不带标记前缀。
     frame.extend_from_slice(b" RAW: ");
     frame.extend_from_slice(record.body.as_bytes());
+    Ok(frame)
+}
+
+/// TCP 指标帧：与日志帧共用 `DataFrame` 信封，但帧标记为 ` METRICS: `，正文是 VM JSON line。
+///
+/// `{envelope} METRICS: {"metric":{...},"value":<number>}`；信封 `seq` 参与 `(agent, seq)` 去重/查缺。
+fn build_metrics_frame(envelope: &DataFrame, metrics: &VmMetricLine) -> io::Result<Vec<u8>> {
+    let mut frame = serde_json::to_vec(envelope)
+        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
+    frame.extend_from_slice(b" METRICS: ");
+    let body = serde_json::to_vec(metrics)
+        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
+    frame.extend_from_slice(&body);
     Ok(frame)
 }
 
@@ -203,7 +247,9 @@ mod tests {
     use tokio::net::TcpListener;
 
     use super::{FileRecordSink, RecordSink, TcpFraming, TcpRecordSink, build_payload_bytes};
-    use wist_contracts::telemetry_record::TelemetryRecordContract;
+
+    use crate::telemetry::metrics::samples::{VmMetricLabels, VmMetricLine};
+    use wist_contracts::telemetry_record::{DataFrame, TelemetryRecordContract};
 
     fn record(body: &str) -> TelemetryRecordContract {
         TelemetryRecordContract::new_log(
@@ -302,5 +348,84 @@ mod tests {
     fn payload_builder_matches_line_and_len_contract() {
         assert_eq!(build_payload_bytes(b"abc", TcpFraming::Line), b"abc\n");
         assert_eq!(build_payload_bytes(b"hello", TcpFraming::Len), b"5 hello");
+    }
+
+    #[test]
+    fn metrics_frame_uses_metrics_marker_with_json_body() {
+        let envelope = DataFrame::new("agent-001", "2026-04-14T00:00:00Z", 42);
+        let metrics = VmMetricLine {
+            metric: VmMetricLabels {
+                name: "system.load_average.1m".to_string(),
+                agent: "agent-001".to_string(),
+                kind: "host_metrics".to_string(),
+                target_ref: "host-1:host".to_string(),
+                resource_ref: Some("host-1".to_string()),
+                unit: "1".to_string(),
+            },
+            values: vec![0.25],
+            timestamps: vec![1_234_567_890_000],
+        };
+
+        let frame = super::build_metrics_frame(&envelope, &metrics).expect("build frame");
+        let text = String::from_utf8_lossy(&frame);
+        let (env, body) = text.split_once(" METRICS: ").expect("METRICS marker");
+
+        let parsed_env: serde_json::Value = serde_json::from_str(env).expect("valid envelope");
+        assert_eq!(parsed_env["agent"], "agent-001");
+        assert_eq!(parsed_env["seq"], 42);
+        assert!(
+            parsed_env.get("kind").is_none(),
+            "envelope stays signal-agnostic"
+        );
+
+        let parsed_body: serde_json::Value = serde_json::from_str(body).expect("valid metrics");
+        assert_eq!(parsed_body["metric"]["__name__"], "system.load_average.1m");
+        assert_eq!(parsed_body["metric"]["agent"], "agent-001");
+        assert_eq!(parsed_body["metric"]["kind"], "host_metrics");
+        assert_eq!(parsed_body["values"][0], 0.25);
+        assert_eq!(parsed_body["timestamps"][0], 1_234_567_890_000_i64);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn tcp_record_sink_writes_metrics_frame() {
+        let listener = match TcpListener::bind("127.0.0.1:0").await {
+            Ok(listener) => listener,
+            Err(err) if err.kind() == io::ErrorKind::PermissionDenied => return,
+            Err(err) => panic!("bind listener: {err}"),
+        };
+        let port = listener.local_addr().expect("listener addr").port();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.expect("accept");
+            let mut buf = vec![0u8; 2048];
+            let n = socket.read(&mut buf).await.expect("read");
+            String::from_utf8_lossy(&buf[..n]).into_owned()
+        });
+        let mut sink = TcpRecordSink::new("127.0.0.1".to_string(), port, TcpFraming::Line);
+
+        let envelope = DataFrame::new("agent-001", "2026-04-14T00:00:00Z", 7);
+        let metrics = VmMetricLine {
+            metric: VmMetricLabels {
+                name: "system.load_average.1m".to_string(),
+                agent: "agent-001".to_string(),
+                kind: "host_metrics".to_string(),
+                target_ref: "host-1:host".to_string(),
+                resource_ref: Some("host-1".to_string()),
+                unit: "1".to_string(),
+            },
+            values: vec![0.25],
+            timestamps: vec![1_234_567_890_000],
+        };
+
+        sink.write_metrics(&envelope, &metrics)
+            .await
+            .expect("write metrics");
+
+        let body = server.await.expect("join");
+        assert!(body.contains(" METRICS: "), "frame: {body}");
+        assert!(body.contains("\"agent\":\"agent-001\""), "frame: {body}");
+        assert!(
+            body.contains("\"__name__\":\"system.load_average.1m\""),
+            "frame: {body}"
+        );
     }
 }

@@ -1,0 +1,3 @@
+{"schema":"v1","agent":"agent-001","ts":"2026-04-14T00:00:00Z","seq":0} RAW: 2026-04-14 INFO request completed
+{"schema":"v1","agent":"agent-001","ts":"2026-04-14T00:00:00Z","seq":42} METRICS: {"metric":{"__name__":"system.load_average.1m","agent":"agent-001","kind":"host_metrics","target_ref":"host-1:host","resource_ref":"host-1","unit":"1"},"values":[0.25],"timestamps":[1234567890000]}
+{"schema":"v1","agent":"agent-001","ts":"2026-04-14T00:00:00Z","seq":43} METRICS: {"metric":{"__name__":"system.memory.total","agent":"agent-001","kind":"host_metrics","target_ref":"host-1:host","resource_ref":"host-1","unit":"KiBy"},"values":[8388608.0],"timestamps":[1234567890000]}

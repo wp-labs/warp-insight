@@ -79,3 +79,5 @@ export { SubsystemX86LinuxInstallCode } from "./SubsystemX86LinuxInstallCode";
 export { SubsystemArmLinuxInstallCode } from "./SubsystemArmLinuxInstallCode";
 export { SubsystemMacOSInstallCode } from "./SubsystemMacOSInstallCode";
 export { SubsystemGatewayInitializePage } from "./SubsystemGatewayInitializePage";
+export { SubsystemAgentHostMetricsPage } from "./SubsystemAgentHostMetricsPage";
+export { SubsystemAgentHostListPage } from "./SubsystemAgentHostListPage";

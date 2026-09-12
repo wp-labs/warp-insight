@@ -1,88 +1,47 @@
-// warp-agentd 上送帧：{envelope} RAW: <原文>（envelope 结构化字段 + RAW 原文分离）
-// 按 input_id 拆规则，用 tag log_type 表达语义 category（macos.*）
+// warp-agentd 上送帧（数据平面 TCP）：
+//   日志帧   {schema, agent, ts, seq} RAW: <原文>
+//   指标帧   {schema, agent, ts, seq} METRICS: <VM JSON line>
+// 信封字段（短名）信号无关：schema / agent / ts / seq；信号类型靠帧标记区分。
+// 注意：新帧不再携带 input_id / source_path / 偏移等来源细节，日志来源归类需由原文内容解析（mac/*）。
 package macos_agent {
 
-  #[tag(log_desc: "macOS agent 日志-软件安装/更新", log_type: "macos.install")]
-  rule mac_agent_install {
-    ( json(
-        chars@signal_kind,
-        chars@observed_at,
-        chars@input_id,
-        chars@source_path,
-        digit@file_offset,
-        digit@file_offset_end,
+  // 日志帧：信封 + ` RAW:` 标记 + 原文。
+  #[tag(log_desc: "macOS agent 日志-原文", log_type: "macos.file")]
+  rule mac_agent_log {
+    (
+      json(
+        chars@schema,
+        chars@agent,
+        chars@ts,
+        digit@seq,
       ),
-      chars:marker,
-      chars:raw\0 | f_chars_has(input_id, macos_install_log) )
+      symbol(RAW:),
+      chars:raw
+    )
   }
 
-  #[tag(log_desc: "macOS agent 日志-launchd 服务", log_type: "macos.launchd")]
-  rule mac_agent_launchd {
-    ( json(
-        chars@signal_kind,
-        chars@observed_at,
-        chars@input_id,
-        chars@source_path,
-        digit@file_offset,
-        digit@file_offset_end,
+  // 指标帧：信封 + ` METRICS:` 标记 + VM JSON line（一个 sample 一行）。
+  //   body = {"metric":{"__name__":"<name>","agent":..,"kind":..,"target_ref":..,"resource_ref":..,"unit":..},"values":[<float>],"timestamps":[<ms>]}
+  #[tag(log_desc: "macOS agent 指标", log_type: "macos.metrics")]
+  rule mac_agent_metrics {
+    (
+      json(
+        chars@schema,
+        chars@agent,
+        chars@ts,
+        digit@seq,
       ),
-      chars:marker,
-      chars:raw\0 | f_chars_has(input_id, macos_launchd) )
-  }
-
-  #[tag(log_desc: "macOS agent 日志-关机/重启", log_type: "macos.reboot")]
-  rule mac_agent_reboot {
-    ( json(
-        chars@signal_kind,
-        chars@observed_at,
-        chars@input_id,
-        chars@source_path,
-        digit@file_offset,
-        digit@file_offset_end,
-      ),
-      chars:marker,
-      chars:raw\0 | f_chars_has(input_id, macos_shutdown_monitor) )
-  }
-
-  #[tag(log_desc: "macOS agent 日志-磁盘检查", log_type: "macos.fsck")]
-  rule mac_agent_fsck {
-    ( json(
-        chars@signal_kind,
-        chars@observed_at,
-        chars@input_id,
-        chars@source_path,
-        digit@file_offset,
-        digit@file_offset_end,
-      ),
-      chars:marker,
-      chars:raw\0 | f_chars_has(input_id, macos_fsck) )
-  }
-
-  #[tag(log_desc: "macOS agent 日志-WiFi", log_type: "macos.wifi")]
-  rule mac_agent_wifi {
-    ( json(
-        chars@signal_kind,
-        chars@observed_at,
-        chars@input_id,
-        chars@source_path,
-        digit@file_offset,
-        digit@file_offset_end,
-      ),
-      chars:marker,
-      chars:raw\0 | f_chars_has(input_id, macos_wifi) )
-  }
-
-  #[tag(log_desc: "macOS agent 日志-其它 file input", log_type: "macos.file")]
-  rule mac_agent_other {
-    ( json(
-        chars@signal_kind,
-        chars@observed_at,
-        chars@input_id,
-        chars@source_path,
-        digit@file_offset,
-        digit@file_offset_end,
-      ),
-      chars:marker,
-      chars:raw\0 )
+      symbol(METRICS:),
+      json(
+        chars@metric/__name__:metric_name,
+        chars@metric/agent:metric_agent,
+        chars@metric/kind:metric_kind,
+        chars@metric/target_ref:metric_target_ref,
+        opt(chars)@metric/resource_ref:metric_resource_ref,
+        chars@metric/unit:metric_unit,
+        array@values:metric_values,
+        array@timestamps:metric_timestamps,
+      )
+    )
   }
 }

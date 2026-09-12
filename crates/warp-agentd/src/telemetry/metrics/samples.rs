@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::runtime::{MetricsCollectionOutcome, MetricsRuntimeSnapshot};
+use super::spec::find_metric_spec;
 
 static METRICS_BATCH_SEQ: AtomicU64 = AtomicU64::new(0);
 
@@ -46,6 +47,73 @@ pub struct MetricsSampleRecord {
     pub status: Option<String>,
 }
 
+/// VM（VictoriaMetrics）`/api/v1/import` 的 JSON line 导入格式的单条指标。
+///
+/// 结构：`{"metric":{"__name__":"<name>","<label>":"<v>",...},"values":[<number>],"timestamps":[<ms>]}`。
+/// 一个 sample 拍平成一行；`metric` 里的 `__name__` 是指标名，其余是标签。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VmMetricLine {
+    pub metric: VmMetricLabels,
+    pub values: Vec<f64>,
+    pub timestamps: Vec<i64>,
+}
+
+/// VM JSON line 的 `metric` 对象：`__name__` 为指标名，其余字段为标签。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VmMetricLabels {
+    #[serde(rename = "__name__")]
+    pub name: String,
+    pub agent: String,
+    pub kind: String,
+    pub target_ref: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resource_ref: Option<String>,
+    pub unit: String,
+}
+
+/// 把样本快照拍平成 VM JSON lines（一 sample 一行）。
+///
+/// 只保留数值型样本（i64/f64）；`gauge_string` 等字符串样本不是数值指标，不进 VM 通道
+/// （center 侧结构化通道另行处理）。`timestamp_ms` 为采集时间戳（毫秒）。
+pub fn build_vm_metric_lines(
+    snapshot: &MetricsSamplesSnapshot,
+    agent_id: &str,
+    timestamp_ms: i64,
+) -> Vec<VmMetricLine> {
+    let mut lines = Vec::new();
+    for group in &snapshot.groups {
+        for sample in &group.samples {
+            if !is_numeric_sample(&sample.value_type) {
+                continue;
+            }
+            // VM 只收数值指标，统一归一成 f64（i64→f64 无损）；非数值（解析失败）直接跳过。
+            let Some(value) = sample.value.as_f64() else {
+                continue;
+            };
+            lines.push(VmMetricLine {
+                metric: VmMetricLabels {
+                    name: sample.name.clone(),
+                    agent: agent_id.to_string(),
+                    kind: group.kind.clone(),
+                    target_ref: group.target_ref.clone(),
+                    resource_ref: group.resource_ref.clone(),
+                    unit: sample.unit.clone(),
+                },
+                values: vec![value],
+                timestamps: vec![timestamp_ms],
+            });
+        }
+    }
+    lines
+}
+
+fn is_numeric_sample(value_type: &str) -> bool {
+    matches!(
+        value_type,
+        "gauge_i64" | "counter_i64" | "gauge_f64" | "counter_f64"
+    )
+}
+
 pub fn build_samples_snapshot(runtime: &MetricsRuntimeSnapshot) -> MetricsSamplesSnapshot {
     let seq = METRICS_BATCH_SEQ.fetch_add(1, Ordering::Relaxed);
     let mut groups = Vec::new();
@@ -66,16 +134,14 @@ fn build_outcome_groups(outcome: &MetricsCollectionOutcome, groups: &mut Vec<Met
         let mut samples = Vec::new();
 
         for fact in &target.runtime_facts {
-            let Some((metric_name, unit, value_type)) =
-                map_runtime_fact_to_metric(&outcome.collection_kind, fact.key.as_str())
-            else {
+            let Some(spec) = find_metric_spec(&outcome.collection_kind, fact.key.as_str()) else {
                 continue;
             };
             samples.push(MetricsSampleRecord {
-                name: metric_name.to_string(),
-                value: sample_value(value_type, &fact.value),
-                value_type: value_type.to_string(),
-                unit: unit.to_string(),
+                name: spec.name.to_string(),
+                value: sample_value(spec.value_type, &fact.value),
+                value_type: spec.value_type.to_string(),
+                unit: spec.unit.to_string(),
                 status: if target.status == "succeeded" {
                     None
                 } else {
@@ -110,60 +176,14 @@ fn sample_value(value_type: &str, raw: &str) -> Value {
     }
 }
 
-fn map_runtime_fact_to_metric(
-    collection_kind: &str,
-    key: &str,
-) -> Option<(&'static str, &'static str, &'static str)> {
-    match (collection_kind, key) {
-        ("host_metrics", "host.target.count") => Some(("system.target.count", "1", "gauge_i64")),
-        ("host_metrics", "host.loadavg.1m") => Some(("system.load_average.1m", "1", "gauge_f64")),
-        ("host_metrics", "host.loadavg.5m") => Some(("system.load_average.5m", "1", "gauge_f64")),
-        ("host_metrics", "host.loadavg.15m") => Some(("system.load_average.15m", "1", "gauge_f64")),
-        ("host_metrics", "host.uptime.seconds") => Some(("system.uptime", "s", "gauge_f64")),
-        ("host_metrics", "host.memory.total_kb") => {
-            Some(("system.memory.total", "KiBy", "gauge_i64"))
-        }
-        ("host_metrics", "host.memory.available_kb") => {
-            Some(("system.memory.available", "KiBy", "gauge_i64"))
-        }
-        ("process_metrics", "process.cpu.user_ticks") => {
-            Some(("process.cpu.time.user", "ticks", "gauge_i64"))
-        }
-        ("process_metrics", "process.cpu.system_ticks") => {
-            Some(("process.cpu.time.system", "ticks", "gauge_i64"))
-        }
-        ("process_metrics", "process.memory.rss_pages") => {
-            Some(("process.memory.rss", "pages", "gauge_i64"))
-        }
-        ("process_metrics", "process.memory.rss_kb") => {
-            Some(("process.memory.rss", "KiBy", "gauge_i64"))
-        }
-        ("process_metrics", "process.state") => Some(("process.state", "state", "gauge_string")),
-        ("container_metrics", "process.cpu.user_ticks") => {
-            Some(("container.cpu.time.user", "ticks", "gauge_i64"))
-        }
-        ("container_metrics", "process.cpu.system_ticks") => {
-            Some(("container.cpu.time.system", "ticks", "gauge_i64"))
-        }
-        ("container_metrics", "process.memory.rss_pages") => {
-            Some(("container.memory.rss", "pages", "gauge_i64"))
-        }
-        ("container_metrics", "process.memory.rss_kb") => {
-            Some(("container.memory.rss", "KiBy", "gauge_i64"))
-        }
-        ("container_metrics", "process.state") => {
-            Some(("container.state", "state", "gauge_string"))
-        }
-        ("container_metrics", "container.pid") => Some(("container.pid", "1", "gauge_i64")),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use wist_contracts::discovery::StringKeyValue;
 
-    use super::build_samples_snapshot;
+    use super::{
+        MetricsSampleGroup, MetricsSampleRecord, MetricsSamplesSnapshot, build_samples_snapshot,
+        build_vm_metric_lines,
+    };
     use crate::telemetry::metrics::runtime::{
         MetricsCollectionOutcome, MetricsCollectionTargetSample, MetricsRuntimeSnapshot,
     };
@@ -281,5 +301,47 @@ mod tests {
             .find(|s| s.name == "system.memory.available")
             .expect("i64 sample");
         assert!(avail.value.is_number());
+    }
+
+    #[test]
+    fn build_vm_metric_lines_flattens_numeric_samples_and_skips_strings() {
+        let snapshot = MetricsSamplesSnapshot {
+            batch_seq: 3,
+            collected_at: "2026-04-19T00:00:00Z".to_string(),
+            groups: vec![MetricsSampleGroup {
+                kind: "host_metrics".to_string(),
+                target_ref: "host-1:host".to_string(),
+                resource_ref: Some("host-1".to_string()),
+                samples: vec![
+                    MetricsSampleRecord {
+                        name: "system.load_average.1m".to_string(),
+                        value: serde_json::json!(0.25),
+                        value_type: "gauge_f64".to_string(),
+                        unit: "1".to_string(),
+                        status: None,
+                    },
+                    MetricsSampleRecord {
+                        name: "process.state".to_string(),
+                        value: serde_json::json!("running"),
+                        value_type: "gauge_string".to_string(),
+                        unit: "state".to_string(),
+                        status: None,
+                    },
+                ],
+            }],
+        };
+
+        let lines = build_vm_metric_lines(&snapshot, "agent-001", 1_234_567_890_000);
+
+        assert_eq!(lines.len(), 1, "string sample should be skipped");
+        let line = &lines[0];
+        assert_eq!(line.metric.name, "system.load_average.1m");
+        assert_eq!(line.metric.agent, "agent-001");
+        assert_eq!(line.metric.kind, "host_metrics");
+        assert_eq!(line.metric.target_ref, "host-1:host");
+        assert_eq!(line.metric.resource_ref, Some("host-1".to_string()));
+        assert_eq!(line.metric.unit, "1");
+        assert_eq!(line.values, vec![0.25]);
+        assert_eq!(line.timestamps, vec![1_234_567_890_000]);
     }
 }

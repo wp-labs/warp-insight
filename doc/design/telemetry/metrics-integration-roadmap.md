@@ -361,3 +361,31 @@ AI 适合加速以下研发工作：
 - exporter 不再是默认前提，而是兼容选项
 - 先做 Batch A，再做 Batch B
 - AI 用于加速 integration 研发，而不是进入边缘运行时
+
+---
+
+## 11. W3 落地设计（uplink + 扩展机制）
+
+W3「收到指标」的链路闭环与三项已定决策：
+
+### 11.1 链路闭环
+
+```text
+discovery snapshot → planner_bridge（discovery → 采集候选）→ provider.collect → normalize → 指标帧 → uplink
+```
+
+现状：`target_view`（候选）/ `runtime`（采集）/ `samples`（规范化）已落地；**指标帧序列化 + uplink 接入 + provider 抽象（W4）待落地**。
+
+### 11.2 已定决策
+
+- **帧标记区分（A）**：信封 `{schema, agent, ts, seq}` 保持信号无关、不动；信号类型靠帧标记表达——` RAW:`（日志）/ ` METRICS:`（指标），见 `telemetry-uplink-protocol.md` §4/§5。
+- **共享 uplink（B）**：指标与日志共用同一 TCP 连接，靠帧标记区分；指标优先 + 背压隔离（日志洪峰不挤掉指标，反之亦然）。
+- **编译期注册 provider（C1）**：`MetricProvider` trait + 静态注册表，新增 provider = 写 `impl` + 注册一行 + 重编；脚本型指标（`wist-exec` opcode）后续再议。
+
+### 11.3 三层结构（W4 扩展机制）
+
+| 层 | 职责 | 扩展点 |
+| --- | --- | --- |
+| 契约层（spec） | `MetricSpec{ name, unit, value_type, target_selector, provider, ... }` | 新增 spec |
+| 映射层（planner_bridge） | discovery snapshot → `CollectionPlan`（候选） | selector 规则 |
+| 采集层（provider） | `MetricProvider{ id, supports(spec), collect(target) -> samples }` | 编译期注册新 provider |

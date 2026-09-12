@@ -4,11 +4,11 @@
 
 本文档定义 `warp-insight` 数据面 `agentd → gateway → center 数据平台` 链路上，**接收端接入层（ingress）** 需要消费的帧格式。它是 `wist-delivery`（去重 / 缺口检测 / 过滤）的上游协议约定。
 
-覆盖两类载体：
+覆盖两类载体（数据帧含日志/指标两个变体）：
 
 | 载体 | 通道 | 承载什么 |
 | --- | --- | --- |
-| **数据帧**（data frame） | 数据平面（TCP） | 一条原始记录（带 `seq`）；被动丢失靠接收端 `seq` 跳号检测，帧本身不表达丢失 |
+| **数据帧**（data frame） | 数据平面（TCP） | 真实数据（带 `seq`），按帧标记分 ` RAW:`（日志）/ ` METRICS:`（指标）；被动丢失靠接收端 `seq` 跳号检测，帧本身不表达丢失 |
 | **数据报告**（data report） | 独立报告通道（控制/状态） | 主动过滤的丢弃区间 + `reason` |
 
 只定义格式，不绑定具体 IO / 存储 / 协议实现。与「防丢失」的语义关系见 [`data-loss-prevention.md`](data-loss-prevention.md)。
@@ -46,15 +46,24 @@
 
 ## 4. 数据平面帧格式
 
-数据平面（TCP）**只承载数据帧**：`{envelope} RAW: <正文>`。接收端解析帧开头的 JSON 信封（`{...}`），信封之后是 ` RAW: <正文>`。
+数据平面（TCP）承载数据帧：`{envelope} <帧标记> <正文>`。接收端解析帧开头的 JSON 信封（`{...}`），信封之后是帧标记 + 正文。
 
-`RAW: ` 是帧标记，后跟一个空格；正文（原始行）不进入 JSON、不转义，便于审计核对与回放。
+帧标记（后跟一个空格）区分正文类型：
 
-> 主动过滤不混进数据平面，走独立报告通道的数据报告（§6）；因此数据平面无需判别帧类型，被动丢失由接收端从 `seq` 跳号检测（见 `data-loss-prevention.md` §8）。
+| 帧标记 | 正文 | 信号 |
+| --- | --- | --- |
+| ` RAW: ` | 原始日志行，不进入 JSON、不转义，便于审计核对与回放 | log |
+| ` METRICS: ` | 结构化指标 JSON | metrics |
+
+> 主动过滤不混进数据平面，走独立报告通道的数据报告（§6）；被动丢失由接收端从 `seq` 跳号检测（见 `data-loss-prevention.md` §8）。信号类型由帧标记表达，信封保持信号无关。
 
 ---
 
 ## 5. 数据帧（data frame）
+
+数据帧承载真实数据，信封 `{schema, agent, ts, seq}` 共用、信号无关，按帧标记分两类正文：
+
+### 5.1 日志帧（` RAW:`）
 
 ```
 {envelope} RAW: <正文>
@@ -78,6 +87,22 @@
 ```
 {"schema":"v1","agent":"agent-001","ts":"2026-04-14T00:00:00Z","seq":0} RAW: 2026-04-14 INFO request completed
 ```
+
+### 5.2 指标帧（` METRICS:`）
+
+```
+{envelope} METRICS: <指标 JSON>
+```
+
+指标正文是 `MetricsSamplesSnapshot` 的序列化 JSON（结构化、非原文，字段见 metrics 设计文档）。信封 `seq` 仍参与 `(agent, seq)` 去重/查缺；指标批内部的 `batch_seq` 仅作批内标识。
+
+**示例**：
+
+```json
+{"schema":"v1","agent":"agent-001","ts":"2026-04-14T00:00:00Z","seq":42} METRICS: {"batch_seq":0,"collected_at":"2026-04-14T00:00:00Z","groups":[{"kind":"host_metrics","target_ref":"host-1:host","resource_ref":"host-1","samples":[{"name":"system.load_average.1m","value":0.25,"type":"gauge_f64","unit":"1"}]}]}
+```
+
+> 指标与日志共用同一 TCP 连接（共享 uplink），靠帧标记区分；指标优先 + 背压隔离（日志洪峰不挤掉指标，反之亦然）。
 
 ---
 
@@ -139,7 +164,7 @@
 
 1. **新增字段向后兼容**：`agent` 及报告字段在反序列化侧用 `#[serde(default)]`，旧数据缺字段可退化解析。
 2. **缺失字段的降级**：无 `agent` 的旧记录无法参与复合键去重；`seq` 缺口检测不受影响。
-3. **`schema`** 当前 `TelemetryRecordContract` 有 `schema_version` 字段，但 TCP 帧信封未携带——应在实现帧格式时补齐到信封。
+3. **`schema`**：帧信封已携带 `schema`（对应 `TelemetryRecordContract.schema_version` / `DataFrame.schema_version`）。
 
 ---
 

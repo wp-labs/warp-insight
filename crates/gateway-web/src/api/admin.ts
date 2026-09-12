@@ -41,6 +41,37 @@ export interface AgentOverview {
   abnormalAgents: AgentRuntimeStatusView[];
 }
 
+export interface AgentHostMetrics {
+  agentId: string;
+  loadAverage1m?: number;
+  loadAverage5m?: number;
+  loadAverage15m?: number;
+  uptimeSeconds?: number;
+  memoryTotalKb?: number;
+  memoryAvailableKb?: number;
+  diskUsagePercent?: number;
+  diskTotalKb?: number;
+  diskAvailableKb?: number;
+  history?: AgentHostMetricsHistory;
+}
+
+export interface AgentHostMetricsHistory {
+  loadAverage1m: [number, number][];
+  loadAverage5m: [number, number][];
+  loadAverage15m: [number, number][];
+  memoryTotalKb: [number, number][];
+  memoryAvailableKb: [number, number][];
+  diskUsagePercent: [number, number][];
+}
+
+export interface AgentHostMetricsSummary {
+  agentId: string;
+  loadAverage1m?: number;
+  memoryTotalKb?: number;
+  memoryAvailableKb?: number;
+  diskUsagePercent?: number;
+}
+
 export interface AgentInstallCode {
   x86LinuxInstallCode: string;
   armLinuxInstallCode: string;
@@ -487,9 +518,86 @@ export function normalizeOverview(payload: any): AgentOverview {
   };
 }
 
+function normalizeHostMetrics(payload: any): AgentHostMetrics {
+  return {
+    agentId: requiredString(payload.agent_id ?? payload.agentId, "host.agentId"),
+    loadAverage1m: payload.load_average_1m ?? payload.loadAverage1m,
+    loadAverage5m: payload.load_average_5m ?? payload.loadAverage5m,
+    loadAverage15m: payload.load_average_15m ?? payload.loadAverage15m,
+    uptimeSeconds: payload.uptime_seconds ?? payload.uptimeSeconds,
+    memoryTotalKb: payload.memory_total_kb ?? payload.memoryTotalKb,
+    memoryAvailableKb: payload.memory_available_kb ?? payload.memoryAvailableKb,
+    diskUsagePercent: payload.disk_usage_percent ?? payload.diskUsagePercent,
+    diskTotalKb: payload.disk_total_kb ?? payload.diskTotalKb,
+    diskAvailableKb: payload.disk_available_kb ?? payload.diskAvailableKb,
+    history: payload.history
+      ? normalizeHostMetricsHistory(payload.history)
+      : undefined,
+  };
+}
+
+function normalizeHostMetricsHistory(payload: any): AgentHostMetricsHistory {
+  return {
+    loadAverage1m: normalizeSeries(payload.load_average_1m ?? payload.loadAverage1m),
+    loadAverage5m: normalizeSeries(payload.load_average_5m ?? payload.loadAverage5m),
+    loadAverage15m: normalizeSeries(payload.load_average_15m ?? payload.loadAverage15m),
+    memoryTotalKb: normalizeSeries(payload.memory_total_kb ?? payload.memoryTotalKb),
+    memoryAvailableKb: normalizeSeries(
+      payload.memory_available_kb ?? payload.memoryAvailableKb,
+    ),
+    diskUsagePercent: normalizeSeries(
+      payload.disk_usage_percent ?? payload.diskUsagePercent,
+    ),
+  };
+}
+
+function normalizeSeries(payload: any): [number, number][] {
+  if (!Array.isArray(payload)) return [];
+  return payload.flatMap((point: any) => {
+    if (!Array.isArray(point) || point.length < 2) return [];
+    const timestamp = Number(point[0]);
+    const value = Number(point[1]);
+    if (!Number.isFinite(timestamp) || !Number.isFinite(value)) return [];
+    return [[timestamp, value] as [number, number]];
+  });
+}
+
+function normalizeHostMetricsSummaries(payload: any): AgentHostMetricsSummary[] {
+  if (!Array.isArray(payload)) return [];
+  return payload.map(normalizeHostMetricsSummary);
+}
+
+function normalizeHostMetricsSummary(payload: any): AgentHostMetricsSummary {
+  return {
+    agentId: requiredString(payload.agent_id ?? payload.agentId, "host.agentId"),
+    loadAverage1m: payload.load_average_1m ?? payload.loadAverage1m,
+    memoryTotalKb: payload.memory_total_kb ?? payload.memoryTotalKb,
+    memoryAvailableKb: payload.memory_available_kb ?? payload.memoryAvailableKb,
+    diskUsagePercent: payload.disk_usage_percent ?? payload.diskUsagePercent,
+  };
+}
+
 export async function fetchAgentOverview(): Promise<AgentOverview> {
   const payload = await requestJson<unknown>("/api/v1/admin/agents/overview");
   return normalizeOverview(payload);
+}
+
+export async function fetchAgentHostMetrics(
+  agentId: string,
+): Promise<AgentHostMetrics> {
+  const payload = await requestJson<unknown>(
+    `/api/v1/admin/agents/${encodeURIComponent(agentId)}/host-metrics`,
+  );
+  return normalizeHostMetrics(payload);
+}
+
+export async function fetchAllAgentsHostMetrics(): Promise<
+  AgentHostMetricsSummary[]
+> {
+  const payload = await requestJson<unknown>(
+    "/api/v1/admin/agents/host-metrics",
+  );
+  return normalizeHostMetricsSummaries(payload);
 }
 
 export async function fetchAgentInstallCode(): Promise<AgentInstallCode> {

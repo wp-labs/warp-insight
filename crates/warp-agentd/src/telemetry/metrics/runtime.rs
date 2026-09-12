@@ -1,5 +1,6 @@
 //! Minimal metrics runtime tick built from target view.
 
+#[cfg(target_os = "linux")]
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -7,6 +8,7 @@ use std::path::Path;
 use std::process::Command;
 
 use serde::{Deserialize, Serialize};
+use sysinfo::{Disks, System};
 use wist_contracts::discovery::StringKeyValue;
 use wist_shared::fs::write_json_atomic;
 
@@ -70,31 +72,27 @@ pub fn build_runtime_snapshot_from_view(view: &MetricsTargetView) -> MetricsRunt
     let mut host_targets = 0;
     let mut process_targets = 0;
     let mut container_targets = 0;
-    let mut host_samples = Vec::new();
-    let mut process_samples = Vec::new();
-    let mut container_samples = Vec::new();
 
     for target in &view.targets {
         match target.collection_kind.as_str() {
-            "host_metrics" => {
-                host_targets += 1;
-                maybe_push_sample(&mut host_samples, target);
-            }
-            "process_metrics" => {
-                process_targets += 1;
-                maybe_push_sample(&mut process_samples, target);
-            }
-            "container_metrics" => {
-                container_targets += 1;
-                maybe_push_sample(&mut container_samples, target);
-            }
+            "host_metrics" => host_targets += 1,
+            "process_metrics" => process_targets += 1,
+            "container_metrics" => container_targets += 1,
             _ => {}
         }
     }
 
-    let host_outcome = build_host_outcome(host_targets, host_samples);
-    let process_outcome = build_process_outcome(process_entries_from_view(view));
-    let container_outcome = build_container_outcome(container_entries_from_view(view));
+    let outcomes = providers()
+        .iter()
+        .map(|provider| {
+            let targets: Vec<&MetricsTargetViewEntry> = view
+                .targets
+                .iter()
+                .filter(|target| target.collection_kind == provider.collection_kind())
+                .collect();
+            provider.collect(targets)
+        })
+        .collect();
 
     MetricsRuntimeSnapshot {
         generated_at: view.generated_at.clone(),
@@ -102,7 +100,7 @@ pub fn build_runtime_snapshot_from_view(view: &MetricsTargetView) -> MetricsRunt
         host_targets,
         process_targets,
         container_targets,
-        outcomes: vec![host_outcome, process_outcome, container_outcome],
+        outcomes,
     }
 }
 
@@ -294,6 +292,62 @@ fn build_container_outcome(targets: Vec<&MetricsTargetViewEntry>) -> MetricsColl
     }
 }
 
+/// 一类指标采集的抽象（编译期注册 provider）。
+pub trait MetricProvider {
+    /// 采集 kind（与 `MetricsTargetViewEntry.collection_kind` 对应）。
+    fn collection_kind(&self) -> &'static str;
+
+    /// 对一组目标采集，产出该 kind 的采集结果。
+    fn collect(&self, targets: Vec<&MetricsTargetViewEntry>) -> MetricsCollectionOutcome;
+}
+
+/// 编译期注册的 provider 列表；新增一类指标 = 加一个 provider 并在这里登记。
+pub(crate) fn providers() -> &'static [&'static dyn MetricProvider] {
+    &[
+        &HostMetricsProvider,
+        &ProcessMetricsProvider,
+        &ContainerMetricsProvider,
+    ]
+}
+
+pub struct HostMetricsProvider;
+pub struct ProcessMetricsProvider;
+pub struct ContainerMetricsProvider;
+
+impl MetricProvider for HostMetricsProvider {
+    fn collection_kind(&self) -> &'static str {
+        "host_metrics"
+    }
+
+    fn collect(&self, targets: Vec<&MetricsTargetViewEntry>) -> MetricsCollectionOutcome {
+        let mut sample_targets = Vec::new();
+        for target in &targets {
+            maybe_push_sample(&mut sample_targets, target);
+        }
+        build_host_outcome(targets.len(), sample_targets)
+    }
+}
+
+impl MetricProvider for ProcessMetricsProvider {
+    fn collection_kind(&self) -> &'static str {
+        "process_metrics"
+    }
+
+    fn collect(&self, targets: Vec<&MetricsTargetViewEntry>) -> MetricsCollectionOutcome {
+        build_process_outcome(targets)
+    }
+}
+
+impl MetricProvider for ContainerMetricsProvider {
+    fn collection_kind(&self) -> &'static str {
+        "container_metrics"
+    }
+
+    fn collect(&self, targets: Vec<&MetricsTargetViewEntry>) -> MetricsCollectionOutcome {
+        build_container_outcome(targets)
+    }
+}
+
 fn collect_host_runtime_facts(
     sample_targets: &[MetricsCollectionTargetSample],
 ) -> Vec<StringKeyValue> {
@@ -307,53 +361,88 @@ fn collect_host_runtime_facts(
         }
     }
 
-    if let Ok(loadavg) = fs::read_to_string("/proc/loadavg") {
-        let mut parts = loadavg.split_whitespace();
-        if let Some(value) = parts.next() {
-            push_fact_if_absent(&mut facts, StringKeyValue::new("host.loadavg.1m", value));
-        }
-        if let Some(value) = parts.next() {
-            push_fact_if_absent(&mut facts, StringKeyValue::new("host.loadavg.5m", value));
-        }
-        if let Some(value) = parts.next() {
-            push_fact_if_absent(&mut facts, StringKeyValue::new("host.loadavg.15m", value));
-        }
-    }
+    let loadavg = System::load_average();
+    push_fact_if_absent(
+        &mut facts,
+        StringKeyValue::new("host.loadavg.1m", loadavg.one.to_string()),
+    );
+    push_fact_if_absent(
+        &mut facts,
+        StringKeyValue::new("host.loadavg.5m", loadavg.five.to_string()),
+    );
+    push_fact_if_absent(
+        &mut facts,
+        StringKeyValue::new("host.loadavg.15m", loadavg.fifteen.to_string()),
+    );
 
-    if let Ok(uptime) = fs::read_to_string("/proc/uptime") {
-        if let Some(value) = uptime.split_whitespace().next() {
-            push_fact_if_absent(
-                &mut facts,
-                StringKeyValue::new("host.uptime.seconds", value),
-            );
-        }
-    }
+    push_fact_if_absent(
+        &mut facts,
+        StringKeyValue::new("host.uptime.seconds", System::uptime().to_string()),
+    );
 
-    if let Ok(meminfo) = fs::read_to_string("/proc/meminfo") {
-        for line in meminfo.lines() {
-            if let Some(value) = parse_meminfo_kb(line, "MemTotal:") {
-                push_fact_if_absent(
-                    &mut facts,
-                    StringKeyValue::new("host.memory.total_kb", value),
-                );
-            } else if let Some(value) = parse_meminfo_kb(line, "MemAvailable:") {
-                push_fact_if_absent(
-                    &mut facts,
-                    StringKeyValue::new("host.memory.available_kb", value),
-                );
-            }
-        }
-    }
+    let mut system = System::new();
+    system.refresh_memory();
+    push_fact_if_absent(
+        &mut facts,
+        StringKeyValue::new(
+            "host.memory.total_kb",
+            (system.total_memory() / 1024).to_string(),
+        ),
+    );
+    push_fact_if_absent(
+        &mut facts,
+        StringKeyValue::new(
+            "host.memory.available_kb",
+            (system.available_memory() / 1024).to_string(),
+        ),
+    );
+
+    collect_host_disk_usage(&mut facts);
 
     facts
 }
 
-fn parse_meminfo_kb<'a>(line: &'a str, key: &str) -> Option<&'a str> {
-    line.strip_prefix(key)
-        .map(str::trim)
-        .and_then(|value| value.strip_suffix(" kB").or(Some(value)))
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
+fn collect_host_disk_usage(facts: &mut Vec<StringKeyValue>) {
+    // The primary writable filesystem differs across platforms: macOS APFS keeps
+    // user data on the Data volume while `/` is a small sealed system snapshot, so
+    // pick the Data volume first and fall back to `/`. Linux and others use `/`.
+    let mounts: &[&str] = if cfg!(target_os = "macos") {
+        &["/System/Volumes/Data", "/"]
+    } else {
+        &["/"]
+    };
+
+    let disks = Disks::new_with_refreshed_list();
+    for mount in mounts {
+        let Some(disk) = disks
+            .list()
+            .iter()
+            .find(|disk| disk.mount_point() == Path::new(mount))
+        else {
+            continue;
+        };
+        let total = disk.total_space();
+        let available = disk.available_space();
+        let used = total.saturating_sub(available);
+        let usage_percent = if total == 0 {
+            0.0
+        } else {
+            used as f64 / total as f64 * 100.0
+        };
+        push_fact_if_absent(
+            facts,
+            StringKeyValue::new("host.disk.usage_percent", usage_percent.to_string()),
+        );
+        push_fact_if_absent(
+            facts,
+            StringKeyValue::new("host.disk.total_kb", (total / 1024).to_string()),
+        );
+        push_fact_if_absent(
+            facts,
+            StringKeyValue::new("host.disk.available_kb", (available / 1024).to_string()),
+        );
+        return;
+    }
 }
 
 fn push_fact_if_absent(facts: &mut Vec<StringKeyValue>, candidate: StringKeyValue) {
@@ -382,20 +471,6 @@ fn maybe_push_sample(
         execution_hints: target.execution_hints.clone(),
         runtime_facts: Vec::new(),
     });
-}
-
-fn process_entries_from_view(view: &MetricsTargetView) -> Vec<&MetricsTargetViewEntry> {
-    view.targets
-        .iter()
-        .filter(|target| target.collection_kind == "process_metrics")
-        .collect()
-}
-
-fn container_entries_from_view(view: &MetricsTargetView) -> Vec<&MetricsTargetViewEntry> {
-    view.targets
-        .iter()
-        .filter(|target| target.collection_kind == "container_metrics")
-        .collect()
 }
 
 fn probe_process_target(target: &MetricsTargetViewEntry) -> MetricsCollectionTargetSample {
@@ -525,15 +600,7 @@ fn collect_process_runtime_facts(
                 StringKeyValue::new("process.state", state.to_string()),
             );
         }
-        if let Some((utime, stime, rss_pages)) = parse_linux_proc_metrics(&stat) {
-            push_fact_if_absent(
-                &mut facts,
-                StringKeyValue::new("process.cpu.user_ticks", utime.to_string()),
-            );
-            push_fact_if_absent(
-                &mut facts,
-                StringKeyValue::new("process.cpu.system_ticks", stime.to_string()),
-            );
+        if let Some(rss_pages) = parse_linux_proc_rss_pages(&stat) {
             push_fact_if_absent(
                 &mut facts,
                 StringKeyValue::new("process.memory.rss_pages", rss_pages.to_string()),
@@ -593,16 +660,13 @@ fn parse_linux_proc_state(stat: &str) -> Option<char> {
 }
 
 #[cfg(target_os = "linux")]
-fn parse_linux_proc_metrics(stat: &str) -> Option<(u64, u64, i64)> {
+fn parse_linux_proc_rss_pages(stat: &str) -> Option<i64> {
     let (_, tail) = stat.rsplit_once(") ")?;
     let fields: Vec<&str> = tail.split_whitespace().collect();
     if fields.len() <= 21 {
         return None;
     }
-    let utime = fields.get(11)?.parse().ok()?;
-    let stime = fields.get(12)?.parse().ok()?;
-    let rss_pages = fields.get(21)?.parse().ok()?;
-    Some((utime, stime, rss_pages))
+    fields.get(21)?.parse().ok()
 }
 
 fn process_probe_mode() -> &'static str {
@@ -916,5 +980,82 @@ mod tests {
         );
         assert_eq!(container_outcome.sample_targets.len(), 1);
         assert_eq!(container_outcome.sample_targets[0].status, "failed");
+    }
+
+    #[test]
+    fn provider_registry_covers_batch_a_kinds() {
+        let kinds: Vec<&str> = super::providers()
+            .iter()
+            .map(|provider| provider.collection_kind())
+            .collect();
+        assert_eq!(
+            kinds,
+            vec!["host_metrics", "process_metrics", "container_metrics"]
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_host_runtime_facts_are_collected() {
+        let facts = super::collect_host_runtime_facts(&[]);
+        let fact_value = |key: &str| {
+            facts
+                .iter()
+                .find(|fact| fact.key == key)
+                .map(|fact| fact.value.as_str())
+        };
+
+        for key in ["host.loadavg.1m", "host.loadavg.5m", "host.loadavg.15m"] {
+            let value = fact_value(key).unwrap_or_else(|| panic!("missing fact {key}"));
+            assert!(
+                value.parse::<f64>().is_ok(),
+                "{key} should parse as f64, got {value:?}"
+            );
+        }
+
+        let uptime = fact_value("host.uptime.seconds").expect("host.uptime.seconds");
+        let uptime: f64 = uptime.parse().expect("uptime should parse as f64");
+        assert!(uptime >= 0.0, "uptime should be non-negative, got {uptime}");
+
+        let total = fact_value("host.memory.total_kb").expect("host.memory.total_kb");
+        let total: i64 = total.parse().expect("total should parse as i64");
+        assert!(total > 0, "total memory should be positive, got {total}");
+
+        let available = fact_value("host.memory.available_kb").expect("host.memory.available_kb");
+        let available: i64 = available.parse().expect("available should parse as i64");
+        assert!(
+            available > 0,
+            "available memory should be positive, got {available}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn host_disk_runtime_facts_are_collected() {
+        let facts = super::collect_host_runtime_facts(&[]);
+        let fact_value = |key: &str| {
+            facts
+                .iter()
+                .find(|fact| fact.key == key)
+                .map(|fact| fact.value.as_str())
+        };
+
+        let usage = fact_value("host.disk.usage_percent").expect("host.disk.usage_percent");
+        let usage: f64 = usage.parse().expect("usage should parse as f64");
+        assert!(
+            (0.0..=100.0).contains(&usage),
+            "usage should be 0..=100, got {usage}"
+        );
+
+        let total = fact_value("host.disk.total_kb").expect("host.disk.total_kb");
+        let total: i64 = total.parse().expect("total should parse as i64");
+        assert!(total > 0, "total disk should be positive, got {total}");
+
+        let available = fact_value("host.disk.available_kb").expect("host.disk.available_kb");
+        let available: i64 = available.parse().expect("available should parse as i64");
+        assert!(
+            available >= 0,
+            "available disk should be non-negative, got {available}"
+        );
     }
 }

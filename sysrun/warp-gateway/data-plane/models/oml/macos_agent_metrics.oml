@@ -1,0 +1,13 @@
+name : macos_agent_metrics
+rule : macos_agent/mac_agent_metrics
+---
+metric = object {
+    __name__ = read(metric_name);
+    agent = read(metric_agent);
+    kind = read(metric_kind);
+    target_ref = read(metric_target_ref);
+    resource_ref = read(metric_resource_ref);
+    unit = read(metric_unit);
+};
+values = read(metric_values);
+timestamps = read(metric_timestamps);

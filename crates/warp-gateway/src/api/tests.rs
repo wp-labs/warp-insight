@@ -1399,6 +1399,7 @@ impl TestEnv {
             install_script_signing_public_key_pem,
             tenant_id: "tenant-default".to_string(),
             environment_id: "env-default".to_string(),
+            victoria_metrics_url: "http://127.0.0.1:18429".to_string(),
         };
         Self {
             config,

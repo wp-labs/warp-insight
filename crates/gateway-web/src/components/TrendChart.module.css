@@ -1,0 +1,47 @@
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fbfcfe;
+  border: 1px solid #edf1f6;
+  border-radius: 6px;
+}
+
+.axisLabel {
+  fill: #718095;
+  font-size: 10px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #5f6f86;
+  font-size: 12px;
+}
+
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.empty {
+  color: #718095;
+  font-size: 13px;
+  padding: 12px 0;
+}

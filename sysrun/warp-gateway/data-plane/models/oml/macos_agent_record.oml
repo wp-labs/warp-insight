@@ -1,12 +1,10 @@
 name : macos_agent_record
-rule : macos_agent/*
+rule : macos_agent/mac_agent_log
 ---
-signal_kind = read(signal_kind) ;
-observed_at = read(observed_at) ;
-input_id = read(input_id) ;
+schema = read(schema) ;
+agent_id = read(agent) ;
+observed_at = read(ts) ;
+seq = read(seq) ;
 category = read(log_type) ;
 log_desc = read(log_desc) ;
-source_path = read(source_path) ;
-file_offset = read(file_offset) ;
-file_offset_end = read(file_offset_end) ;
 raw = read(raw) ;

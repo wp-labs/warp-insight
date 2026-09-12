@@ -70,6 +70,14 @@ export function SubsystemAdminTopNavigation({
                 className={({ isActive }) =>
                   isActive ? `${styles.link} ${styles.active}` : styles.link
                 }
+                to="/hosts"
+              >
+                主机指标
+              </NavLink>
+              <NavLink
+                className={({ isActive }) =>
+                  isActive ? `${styles.link} ${styles.active}` : styles.link
+                }
                 to="/control"
               >
                 控制中心
