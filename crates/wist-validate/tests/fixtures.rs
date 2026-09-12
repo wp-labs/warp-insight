@@ -587,11 +587,12 @@ fn config_with_invalid_log_spool_over_limit_is_rejected() {
 }
 
 #[test]
-fn config_with_drop_oldest_spool_over_limit_is_accepted() {
+fn config_with_drop_oldest_spool_over_limit_is_rejected() {
     let mut fixture = config_fixture("contracts/config/valid/standalone.toml");
     fixture.telemetry.logs.spool_over_limit = "drop_oldest".to_string();
 
-    validate_config(&fixture).expect("drop_oldest is an allowed spool policy");
+    let err = validate_config(&fixture).expect_err("drop_oldest should be rejected");
+    assert_eq!(err.code, "invalid_logs_spool_over_limit");
 }
 
 #[test]

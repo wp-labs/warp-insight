@@ -38,6 +38,11 @@ pub(super) fn build_file_input_config(
     source_path: PathBuf,
 ) -> FileInputConfig {
     FileInputConfig {
+        agent_id: config
+            .agent
+            .agent_id
+            .clone()
+            .unwrap_or_else(|| "unknown".to_string()),
         input_id: input.input_id.clone(),
         source_path,
         state_dir: PathBuf::from(&config.paths.state_dir),
@@ -103,5 +108,57 @@ fn startup_position_for(input: &LogFileInputSection) -> StartupPosition {
     match input.startup_position.as_str() {
         "tail" => StartupPosition::Tail,
         _ => StartupPosition::Head,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_file_input_config;
+    use std::path::PathBuf;
+    use wist_contracts::agent_config::{
+        AgentConfigContract, AgentSection, ControlPlaneSection, ExecutionSection,
+        LogFileInputSection, PathsSection,
+    };
+
+    fn config_with_agent(agent_id: Option<&str>) -> AgentConfigContract {
+        AgentConfigContract::new(
+            AgentSection {
+                agent_id: agent_id.map(str::to_string),
+                environment_id: None,
+                instance_name: None,
+            },
+            ControlPlaneSection::default(),
+            PathsSection::default(),
+            ExecutionSection::default(),
+        )
+    }
+
+    fn input() -> LogFileInputSection {
+        LogFileInputSection {
+            input_id: "app".to_string(),
+            path: "/var/log/app.log".to_string(),
+            startup_position: "head".to_string(),
+            multiline_mode: "none".to_string(),
+        }
+    }
+
+    #[test]
+    fn uses_configured_agent_id() {
+        let config = build_file_input_config(
+            &config_with_agent(Some("agent-x")),
+            &input(),
+            PathBuf::from("/var/log/app.log"),
+        );
+        assert_eq!(config.agent_id, "agent-x");
+    }
+
+    #[test]
+    fn falls_back_to_unknown_agent_id_when_not_configured() {
+        let config = build_file_input_config(
+            &config_with_agent(None),
+            &input(),
+            PathBuf::from("/var/log/app.log"),
+        );
+        assert_eq!(config.agent_id, "unknown");
     }
 }

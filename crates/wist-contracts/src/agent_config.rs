@@ -187,7 +187,8 @@ pub struct LogsSection {
     /// 落盘待发队列（spool）上限（字节）。
     #[serde(default = "default_spool_max_bytes")]
     pub spool_max_bytes: u64,
-    /// spool 超限行为：`pause`（默认，暂停采集+告警，保完整）| `drop_oldest`（显式备选）。
+    /// spool 超限行为：当前仅 `pause`（默认，暂停采集+告警，保完整）。
+    /// `drop_oldest` 留待后续按 input 优先级丢弃落地（校验层暂不接收）。
     #[serde(default = "default_spool_over_limit")]
     pub spool_over_limit: String,
     #[serde(default = "default_logs_spool_dir")]

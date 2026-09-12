@@ -181,12 +181,14 @@ mod tests {
 
     fn record(body: &str) -> TelemetryRecordContract {
         TelemetryRecordContract::new_log(
+            "agent-a".to_string(),
             "2026-04-13T00:00:00Z".to_string(),
             "input-a".to_string(),
             "/tmp/app.log".to_string(),
             body.to_string(),
             0,
             body.len() as u64,
+            0,
         )
     }
 

@@ -12,7 +12,7 @@
 - `center/`
   控制中心、控制平面、管理平台容器 bootstrap、Gateway 协议、计划投递、discovery 同步、主机库存与运行态、软件归一化、公开漏洞源接入、图谱关系与结果回报 schema
 - `telemetry/`
-  metrics 集成、discovery、resource mapping、uplink 设计与 Batch A 规格（logs file input / macOS 采集文档已移至
+  metrics 集成、discovery、resource mapping、uplink 设计、数据防丢失与 Batch A 规格（logs file input / macOS 采集文档已移至
   [`crates/warp-agentd/docs/`](../../crates/warp-agentd/docs/README.md)）
 
 > agentd（edge daemon）实现相关的核心设计文档统一放在
@@ -47,4 +47,5 @@
 24. [center/models/business-system-service-topology-model.md](./center/models/business-system-service-topology-model.md)
 25. [telemetry/metrics-integration-roadmap.md](./telemetry/metrics-integration-roadmap.md)
 26. [telemetry/telemetry-uplink-and-warp-parse.md](./telemetry/telemetry-uplink-and-warp-parse.md)
-27. [foundation/implementation-backlog.md](./foundation/implementation-backlog.md)
+27. [telemetry/data-loss-prevention.md](./telemetry/data-loss-prevention.md)
+28. [foundation/implementation-backlog.md](./foundation/implementation-backlog.md)

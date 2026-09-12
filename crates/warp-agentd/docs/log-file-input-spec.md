@@ -429,7 +429,7 @@ FileLogBuffering {
   static_batch_size_bytes?
   event_batch_size_bytes?
   spool_max_bytes?             # 全局 spool 上限
-  spool_over_limit = "pause"   # pause（默认）| drop_oldest（显式备选，非默认）
+  spool_over_limit = "pause"   # 当前仅 pause；drop_oldest（未来备选）
 }
 ```
 
@@ -473,11 +473,11 @@ FileLogBuffering {
 - 当前 v1 实现：仅经 `ProcessOutcomeKind::SpoolPaused` 暴露，作为 `SpoolPaused` 事件走
   既有失败缓存（`filter_new_failures`）去重后 `eprintln`——**仅本地输出、尚未上报，且仅覆盖“进入”**；
   这属于待补，不是最终形态。
-- `drop_oldest` 可配置，但 **v1 仅实现 `pause` 语义**（保完整优先），未实现按优先级丢弃。
+- `drop_oldest` 已从校验收敛掉：**v1 仅接受 `pause`**（保完整优先），按 input 优先级丢弃留待后续。
 
 **配置校验**
 
-- `spool_over_limit ∈ {pause, drop_oldest}`，否则 `invalid_logs_spool_over_limit`；
+- `spool_over_limit = pause`（仅此一值），否则 `invalid_logs_spool_over_limit`；
 - `max_line_bytes` / `max_read_bytes_per_tick` / `max_lines_per_tick` / `spool_max_bytes`
   必须 > 0，否则分别返回 `invalid_logs_max_line_bytes` / `invalid_logs_max_read_bytes_per_tick` /
   `invalid_logs_max_lines_per_tick` / `invalid_logs_spool_max_bytes`（避免 0 值造成永久暂停或零预算）。
@@ -490,9 +490,9 @@ FileLogBuffering {
 | 2 | （无新缺陷）分块/预算在 Processor 层行为 | 验证 | — | `chunked_read_by_max_lines_advances_checkpoint_each_tick_without_loss`、`resumes_from_line_start_after_byte_budget_stop` |
 | 3 | （无新缺陷）截断边界语义 | 验证 | — | `line_exactly_at_max_line_bytes_is_not_truncated`、`line_one_byte_over_max_line_bytes_is_truncated_and_counted`、`truncated_line_without_trailing_newline_is_committed_at_eof`、`multiple_truncated_lines_are_each_counted`、`truncated_long_line_with_small_budget_still_completes`、`read_limits_clamp_zero_to_one_and_still_make_progress` |
 | 4 | （无新缺陷）背压边界（相等即暂停、健康即回放） | 验证 | — | `spool_exactly_at_limit_pauses`、`spool_over_limit_with_healthy_sink_replays_without_pausing` |
-| 5 | 上限为 `0` 被接受 → 永久暂停 / 零预算 | 健壮性 | 上限非零校验 | `config_with_zero_{spool_max_bytes,max_line_bytes,max_read_bytes_per_tick,max_lines_per_tick}_is_rejected`、`config_with_drop_oldest_spool_over_limit_is_accepted` |
+| 5 | 上限为 `0` 被接受 → 永久暂停 / 零预算 | 健壮性 | 上限非零校验 | `config_with_zero_{spool_max_bytes,max_line_bytes,max_read_bytes_per_tick,max_lines_per_tick}_is_rejected`、`config_with_drop_oldest_spool_over_limit_is_rejected` |
 
-> 表中「工作状态通知的上报」「`drop_oldest`」两项已登记为待办，见
+> 表中「工作状态通知的上报」已落地、`drop_oldest` 已收敛为仅 `pause`，见
 > [`development-plan.md`](./development-plan.md) §W1「待办（follow-up）」。
 
 ---
@@ -651,27 +651,25 @@ multiline 组装必须受以下限制：
 - `source.inode`
 - **`seq`（序号，v1 必须）**：per-input 单调递增 `u64`，用于下游去重与缺口检测
 
-### 11.1.1 `seq` 与去重规则（v1 已决：方案 B）
+### 11.1.1 `seq` 与去重规则
 
-**为什么不用 offset 单键**：truncate 后 offset 会复用、文件被替换但路径不变，旧键会把新数据误判为重复。
+**为什么不用 offset 单键**：truncate 后 offset 会复用、文件被替换但路径不变，旧键会把新数据误判为重复，故用 `seq` 作为唯一去重/缺口键。
 
 **`seq` 定义**：
 
-- 粒度：`per input_id`；形态：`u64` 单调递增；
-- 分配：记录生成时取号；**`next_seq` 与 checkpoint 同文件、同一次原子写**（checkpoint 推进时一并提交）；
-- 重启：从 state 续号；同 input 内**只要求不回退**（不要求连续）。
+- 粒度：`per agent`（全局）；形态：`u64` 单调递增；
+- 分配：记录生成时取号；`next_seq` 为 agent 级全局计数器（原 per-input），提交时需与相关 checkpoint 协调，保证崩溃重读沿用同一 `seq`；
+- 重启：从 state 续号，只要求**不回退**（不要求连续）。
 
-**上送帧**：在信封中新增 `seq`（与 `input_id`/`source_path`/`file_offset`/`file_offset_end` 并列），原文仍在 `RAW:` 之后。
+**上送帧**：在信封中新增 `seq`（与 `agent` 等通用字段并列），原文仍在 `RAW:` 之后。帧信号无关，不携带 `input`/文件路径/偏移等来源字段（见 `telemetry-uplink-protocol.md`）。
 
-**下游去重（数据面规则，按优先级）**：
+**下游去重（数据面规则）**：
 
-1. 主键 `(agent_id, input_id, seq)` → 命中即丢弃；
-2. 辅助判据 `(agent_id, input_id, file_id, offset_start, offset_end)` → `seq` 不同但位置完全相同判为重复；
-   > 原因：崩溃窗口内“已 spool、未提交 `next_seq`”的记录重读时会重新取号：同一行会出现 **`seq` 不同、位置相同**的重复。
-3. **世代隔离**：`file_id`（`dev:ino`，不可得时用 fingerprint）变化（truncate / 轮转 / 文件替换）后，
-   位置判据只在同一 `file_id` 内有效；跨世代一律以 `seq` 为准，避免 offset 复用导致的误丢弃。
+1. 主键 `(agent_id, seq)` → 命中即丢弃。
 
-**缺口检测**：同 `(input_id, file_id)` 内 `seq` 不连续即为可疑丢行，可上报告警（与 `agent_log_records_dropped_total` 关联）。
+> 不引入位置/世代辅助判据：崩溃窗口内「已 spool、未提交」的记录重读时沿用**同一个** `seq`，`seq` 去重已能覆盖崩溃窗口重复，无需 `(file_id, offset)` 位置判据。
+
+**缺口检测**：同 `agent_id` 内 `seq` 不连续即为可疑丢行，可上报告警（与 `agent_log_records_dropped_total` 关联）。
 
 ### 11.2 resource binding
 
@@ -728,7 +726,7 @@ multiline 组装必须受以下限制：
 3. 减少单轮静态文件批处理量
 4. 限制 multiline 暂存
 5. 达到 spool 硬上限时**暂停该 input 采集并告警**（保完整，不丢数据）；
-   仅当显式配置 `spool_over_limit = "drop_oldest"` 时才按 input 优先级丢弃，并记录原因
+   `drop_oldest` 按 input 优先级丢弃为未来备选（当前校验只接受 `pause`）
 
 ### 12.3 与 Fluent Bit 对标
 
@@ -812,7 +810,7 @@ multiline 组装必须受以下限制：
 - `file.tail` 不能替代常驻文件日志采集
 - `M4` 先落受控单路径替代切片，`M8` 再扩展为通用 `file input` runtime
 - **长行策略**固定为“截断提交 + 计数”（`max_line_bytes`，默认 1 MiB，见 §7.3）
-- **spool 有上限，超限策略**固定为“暂停采集 + 告警”（保完整，见 §7.5/§12）；`drop_oldest` 仅为显式备选
-- **交付语义**为 at-least-once（可能重复、不丢）：spool 接纳成功即推进 checkpoint；去重采用**方案 B**：
-  per-input `seq`（`next_seq` 与 checkpoint 同次原子写）+ 下游组合键去重（见 §11.1.1）
+- **spool 有上限，超限策略**固定为“暂停采集 + 告警”（保完整，见 §7.5/§12）；`drop_oldest` 为未来备选（v1 校验只接受 `pause`）
+- **交付语义**为 at-least-once（可能重复、不丢）：spool 接纳成功即推进 checkpoint；去重采用 per-input
+  `seq`（`next_seq` 与 checkpoint 同次原子写）+ 下游组合键去重（见 §11.1.1）
 - **源日志默认不清理**（只读采集）：轮转/清理交给系统或中心策略；agent 自身的 spool 与本地输出必须有界并轮转

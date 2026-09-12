@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/wist-contracts",
+  "crates/wist-delivery",
   "crates/wist-validate",
   "crates/wist-shared",
   "crates/wist-error",
@@ -26,6 +27,7 @@ rust-version = "1.85"
 
 [workspace.dependencies]
 wist-contracts = { path = "crates/wist-contracts" }
+wist-delivery = { path = "crates/wist-delivery" }
 wist-validate = { path = "crates/wist-validate" }
 wist-shared = { path = "crates/wist-shared" }
 wist-error = { path = "crates/wist-error" }

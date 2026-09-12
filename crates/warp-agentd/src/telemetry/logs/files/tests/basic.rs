@@ -190,3 +190,58 @@ fn line_over_read_budget_is_delivered_without_loss() {
     assert_eq!(outcome.records_processed, 1);
     assert_eq!(outcome.checkpoint_offset, (long_line.len() + 1) as u64);
 }
+
+#[test]
+fn assigns_monotonic_seq_and_persists_next_seq() {
+    let root = temp_dir("seq-persist");
+    let source_path = root.join("app.log");
+    let output_path = root.join("log").join("records.ndjson");
+    fs::create_dir_all(root.join("state")).expect("create state");
+    fs::create_dir_all(root.join("log")).expect("create log");
+    fs::write(&source_path, "first\nsecond\n").expect("write log");
+
+    let mut processor = FileInputProcessor::new(
+        config(&root, &source_path),
+        FileRecordSink::new(output_path.clone()),
+    );
+    let outcome = processor.process_once().expect("process");
+
+    assert_eq!(outcome.records_processed, 2);
+    let records = read_output_records(&output_path);
+    assert_eq!(records.len(), 2);
+    assert_eq!(records[0].seq, 0);
+    assert_eq!(records[1].seq, 1);
+
+    let checkpoint_path = log_checkpoints::path_for(&root.join("state"), "input-app");
+    let state: crate::state_store::log_checkpoint_state::LogCheckpointState =
+        read_json(&checkpoint_path).expect("read checkpoint");
+    assert_eq!(state.next_seq, 2);
+}
+
+#[test]
+fn restart_resumes_seq_from_persisted_next_seq() {
+    let root = temp_dir("seq-restart");
+    let source_path = root.join("app.log");
+    let output_path = root.join("log").join("records.ndjson");
+    fs::create_dir_all(root.join("state")).expect("create state");
+    fs::create_dir_all(root.join("log")).expect("create log");
+    fs::write(&source_path, "first\nsecond\n").expect("write log");
+
+    let mut first = FileInputProcessor::new(
+        config(&root, &source_path),
+        FileRecordSink::new(output_path.clone()),
+    );
+    first.process_once().expect("first process");
+
+    // 重启：追加新行，seq 应从持久化的 next_seq=2 续号。
+    fs::write(&source_path, "first\nsecond\nthird\n").expect("append log");
+    let mut second = FileInputProcessor::new(
+        config(&root, &source_path),
+        FileRecordSink::new(output_path.clone()),
+    );
+    second.process_once().expect("second process");
+
+    let records = read_output_records(&output_path);
+    assert_eq!(records.len(), 3);
+    assert_eq!(records[2].seq, 2);
+}

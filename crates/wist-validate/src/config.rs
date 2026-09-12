@@ -77,7 +77,7 @@ fn validate_logs_section(logs: &LogsSection) -> Result<(), ValidationError> {
         _ => return Err(ValidationError::new("invalid_logs_output_kind")),
     }
     match logs.spool_over_limit.as_str() {
-        "pause" | "drop_oldest" => {}
+        "pause" => {}
         _ => return Err(ValidationError::new("invalid_logs_spool_over_limit")),
     }
     for (value, code) in [

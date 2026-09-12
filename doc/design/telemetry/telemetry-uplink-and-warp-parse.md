@@ -403,7 +403,7 @@
 
 后续需要单独定义：
 
-- telemetry uplink envelope
+- telemetry uplink envelope —— 已定稿，见 [`telemetry-uplink-protocol.md`](telemetry-uplink-protocol.md)
 - `warp_parse` target 的连接协议
 - `otlp` target 的直连规则
 - failover / retry / idempotency 规则
@@ -442,4 +442,4 @@
 - 第一阶段允许 `Metrics / Traces` 先由 `warp-insightd` 编码成结构化文本 record，再进入 `warp-parse`
 - 这里说的“文本”必须是保留完整语义的结构化 record，而不是普通 message line
 - 后续仍可按需要为 `Metrics / Traces` 增加原生 receiver
-- 后续应继续补一份专门的 `telemetry uplink protocol` 文档，把上报 envelope 与目标协议继续定稿
+- 后续应继续补一份专门的 `telemetry uplink protocol` 文档，把上报 envelope 与目标协议继续定稿 —— 已落地为 [`telemetry-uplink-protocol.md`](telemetry-uplink-protocol.md)

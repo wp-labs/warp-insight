@@ -7,7 +7,7 @@ use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use wist_contracts::agent_config::LogsOutputSection;
-use wist_contracts::telemetry_record::TelemetryRecordContract;
+use wist_contracts::telemetry_record::{DataFrame, TelemetryRecordContract};
 use wist_shared::fs::ensure_parent;
 
 pub(crate) trait RecordSink {
@@ -159,17 +159,10 @@ impl RecordSink for TcpRecordSink {
 
 /// TCP 上送帧：结构化信封（不含原文）与 `RAW:` 原始行分离，避免把 raw 塞进 JSON。
 ///
-/// `{envelope} RAW: <body>`，其中 envelope 只承载可结构化字段（input_id/source_path/时间/偏移），
-/// body 保持原文、不转义，供数据面审计核对与回放。
+/// `{envelope} RAW: <body>`，其中 envelope 只承载通用字段（`schema`/`agent`/`ts`/`seq`，短名），
+/// body 保持原文、不转义，供数据面审计核对与回放。来源细节（`input`/路径/偏移）不进帧。
 fn build_record_frame(record: &TelemetryRecordContract) -> io::Result<Vec<u8>> {
-    let envelope = serde_json::json!({
-        "signal_kind": record.signal_kind,
-        "observed_at": record.observed_at,
-        "input_id": record.input_id,
-        "source_path": record.source_path,
-        "file_offset": record.file_offset,
-        "file_offset_end": record.file_offset_end,
-    });
+    let envelope = DataFrame::from(record);
     let mut frame = serde_json::to_vec(&envelope)
         .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
     // RAW: 后跟一个空格分隔帧标记与原文，保证原文从正文首字符开始、不带标记前缀。
@@ -214,12 +207,14 @@ mod tests {
 
     fn record(body: &str) -> TelemetryRecordContract {
         TelemetryRecordContract::new_log(
+            "agent-a".to_string(),
             "2026-04-14T00:00:00Z".to_string(),
             "input-a".to_string(),
             "/tmp/app.log".to_string(),
             body.to_string(),
             0,
             body.len() as u64,
+            0,
         )
     }
 
@@ -272,7 +267,7 @@ mod tests {
         for line in &lines {
             let (envelope, raw) = line.split_once(" RAW: ").expect("RAW marker");
             assert!(envelope.starts_with('{'), "envelope json: {envelope}");
-            assert!(envelope.contains("\"input_id\":\"input-a\""));
+            assert!(envelope.contains("\"agent\":\"agent-a\""));
             assert!(
                 !envelope.contains("\"body\""),
                 "raw must not be in envelope"
@@ -287,9 +282,19 @@ mod tests {
         let text = String::from_utf8_lossy(&frame);
         let (envelope, raw) = text.split_once(" RAW: ").expect("RAW marker");
         let parsed: serde_json::Value = serde_json::from_str(envelope).expect("valid envelope");
-        assert_eq!(parsed["signal_kind"], "log");
-        assert_eq!(parsed["input_id"], "input-a");
+        assert_eq!(parsed["schema"], "v1");
+        assert_eq!(parsed["agent"], "agent-a");
+        assert_eq!(parsed["ts"], "2026-04-14T00:00:00Z");
+        assert_eq!(parsed["seq"], 0);
         assert!(parsed.get("body").is_none(), "raw must not be in envelope");
+        assert!(
+            parsed.get("input_id").is_none(),
+            "input_id must not be in envelope"
+        );
+        assert!(
+            parsed.get("signal_kind").is_none(),
+            "signal_kind must not be in envelope"
+        );
         assert_eq!(raw, "raw 行内容");
     }
 

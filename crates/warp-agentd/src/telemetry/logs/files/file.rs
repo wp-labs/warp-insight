@@ -43,6 +43,7 @@ const SPOOL_REPLAY_BATCH_SIZE: usize = 128;
 #[derive(Debug, Clone, PartialEq, Eq, ::jumo_derive::Jumo)]
 #[jumo(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub struct FileInputConfig {
+    pub agent_id: String,
     pub input_id: String,
     pub source_path: PathBuf,
     pub state_dir: PathBuf,
@@ -175,7 +176,8 @@ where
                 };
             }
         }
-        let batch = self.collect_read_batch(&mut runtime).await?;
+        let mut next_seq = runtime.log_state.next_seq;
+        let batch = self.collect_read_batch(&mut runtime, &mut next_seq).await?;
         let CollectedReadBatch {
             records,
             pending_multiline,
@@ -185,6 +187,7 @@ where
             resume,
         } = batch;
         let delivery = self.deliver_records_async(records).await?;
+        runtime.log_state.next_seq = next_seq;
         self.commit_log_state(&mut runtime, checkpoints, pending_multiline)
             .await?;
 
@@ -220,8 +223,8 @@ where
 
     /// spool 达到上限时返回暂停结果（不读源、不推进 checkpoint）。
     ///
-    /// 说明：`spool_over_limit = "drop_oldest"` 已可配置，但当前仅实现 `pause` 语义，
-    /// 未实现按 input 优先级丢弃，以“保完整、不丢数据”优先。
+    /// `spool_over_limit` 校验收敛为仅 `pause`（保完整、不丢数据）；`drop_oldest`
+    /// 留待后续按 input 优先级丢弃落地。
     async fn paused_outcome_async(&self) -> io::Result<Option<ProcessOutcome>> {
         let spool_bytes = spool::size_async(&self.config.spool_path).await?;
         if spool_bytes >= self.config.spool_max_bytes {
@@ -234,6 +237,7 @@ where
     async fn collect_read_batch(
         &self,
         runtime: &mut RuntimeState,
+        next_seq: &mut u64,
     ) -> io::Result<CollectedReadBatch> {
         let current = inspect_path_async(&self.config.source_path).await?;
         let tracked = checkpoint_for_path(&runtime.log_state, &self.config.source_path);
@@ -247,22 +251,26 @@ where
         let mut batch = CollectedReadBatch::new(resume);
         batch.pending_multiline = runtime.log_state.pending_multiline.take();
         let mut saw_new_lines = self
-            .collect_rotated_tail(runtime, tracked.as_ref(), &mut batch)
+            .collect_rotated_tail(runtime, tracked.as_ref(), &mut batch, next_seq)
             .await?;
 
         if batch.resume.rotated || batch.resume.truncated {
             batch.records.extend(records_from_pending(
+                &self.config.agent_id,
                 &runtime.observed_at,
                 &self.config.input_id,
                 batch.pending_multiline.take(),
+                next_seq,
             ));
         } else {
             flush_pending_if_source_changes(
                 &mut batch.records,
                 &mut batch.pending_multiline,
+                &self.config.agent_id,
                 &runtime.observed_at,
                 &self.config.input_id,
                 &self.config.source_path,
+                next_seq,
             );
         }
 
@@ -276,12 +284,14 @@ where
         batch.truncated_lines += active_read.truncated_lines;
         batch.pending_multiline = records_from_read(
             &mut batch.records,
+            &self.config.agent_id,
             &runtime.observed_at,
             &self.config.input_id,
             &self.config.source_path,
             self.config.multiline_mode,
             active_read.lines,
             batch.pending_multiline,
+            next_seq,
         );
         batch.checkpoint_offset = active_read.committed_end_offset;
         batch.checkpoints.push(PendingCheckpoint {
@@ -295,9 +305,11 @@ where
             && pending_should_flush(batch.pending_multiline.as_ref(), &runtime.observed_at)
         {
             batch.records.extend(records_from_pending(
+                &self.config.agent_id,
                 &runtime.observed_at,
                 &self.config.input_id,
                 batch.pending_multiline.take(),
+                next_seq,
             ));
         }
 
@@ -309,6 +321,7 @@ where
         runtime: &mut RuntimeState,
         tracked: Option<&TrackedFileCheckpoint>,
         batch: &mut CollectedReadBatch,
+        next_seq: &mut u64,
     ) -> io::Result<bool> {
         if !batch.resume.rotated {
             return Ok(false);
@@ -338,12 +351,14 @@ where
         batch.truncated_lines += rotated_read.truncated_lines;
         batch.pending_multiline = records_from_read(
             &mut batch.records,
+            &self.config.agent_id,
             &runtime.observed_at,
             &self.config.input_id,
             &rotated_path,
             self.config.multiline_mode,
             rotated_read.lines,
             batch.pending_multiline.take(),
+            next_seq,
         );
         batch.checkpoints.push(PendingCheckpoint {
             source_path: rotated_path,

@@ -10,6 +10,9 @@ pub(crate) struct LogCheckpointState {
     pub schema_version: String,
     pub input_id: String,
     pub updated_at: String,
+    /// 下一个待分配的 `seq`（per-input 单调递增），与 checkpoint 同文件同次原子写。
+    #[serde(default)]
+    pub next_seq: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pending_multiline: Option<PendingMultilineState>,
     pub files: Vec<TrackedFileCheckpoint>,
@@ -21,6 +24,7 @@ impl LogCheckpointState {
             schema_version: SCHEMA_VERSION_V1.to_string(),
             input_id,
             updated_at,
+            next_seq: 0,
             pending_multiline: None,
             files: Vec::new(),
         }

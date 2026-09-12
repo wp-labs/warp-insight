@@ -13,53 +13,69 @@ const MULTILINE_IDLE_FLUSH_MS: i64 = 1000;
 
 pub(super) fn records_from_read(
     records: &mut Vec<TelemetryRecordContract>,
+    agent_id: &str,
     observed_at: &str,
     input_id: &str,
     source_path: &Path,
     multiline_mode: MultilineMode,
     lines: Vec<RawFileLine>,
     pending: Option<PendingMultilineState>,
+    next_seq: &mut u64,
 ) -> Option<PendingMultilineState> {
     let source_path = source_path.display().to_string();
     let folded = fold_lines(multiline_mode, &source_path, observed_at, lines, pending);
     records.extend(parse_folded_lines(
+        agent_id,
         observed_at,
         input_id,
         &source_path,
         folded.emitted,
+        next_seq,
     ));
     folded.pending
 }
 
 pub(super) fn records_from_pending(
+    agent_id: &str,
     observed_at: &str,
     input_id: &str,
     pending: Option<PendingMultilineState>,
+    next_seq: &mut u64,
 ) -> Vec<TelemetryRecordContract> {
     let Some(pending) = pending else {
         return Vec::new();
     };
     let source_path = pending.source_path.clone();
     parse_folded_lines(
+        agent_id,
         observed_at,
         input_id,
         &source_path,
         flush_pending(Some(pending)),
+        next_seq,
     )
 }
 
 pub(super) fn flush_pending_if_source_changes(
     records: &mut Vec<TelemetryRecordContract>,
     pending: &mut Option<PendingMultilineState>,
+    agent_id: &str,
     observed_at: &str,
     input_id: &str,
     next_source_path: &Path,
+    next_seq: &mut u64,
 ) {
     if pending
         .as_ref()
         .is_some_and(|entry| entry.source_path != next_source_path.display().to_string())
     {
-        records.extend(records_from_pending(observed_at, input_id, pending.take()));
+        records.extend(records_from_pending(
+            agent_id,
+            observed_at,
+            input_id,
+            pending.take(),
+            next_seq,
+        ));
     }
 }
 

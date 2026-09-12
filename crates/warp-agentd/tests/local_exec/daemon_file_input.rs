@@ -782,21 +782,25 @@ fn daemon_run_once_replays_existing_spool_even_when_source_file_is_missing() {
         .join("missing.ndjson");
     fs::create_dir_all(spool_path.parent().expect("spool dir")).expect("create spool dir");
     let first = serde_json::to_string(&TelemetryRecordContract::new_log(
+        "agent-test".to_string(),
         "2026-04-14T00:00:00Z".to_string(),
         "missing".to_string(),
         missing_input.display().to_string(),
         "first\n".to_string(),
         0,
         6,
+        0,
     ))
     .expect("encode first");
     let second = serde_json::to_string(&TelemetryRecordContract::new_log(
+        "agent-test".to_string(),
         "2026-04-14T00:00:01Z".to_string(),
         "missing".to_string(),
         missing_input.display().to_string(),
         "second\n".to_string(),
         6,
         13,
+        1,
     ))
     .expect("encode second");
     fs::write(&spool_path, format!("{first}\n{second}\n")).expect("write spool");
@@ -892,9 +896,9 @@ fn daemon_run_once_sends_raw_log_lines_to_tcp_output() {
     );
     let raws = raw_body_sections(&payload);
     assert_eq!(raws, vec!["alpha".to_string(), "beta".to_string()]);
-    assert!(payload.contains("\"input_id\":\"app\""));
-    assert!(payload.contains("\"file_offset\":0"));
-    assert!(payload.contains("\"file_offset_end\":11"));
+    assert!(payload.contains("\"schema\":\"v1\""));
+    assert!(payload.contains("\"agent\":\"agent-001\""));
+    assert!(payload.contains("\"seq\":0"));
     assert_eq!(checkpoint.files.len(), 1);
     assert_eq!(
         checkpoint.files[0].checkpoint_offset,
@@ -1079,4 +1083,57 @@ fn daemon_run_once_exposes_paused_input_and_recovers_in_health_snapshot() {
     let _payload = server.join().expect("join server");
 
     assert!(recovered_snapshot.paused_inputs.is_empty());
+}
+
+#[cfg(unix)]
+#[test]
+fn daemon_restart_recovers_checkpoint_without_loss_or_duplication() {
+    let root = temp_dir("daemon-restart");
+    let run_dir = root.join("run");
+    let state_dir = root.join("state");
+    let log_dir = root.join("log");
+    let input_path = root.join("app.log");
+    bootstrap::initialize(&root, &run_dir, &state_dir, &log_dir).expect("bootstrap");
+
+    let first_lines = "first\nsecond\n";
+    fs::write(&input_path, first_lines).expect("write initial log");
+
+    let config = standalone_config_with_file_input(&root, &input_path);
+    let exec_bin = test_exec_bin(&root);
+    let daemon_loop = daemon::DaemonLoop {
+        config: &config,
+        exec_bin: &exec_bin,
+    };
+
+    // 第一次运行：处理初始两行，并持久化 checkpoint 到磁盘。
+    daemon::run_once(&daemon_loop).expect("first run");
+
+    // 崩溃窗口：进程已退出（不优雅停机），但源文件仍在增长。
+    let second_lines = "third\nfourth\n";
+    fs::write(&input_path, format!("{first_lines}{second_lines}")).expect("append after crash");
+
+    // 重启：新的一次 run_once 从持久化 checkpoint 恢复，只读新增行。
+    daemon::run_once(&daemon_loop).expect("restart run");
+
+    // 不丢不重：四行各恰好一次、顺序正确。
+    let output_path = root.join("log").join("warp-parse-records.ndjson");
+    let output = fs::read_to_string(&output_path).expect("read output");
+    let bodies: Vec<String> = output
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| {
+            let record: TelemetryRecordContract = serde_json::from_str(line).expect("parse record");
+            record.body
+        })
+        .collect();
+
+    assert_eq!(bodies, vec!["first\n", "second\n", "third\n", "fourth\n"]);
+
+    // checkpoint 最终偏移覆盖全部内容，确认无回退。
+    let checkpoint_path = warp_agentd::state_store::log_checkpoints::path_for(&state_dir, "app");
+    let checkpoint: TestLogCheckpointState = read_json(&checkpoint_path).expect("read checkpoint");
+    assert_eq!(
+        checkpoint.files[0].checkpoint_offset,
+        (first_lines.len() + second_lines.len()) as u64
+    );
 }
