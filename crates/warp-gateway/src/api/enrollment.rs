@@ -7,7 +7,7 @@ use axum::{
     Json,
 };
 use wist_contracts::enrollment::{
-    AgentCredentialBundle, AgentEnrollmentResult, AgentEnrollmentResultReturned,
+    AgentCredentialBundle, AgentEnrollmentResult, EnrollmentEnvelope,
     AgentEnrollmentResultStatus, AgentIdentity, AgentIdentityStatus, SubmitEnrollmentRequest,
 };
 
@@ -74,7 +74,7 @@ pub async fn enroll_agent(
     (
         StatusCode::CREATED,
         [(header::CACHE_CONTROL, NO_STORE)],
-        Json(AgentEnrollmentResultReturned { result }),
+        Json(EnrollmentEnvelope { result }),
     )
         .into_response()
 }

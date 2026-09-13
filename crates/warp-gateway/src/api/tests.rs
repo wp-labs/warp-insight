@@ -14,7 +14,7 @@ use ring::{
 };
 use tower::ServiceExt;
 use wist_contracts::enrollment::{
-    AgentCredentialRenewed, AgentEnrollmentResultReturned, AgentEnrollmentResultStatus,
+    AgentCredentialRenewed, EnrollmentEnvelope, AgentEnrollmentResultStatus,
     AgentIdentityStatus, RenewAgentCredential, SubmitEnrollmentRequest,
 };
 
@@ -474,7 +474,7 @@ fn enrollment_ignores_unknown_node_id_when_issuing_identity() {
 fn enrollment_response_uses_contract_wire_status() {
     let env = TestEnv::new();
     let token = env.issue_token();
-    let returned = AgentEnrollmentResultReturned {
+    let returned = EnrollmentEnvelope {
         result: agent_enrollment_result(
             &env.config,
             &env.store,
@@ -1502,7 +1502,7 @@ async fn post_json_to_router<T: serde::Serialize>(
 
 async fn decode_enrollment_response(
     response: axum::response::Response,
-) -> AgentEnrollmentResultReturned {
+) -> EnrollmentEnvelope {
     decode_json_response(response).await
 }
 
