@@ -35,6 +35,8 @@ jumo/draft/
 .jumo-gen.json
 
 # Local agent runtime data directory (may contain credentials)
+/wist-agentd/
+# 重命名前遗留的旧运行时目录
 /warp-agentd/
 
 # Local run/test artifacts
@@ -46,10 +48,10 @@ case/*/run/
 case/*/state/
 case/*/log/
 
-# sysrun/warp-agentd runtime data (pid/log/checkpoints must stay out of git)
-sysrun/warp-agentd/run/
-sysrun/warp-agentd/state/
-sysrun/warp-agentd/log/
+# sysrun/wist-agentd runtime data (pid/log/checkpoints must stay out of git)
+sysrun/wist-agentd/run/
+sysrun/wist-agentd/state/
+sysrun/wist-agentd/log/
 
 # Generated monitor env (created from .env.example by start.sh)
 sysrun/warp-gateway/monitor/.env

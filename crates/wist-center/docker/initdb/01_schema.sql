@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS gateway_lifecycle_events (
 );
 CREATE INDEX IF NOT EXISTS idx_lifecycle_events_gateway ON gateway_lifecycle_events (gateway_id);
 
--- 版本发布记录（component = warp-agentd / warp-gateway）。
+-- 版本发布记录（component = wist-agentd / warp-gateway）。
 CREATE TABLE IF NOT EXISTS release_records (
   id BIGSERIAL PRIMARY KEY,
   component TEXT NOT NULL,

@@ -28,7 +28,7 @@ export function UpgradePlanApprovePanel() {
   return (
     <SectionCard
       title="批准升级计划"
-      subtitle="客户服务工程师批准升级计划，同意对指定范围内的 WarpAgentd / WarpGateWay 执行升级。"
+      subtitle="客户服务工程师批准升级计划，同意对指定范围内的 WistAgentd / WarpGateWay 执行升级。"
     >
       <form onSubmit={handleSubmit}>
         <FormStack

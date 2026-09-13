@@ -5,6 +5,10 @@
 ## [Unreleased]
 
 ### 变更
+- **crate 迁出 + 重命名**：`wist-contracts`、`wist-shared`、`wist-metrics`、`wist-validate`、
+  `warp-agentd` 从 `crates/` 迁出到仓库根（对应 `wist-contracts`/`wist-shared`/`wist-metrics`/
+  `wist-validate`/`wist-agentd`），`warp-agentd` 重命名为 `wist-agentd`；各 crate 改为显式
+  `version`/`edition`/`license`/`rust-version` 并为独立发布准备（互引用使用 `{ version, path }`）。
 - **crate 重命名**：`warp-insightd` → `warp-agentd`、`warp-insight-admin` → `warp-gateway`、
   `warp-insight-admin-web` → `gateway-web`；同步更新 workspace members、配置文件
   （`warp-gateway.toml`）、守护进程配置目录（`.warp-agentd` / `agentd.toml`）与 Jumo 模型服务名。

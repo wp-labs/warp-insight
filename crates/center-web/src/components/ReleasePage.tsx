@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useGatewayAgentsForAll, useGatewayStatusView } from "../hooks";
 import { PageShell } from "./ui";
-import { WarpAgentdReleasePanel } from "./WarpAgentdReleasePanel";
+import { WistAgentdReleasePanel } from "./WistAgentdReleasePanel";
 import { WarpGateWayReleasePanel } from "./WarpGateWayReleasePanel";
 import { GatewayOnlineStatusBadge } from "./GatewayOnlineStatusBadge";
 import { GatewayVersionText } from "./GatewayVersionText";
 import styles from "./ReleasePage.module.css";
 
-/** 版本发布：发布 WarpAgentd / WarpGateWay 新版本，并展示各网关/Agent 的当前与历史版本信息。 */
+/** 版本发布：发布 WistAgentd / WarpGateWay 新版本，并展示各网关/Agent 的当前与历史版本信息。 */
 export function ReleasePage() {
   const [activeTarget, setActiveTarget] = useState<"gateway" | "agentd">(
     "gateway",
@@ -63,7 +63,7 @@ export function ReleasePage() {
             }
             onClick={() => setActiveTarget("agentd")}
           >
-            <strong>WarpAgentd</strong>
+            <strong>WistAgentd</strong>
             <span>Agent 服务</span>
           </button>
         </div>
@@ -80,7 +80,7 @@ export function ReleasePage() {
           {activeTarget === "gateway" ? (
             <WarpGateWayReleasePanel />
           ) : (
-            <WarpAgentdReleasePanel />
+            <WistAgentdReleasePanel />
           )}
         </div>
       </section>

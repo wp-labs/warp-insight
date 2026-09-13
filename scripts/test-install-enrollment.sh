@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+AGENTD_CRATE="${REPO_ROOT}/../wist-agentd"
 
 detect_lan_ip() {
   python3 - <<'PY'
@@ -246,7 +247,8 @@ start_admin_service() {
   require_cmd cargo
   require_cmd openssl
   echo "admin service is not running; building and starting warp-gateway..."
-  cargo build --manifest-path "${REPO_ROOT}/Cargo.toml" -p warp-agentd -p warp-gateway
+  cargo build --manifest-path "${AGENTD_CRATE}/Cargo.toml"
+  cargo build --manifest-path "${REPO_ROOT}/Cargo.toml" -p warp-gateway
   openssl genpkey -algorithm ED25519 -out "${INSTALL_SIGNING_PRIVATE_KEY}" >/dev/null 2>&1
   openssl req -x509 -newkey rsa:2048 -nodes \
     -keyout "${ADMIN_TLS_CA_KEY}" \
@@ -289,7 +291,7 @@ tls_key_file = "${ADMIN_TLS_KEY}"
 admin_api_token = "${ADMIN_API_TOKEN}"
 
 [agent]
-package_file = "${REPO_ROOT}/target/debug/warp-agentd"
+package_file = "${AGENTD_CRATE}/target/debug/wist-agentd"
 bootstrap_token_ttl_seconds = 900
 credential_ttl_seconds = 2592000
 store_file = "${TMP_ROOT}/admin-state/admin-store.json"
@@ -1103,8 +1105,8 @@ env \
   "${INSTALL_ENV[@]}" \
   sh "${INSTALL_SCRIPT}"
 
-BIN_PATH="${INSTALL_HOME}/bin/warp-agentd"
-CONFIG_DIR="${INSTALL_HOME}/.warp-agentd"
+BIN_PATH="${INSTALL_HOME}/bin/wist-agentd"
+CONFIG_DIR="${INSTALL_HOME}/.wist-agentd"
 CONFIG_PATH="${CONFIG_DIR}/agentd.toml"
 STATE_PATH="${INSTALL_HOME}/state/agent_runtime.json"
 
@@ -1126,7 +1128,7 @@ echo "checking installed daemon executable..."
 
 echo "running installed daemon once for enrollment..."
 env \
-  WARP_AGENTD_RUN_ONCE=1 \
+  WIST_AGENTD_RUN_ONCE=1 \
   NO_PROXY="${NOPROXY_HOSTS}" \
   no_proxy="${NOPROXY_HOSTS}" \
   HTTP_PROXY="" \

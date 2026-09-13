@@ -1,11 +1,11 @@
-// Control.Agent 有界上下文包：WarpAgentd 边缘 agent 控制面。
+// Control.Agent 有界上下文包：WistAgentd 边缘 agent 控制面。
 // 承载 agent 注册/身份/凭据/登记/状态/指令与面向接口（含 lifecycle，全部 agent 模块）。
 
 module<package> Agent {
   meta {
     label zh "Agent 控制面"
     label en "Agent"
-    summary zh "WarpAgentd 边缘 agent 控制面的职责边界：注册、身份、凭据、登记簿、状态、控制指令与面向接口。"
+    summary zh "WistAgentd 边缘 agent 控制面的职责边界：注册、身份、凭据、登记簿、状态、控制指令与面向接口。"
     tags "control", "agentd", "package"
   }
 

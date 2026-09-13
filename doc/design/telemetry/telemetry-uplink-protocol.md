@@ -33,7 +33,7 @@
 
 ## 3. 传输与分帧
 
-数据平面（`agentd → gateway`、`gateway → center`）在 TCP 字节流上逐帧发送，两种分帧模式（见 `warp-agentd` 的 `TcpFraming`）：
+数据平面（`agentd → gateway`、`gateway → center`）在 TCP 字节流上逐帧发送，两种分帧模式（见 `wist-agentd` 的 `TcpFraming`）：
 
 | 模式 | 编码 | 适用 |
 | --- | --- | --- |

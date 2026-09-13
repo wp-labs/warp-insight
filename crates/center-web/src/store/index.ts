@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import type { CreateGatewayInstanceRequested, BindGatewayCustomerRequested, GetGatewayInitialConfigRequested, PublishWarpAgentdRequested, PublishWarpGateWayRequested, CreateUpgradePlanRequested, ApproveUpgradePlanRequested } from "../types";
-import type { GatewayStatusView, GatewayListView, GatewayInstance, GatewayCustomerBinding, GatewayInitialConfig, WarpAgentdRelease, WarpGateWayRelease, UpgradePlan, UpgradePlanApproval, GlobalPolicyDispatch } from "../types";
+import type { CreateGatewayInstanceRequested, BindGatewayCustomerRequested, GetGatewayInitialConfigRequested, PublishWistAgentdRequested, PublishWarpGateWayRequested, CreateUpgradePlanRequested, ApproveUpgradePlanRequested } from "../types";
+import type { GatewayStatusView, GatewayListView, GatewayInstance, GatewayCustomerBinding, GatewayInitialConfig, WistAgentdRelease, WarpGateWayRelease, UpgradePlan, UpgradePlanApproval, GlobalPolicyDispatch } from "../types";
 
 type ScreenState = "Loading" | "Ready" | "Error";
 
@@ -15,7 +15,7 @@ interface AppState {
   gatewayInstance: GatewayInstance | null;
   gatewayCustomerBinding: GatewayCustomerBinding | null;
   gatewayInitialConfig: GatewayInitialConfig | null;
-  warpAgentdRelease: WarpAgentdRelease | null;
+  wistAgentdRelease: WistAgentdRelease | null;
   warpGateWayRelease: WarpGateWayRelease | null;
   upgradePlan: UpgradePlan | null;
   upgradePlanApproval: UpgradePlanApproval | null;
@@ -25,7 +25,7 @@ interface AppState {
   sendCreateGatewayInstanceRequested: (payload: CreateGatewayInstanceRequested) => void;
   sendBindGatewayCustomerRequested: (payload: BindGatewayCustomerRequested) => void;
   sendGetGatewayInitialConfigRequested: (payload: GetGatewayInitialConfigRequested) => void;
-  sendPublishWarpAgentdRequested: (payload: PublishWarpAgentdRequested) => void;
+  sendPublishWistAgentdRequested: (payload: PublishWistAgentdRequested) => void;
   sendPublishWarpGateWayRequested: (payload: PublishWarpGateWayRequested) => void;
   sendCreateUpgradePlanRequested: (payload: CreateUpgradePlanRequested) => void;
   sendApproveUpgradePlanRequested: (payload: ApproveUpgradePlanRequested) => void;
@@ -42,7 +42,7 @@ export const useStore = create<AppState>((set) => ({
   gatewayInstance: null,
   gatewayCustomerBinding: null,
   gatewayInitialConfig: null,
-  warpAgentdRelease: null,
+  wistAgentdRelease: null,
   warpGateWayRelease: null,
   upgradePlan: null,
   upgradePlanApproval: null,
@@ -63,8 +63,8 @@ export const useStore = create<AppState>((set) => ({
     set((state) => ({ ...state, lastEvent: payload as unknown as Record<string, unknown> }));
   },
 
-  sendPublishWarpAgentdRequested: (payload) => {
-    // TODO: handle PublishWarpAgentdRequested event and update relevant view state
+  sendPublishWistAgentdRequested: (payload) => {
+    // TODO: handle PublishWistAgentdRequested event and update relevant view state
     set((state) => ({ ...state, lastEvent: payload as unknown as Record<string, unknown> }));
   },
 

@@ -13,8 +13,8 @@
 
 - [`error-handling-system.md`](../foundation/error-handling-system.md)
 - [`action-result-schema.md`](../execution/action-result-schema.md)
-- [`agentd-events.md`](../../crates/warp-agentd/docs/agentd-events.md)
-- [`agentd-state-schema.md`](../../crates/warp-agentd/docs/agentd-state-schema.md)
+- [`agentd-events.md`](../../crates/wist-agentd/docs/agentd-events.md)
+- [`agentd-state-schema.md`](../../crates/wist-agentd/docs/agentd-state-schema.md)
 
 ---
 

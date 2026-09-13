@@ -7,9 +7,9 @@ rust-version.workspace = true
 
 [dependencies]
 serde.workspace = true
-wist-contracts.workspace = true
-wist-shared.workspace = true
-wist-validate.workspace = true
+wist-contracts = { path = "../../../wist-contracts" }
+wist-shared = { path = "../../../wist-shared" }
+wist-validate = { path = "../../../wist-validate" }
 
 [lib]
 path = "src/lib.rs"

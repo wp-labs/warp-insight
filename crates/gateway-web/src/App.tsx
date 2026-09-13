@@ -7,6 +7,7 @@ import { SubsystemAgentInstallPage } from "./components/SubsystemAgentInstallPag
 import { SubsystemGatewayInitializePage } from "./components/SubsystemGatewayInitializePage";
 import { SubsystemAgentHostMetricsPage } from "./components/SubsystemAgentHostMetricsPage";
 import { SubsystemAgentHostListPage } from "./components/SubsystemAgentHostListPage";
+import { SubsystemPipelinePage } from "./components/SubsystemPipelinePage";
 
 export function App() {
   return (
@@ -17,6 +18,7 @@ export function App() {
         <Route path="/install" element={<SubsystemAgentInstallPage />} />
         <Route path="/init" element={<SubsystemGatewayInitializePage />} />
         <Route path="/hosts" element={<SubsystemAgentHostListPage />} />
+        <Route path="/pipeline" element={<SubsystemPipelinePage />} />
         <Route
           path="/agents/:agentId/metrics"
           element={<SubsystemAgentHostMetricsPage />}

@@ -28,7 +28,7 @@ if [ -z "${WARP_INSIGHT_HOME:-}" ]; then
   fi
 fi
 BIN_DIR="$WARP_INSIGHT_HOME/bin"
-CONFIG_DIR="$WARP_INSIGHT_HOME/.warp-agentd"
+CONFIG_DIR="$WARP_INSIGHT_HOME/.wist-agentd"
 
 umask 077
 mkdir -p "$BIN_DIR" "$CONFIG_DIR"
@@ -45,12 +45,12 @@ EOF
 chmod 0600 "$CA_CERT"
 trap 'rm -f "$CA_CERT"' EXIT INT TERM
 
-curl -fsSL --cacert "$CA_CERT" -H "authorization: Bearer $WARP_INSIGHT_ENROLLMENT_TOKEN" "{{AGENT_PACKAGE_URL}}" -o "$BIN_DIR/warp-agentd"
+curl -fsSL --cacert "$CA_CERT" -H "authorization: Bearer $WARP_INSIGHT_ENROLLMENT_TOKEN" "{{AGENT_PACKAGE_URL}}" -o "$BIN_DIR/wist-agentd"
 if [ -n "$AGENT_PACKAGE_SHA256" ]; then
   if command -v sha256sum >/dev/null 2>&1; then
-    ACTUAL_SHA256="$(sha256sum "$BIN_DIR/warp-agentd" | awk '{print $1}')"
+    ACTUAL_SHA256="$(sha256sum "$BIN_DIR/wist-agentd" | awk '{print $1}')"
   elif command -v shasum >/dev/null 2>&1; then
-    ACTUAL_SHA256="$(shasum -a 256 "$BIN_DIR/warp-agentd" | awk '{print $1}')"
+    ACTUAL_SHA256="$(shasum -a 256 "$BIN_DIR/wist-agentd" | awk '{print $1}')"
   else
     echo "missing sha256sum or shasum for package verification" >&2
     exit 1
@@ -60,16 +60,16 @@ if [ -n "$AGENT_PACKAGE_SHA256" ]; then
     exit 1
   fi
 fi
-chmod 0755 "$BIN_DIR/warp-agentd"
+chmod 0755 "$BIN_DIR/wist-agentd"
 
 curl -fsSL --cacert "$CA_CERT" -H "authorization: Bearer $WARP_INSIGHT_ENROLLMENT_TOKEN" "{{AGENT_INITIAL_CONFIG_URL}}" -o "$CONFIG_DIR/agentd.toml"
 chmod 0600 "$CONFIG_DIR/agentd.toml"
 
-echo "warp-agentd installed for $ARCH"
-echo "binary: $BIN_DIR/warp-agentd"
+echo "wist-agentd installed for $ARCH"
+echo "binary: $BIN_DIR/wist-agentd"
 echo "config: $CONFIG_DIR/agentd.toml"
-echo "start:  $BIN_DIR/warp-agentd --config-dir $CONFIG_DIR"
+echo "start:  $BIN_DIR/wist-agentd --config-dir $CONFIG_DIR"
 
 if [ "${WARP_INSIGHT_START:-0}" = "1" ]; then
-  exec "$BIN_DIR/warp-agentd" --config-dir "$CONFIG_DIR"
+  exec "$BIN_DIR/wist-agentd" --config-dir "$CONFIG_DIR"
 fi

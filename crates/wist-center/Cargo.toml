@@ -18,7 +18,7 @@ async-trait = "0.1"
 aws-sdk-s3 = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "tls-none", "chrono"] }
-wist-contracts = { path = "../wist-contracts" }
+wist-contracts = { path = "../../../wist-contracts" }
 insight-control = { path = "../insight-control" }
 wist-observed = { path = "../wist-observed" }
 wist-security = { path = "../wist-security" }

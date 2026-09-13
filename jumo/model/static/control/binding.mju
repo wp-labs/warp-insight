@@ -88,7 +88,7 @@ bind WarpGatewayManagementInterface {
   }
 }
 
-bind WarpAgentdOnlineRegistrationInterface {
+bind WistAgentdOnlineRegistrationInterface {
   entry SubmitEnrollmentRequest {
     route POST "/api/v1/agent/enroll"
     auth none

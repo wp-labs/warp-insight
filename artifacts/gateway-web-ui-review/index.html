@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>gateway-web 交互与视觉改造对照</title>
+<style>
+  :root {
+    --bg: #0b1120;
+    --surface: #141d31;
+    --surface-2: #1b2740;
+    --border: #26344d;
+    --border-strong: #35486b;
+    --text: #eef2f9;
+    --text-2: #b3c0d4;
+    --text-3: #7c8aa5;
+    --text-4: #5a6780;
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --crit: #f87171;
+    --accent: #6366f1;
+    --accent-strong: #a5b4fc;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 34px 24px 72px; }
+
+  header.page { border-bottom: 1px solid var(--border); padding-bottom: 22px; margin-bottom: 28px; }
+  .eyebrow { color: var(--accent-strong); font-size: 11.5px; font-weight: 700; letter-spacing: .06em; }
+  h1 { font-size: 25px; font-weight: 700; letter-spacing: -.01em; margin-top: 8px; }
+  .lede { max-width: 860px; margin-top: 9px; color: var(--text-3); font-size: 13.5px; }
+
+  .verdict {
+    margin-top: 20px; padding: 16px 18px;
+    border: 1px solid var(--border-strong); border-radius: 10px;
+    background: var(--surface);
+  }
+  .verdict h2 { font-size: 14px; font-weight: 700; margin-bottom: 9px; }
+  .verdict ul { margin: 0; padding-left: 19px; }
+  .verdict li { color: var(--text-2); font-size: 13px; margin-bottom: 4px; }
+  .verdict li strong { color: var(--text); }
+
+  h2.section {
+    font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--text-4);
+    margin: 40px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+
+  .item {
+    margin-bottom: 34px; padding: 18px;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  }
+  .item-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .item-index {
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    color: var(--accent-strong); border: 1px solid var(--accent); border-radius: 6px;
+    padding: 1px 7px;
+  }
+  .item-title { font-size: 16px; font-weight: 700; }
+  .item-route { color: var(--text-4); font-family: var(--mono); font-size: 12px; }
+  .item-note { color: var(--text-3); font-size: 13px; margin: 8px 0 14px; }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } }
+  .shot { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+  .shot-label {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 700; letter-spacing: .04em;
+  }
+  .lab-before { color: var(--crit); }
+  .lab-after { color: var(--ok); }
+  .shot-label .dot { width: 7px; height: 7px; border-radius: 999px; background: currentColor; }
+  .shot img {
+    display: block; width: 100%; height: auto;
+    border: 1px solid var(--border); border-radius: 8px; background: #060a14;
+  }
+
+  .fixes { margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 26px; }
+  @media (max-width: 900px) { .fixes { grid-template-columns: 1fr; } }
+  .fixes div { color: var(--text-2); font-size: 12.5px; padding-left: 16px; position: relative; }
+  .fixes div::before { content: "▸"; position: absolute; left: 0; color: var(--accent-strong); }
+
+  table.matrix { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 13px; }
+  table.matrix th, table.matrix td {
+    text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top;
+  }
+  table.matrix th { color: var(--text-3); font-size: 11.5px; letter-spacing: .04em; font-weight: 700; }
+  table.matrix td { color: var(--text-2); }
+  table.matrix td:first-child { color: var(--text); font-weight: 600; white-space: nowrap; }
+  .tag { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .tag-ok { border: 1px solid rgba(52,211,153,.4); background: rgba(52,211,153,.14); color: var(--ok); }
+  .tag-warn { border: 1px solid rgba(251,191,36,.4); background: rgba(251,191,36,.14); color: var(--warn); }
+  .tag-crit { border: 1px solid rgba(248,113,113,.4); background: rgba(248,113,113,.14); color: var(--crit); }
+  code {
+    font-family: var(--mono); font-size: 12px;
+    background: var(--surface-2); border-radius: 4px; padding: 1px 5px;
+  }
+  footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--border); color: var(--text-4); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <div class="eyebrow">crates/gateway-web · 改造对照</div>
+    <h1>网关控制台：交互与视觉改造</h1>
+    <p class="lede">
+      左列为改造前、右列为改造后，均取自同一台运行中的网关（<code>localhost:3000</code>，2 台真实 Agent）
+      与同一视口，截图由无头浏览器实时渲染。
+    </p>
+    <div class="verdict">
+      <h2>风格是否适合？—— 方向对，实现不够</h2>
+      <ul>
+        <li><strong>深色 + 等宽数字 + 语义色</strong> 适合这个定位，不用换。网关是常驻盯屏的机队控制台，
+            深色降疲劳、等宽数字防抖，和 Grafana / VictoriaMetrics / Datadog 同一套语言。</li>
+        <li>真正的问题不在配色，而在 <strong>信息架构</strong>：定位是"多主机 agentd 采集指标与日志汇聚到网关"，
+            但页面主体是 Agent 管理台 —— 主机列表只有卡片、不能排序筛选，日志侧完全缺位。</li>
+        <li>其次是 <strong>一致性与可用性缺陷</strong>：暗色主题里漏出白底输入框、初始化页把模型术语直接渲染给用户、
+            趋势图没有 Y 轴与悬停取值、两个指标口径写错。</li>
+      </ul>
+    </div>
+  </header>
+
+  <h2 class="section">逐页对照</h2>
+
+  <div class="item">
+    <div class="item-head">
+      <span class="item-index">01</span>
+      <span class="item-title">Agent 总览</span>
+      <span class="item-route">/</span>
+    </div>
+    <p class="item-note">
+      KPI 磁贴原本"数字大字 + 一行小字"，缺判断依据；指标口径写错（"上报延迟 5456 分钟"）
+      且异常数恒为 0 却挂红色条 —— 容易被误读成告警。
+    </p>
+    <div class="pair">
+      <div class="shot"><span class="shot-label lab-before"><span class="dot"></span>改造前</span><img src="before/01-overview.png" alt="改造前总览" /></div>
+      <div class="shot"><span class="shot-label lab-after"><span class="dot"></span>改造后</span><img src="after/01-overview.png" alt="改造后总览" /></div>
+    </div>
+    <div class="fixes">
+      <div>KPI 磁贴统一为「标签 / 数值 / 判断依据」三层，左侧色条表达状态</div>
+      <div>"最近上报间隔 5456 分钟" → 相对时间，且按源码真实语义改名为"最久未重新上线"</div>
+      <div>异常数为 0 不再着绿，改为中性色（后端异常规则尚未启用）</div>
+      <div>在线率一并展示，1/2 在线直接可读</div>
+      <div>Agent 卡片上的"在线"改为按 5 分钟窗口真实判定，掉线显示离线时长</div>
+      <div>迷你趋势线加面积填充并降采样，100 个点不再糊成色块</div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <span class="item-index">02</span>
+      <span class="item-title">主机指标（机队视图）</span>
+      <span class="item-route">/hosts</span>
+    </div>
+    <p class="item-note">
+      这是与"多主机"定位最不匹配的一页：卡片网格无法排序、无法筛选、无法搜索，
+      且内存总量缺失时会渲染出 <code>/ …</code>。10 台主机就已经不可用了。
+    </p>
+    <div class="pair">
+      <div class="shot"><span class="shot-label lab-before"><span class="dot"></span>改造前</span><img src="before/02-hosts.png" alt="改造前主机指标" /></div>
+      <div class="shot"><span class="shot-label lab-after"><span class="dot"></span>改造后</span><img src="after/02-hosts.png" alt="改造后主机指标" /></div>
+    </div>
+    <div class="fixes">
+      <div>卡片网格 → 机队表格，默认按严重度排序，需处理的永远在最上面</div>
+      <div>表头可点排序（主机 / 状态 / CPU / 内存 / 磁盘），支持升降序</div>
+      <div>搜索主机 ID + 状态筛选片（含各档数量）</div>
+      <div>内存、磁盘加进度条与阈值着色（≥90% 危急，≥75% 偏高）</div>
+      <div>修复内存总量缺失时渲染成 "/ …" 的缺陷</div>
+      <div>加载态从"加载中…"改为骨架屏，空态给出下一步动作</div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <span class="item-index">03</span>
+      <span class="item-title">主机详情</span>
+      <span class="item-route">/agents/:agentId/metrics</span>
+    </div>
+    <p class="item-note">
+      改造前的趋势图被纵向拉伸到失真、没有 Y 轴、没有刻度、没有悬停取值，
+      图上唯一能读到的数字是图例里最后一个点。
+    </p>
+    <div class="pair">
+      <div class="shot"><span class="shot-label lab-before"><span class="dot"></span>改造前</span><img src="before/03-host-detail.png" alt="改造前主机详情" /></div>
+      <div class="shot"><span class="shot-label lab-after"><span class="dot"></span>改造后</span><img src="after/03-host-detail.png" alt="改造后主机详情" /></div>
+    </div>
+    <div class="fixes">
+      <div>重写 TrendChart：Y 轴刻度 + 虚网格 + 面积渐变，去掉纵向拉伸</div>
+      <div>悬停十字准线 + 数值气泡，可读任意时刻的三条线取值</div>
+      <div>数据断档处断线，不再把缺失画成一条骗人的斜坡</div>
+      <div>刻度文案自动去重（磁盘 98.6%→99.0% 这种窄量程不再出现重复标签）</div>
+      <div>KPI 磁贴改为「大数值 + 进度条 + 分级文案」，磁盘 98.8% 直接标危急</div>
+      <div>补充 Agent 版本 / 实例 / 在线时长 / Admin 延迟等身份信息</div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <span class="item-index">04</span>
+      <span class="item-title">控制中心</span>
+      <span class="item-route">/control</span>
+    </div>
+    <p class="item-note">
+      暗色主题里两个输入框是<strong>白底</strong>、占位文字几乎看不见；目标主机靠手输、
+      默认值还是假的 <code>agent-prod-001</code>；而且暂停这种不可逆操作点一下就直接派发。
+    </p>
+    <div class="pair">
+      <div class="shot"><span class="shot-label lab-before"><span class="dot"></span>改造前</span><img src="before/04-control-center.png" alt="改造前控制中心" /></div>
+      <div class="shot"><span class="shot-label lab-after"><span class="dot"></span>改造后</span><img src="after/04-control-center.png" alt="改造后控制中心" /></div>
+    </div>
+    <div class="fixes">
+      <div>全局表单基线 + 组件样式：暗色主题下不再漏出白底输入框</div>
+      <div>目标 Agent 改为可补全下拉，数据来自真实 Agent 列表，同时允许手输未上报主机</div>
+      <div>去掉假默认值（agent-prod-001 / v0.3.2），改为必填 + 示例占位</div>
+      <div>暂停与升级走两段式确认，改动目标即作废待确认态</div>
+      <div>回执卡显示受理/拒绝状态徽标，派发失败显示错误原因</div>
+      <div>"用例信息" 等模型术语改为「暂停采集 / 远程升级」+ 说明文案</div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <span class="item-index">05</span>
+      <span class="item-title">安装 Agent</span>
+      <span class="item-route">/install</span>
+    </div>
+    <p class="item-note">
+      命令块用红色标关键字 —— 在运维界面里红色代表故障，一段正常命令看起来像报错；
+      页头也没有告诉用户"装完之后去哪儿确认"。
+    </p>
+    <div class="pair">
+      <div class="shot"><span class="shot-label lab-before"><span class="dot"></span>改造前</span><img src="before/05-install.png" alt="改造前安装页" /></div>
+      <div class="shot"><span class="shot-label lab-after"><span class="dot"></span>改造后</span><img src="after/05-install.png" alt="改造后安装页" /></div>
+    </div>
+    <div class="fixes">
+      <div>语法着色去掉红色系：关键字改紫、管道与重定向单独着色</div>
+      <div>代码块改为独立深色代码面 + 边框，行高放宽到 1.75</div>
+      <div>页头补三步流程，明确"装完回主机指标确认上报"</div>
+      <div>标题与侧边栏统一为「安装 Agent」，并区分按架构选择命令</div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="item-head">
+      <span class="item-index">06</span>
+      <span class="item-title">初始化 Gateway</span>
+      <span class="item-route">/init</span>
+    </div>
+    <p class="item-note">
+      这是最明显的一页：模型内部术语被直接渲染出来 ——
+      <code>GATEWAY / INITIALIZEGATEWAYVIAURL</code>、<code>USECASE</code>、
+      <code>InitializeGatewayViaUrl → GatewayInitialConfig</code>、
+      "触发 InitializeGatewayViaUrl"。
+    </p>
+    <div class="pair">
+      <div class="shot"><span class="shot-label lab-before"><span class="dot"></span>改造前</span><img src="before/06-initialize.png" alt="改造前初始化页" /></div>
+      <div class="shot"><span class="shot-label lab-after"><span class="dot"></span>改造后</span><img src="after/06-initialize.png" alt="改造后初始化页" /></div>
+    </div>
+    <div class="fixes">
+      <div>删除全部模型术语：面包屑、USECASE 标签、类型流转条、触发器提示</div>
+      <div>改为面向操作者的三步说明 + "一次性操作"提示</div>
+      <div>按钮风格与全局统一（原为浅底蓝字，与站内主按钮不一致）</div>
+      <div>提交前提示"材料只能消费一次"，降低误操作概率</div>
+    </div>
+  </div>
+
+  <h2 class="section">顺带发现的问题（源码核对，未擅自改动）</h2>
+  <table class="matrix">
+    <thead>
+      <tr><th>位置</th><th>现象</th><th>依据</th><th>影响</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>overview.rs:110</td>
+        <td><code>unhealthy_agents</code> 始终返回 0，异常判定未实现</td>
+        <td><code>unhealthy_agents: 0</code> 为字面量</td>
+        <td><span class="tag tag-warn">界面</span> 总览"异常 Agent"永远显示 0，不能当作系统健康证明</td>
+      </tr>
+      <tr>
+        <td>overview.rs:97</td>
+        <td><code>total_agents</code> 取自最近上线列表并 <code>truncate(6)</code></td>
+        <td>截断发生在计数之前</td>
+        <td><span class="tag tag-warn">口径</span> 超过 6 台主机后"Agent 总数"会失真</td>
+      </tr>
+      <tr>
+        <td>overview.rs:107</td>
+        <td><code>last_seen_lag_seconds</code> 实为"最久的 online_since 距今"，随时间单调增长</td>
+        <td>原界面标签写作"上报延迟"</td>
+        <td><span class="tag tag-crit">误读</span> 持续在线的正常主机会被读成延迟告警，已改名并去掉危急着色</td>
+      </tr>
+      <tr>
+        <td>admin.ts:146</td>
+        <td>令牌存在 <code>sessionStorage</code>，而安全用例禁止产物中出现 <code>sessionStorage</code></td>
+        <td><code>tests/admin-token-bundle.test.mjs:11</code></td>
+        <td><span class="tag tag-crit">既有失败</span> <code>npm run test:bundle</code> 在改造前就已失败，与本次改动无关</td>
+      </tr>
+      <tr>
+        <td>Terminal</td>
+        <td>日志采集（VictoriaLogs / miss 镜像）在控制台完全没有入口</td>
+        <td>路由仅 6 条，均为 Agent 管理</td>
+        <td><span class="tag tag-warn">缺位</span> 定位是"指标 + 日志"，日志侧只能去 VictoriaLogs 原生界面看</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <footer>
+    构建与自检：<code>tsc --noEmit</code> 通过、<code>vite build</code> 通过（288 kB / gzip 92 kB）、
+    <code>test:gateway-initialize</code> 通过；截图由无头浏览器以 1440 宽视口 + 2x 像素密度实时渲染。
+  </footer>
+</div>
+</body>
+</html>

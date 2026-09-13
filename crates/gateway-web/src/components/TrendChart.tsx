@@ -15,9 +15,17 @@ interface TrendChartProps {
   filled?: boolean;
   /** 小于该宽度时隐藏 Y 轴刻度，给折线让出空间。 */
   compactBelow?: number;
+  /** Y 轴宽度（px）。标签长（带千分位/单位）时要放大，否则会被左边缘裁掉。 */
+  axisWidth?: number;
+  /**
+   * Y 轴刻度专用的格式化函数。默认复用 `valueFormatter`，
+   * 但轴标签宽度有限，通常应传一个更紧凑的版本（如 `formatAxis`），
+   * 而 tooltip / 图例继续用可读性更好的 `valueFormatter`。
+   */
+  axisFormatter?: (value: number) => string;
 }
 
-const AXIS_LEFT = 46;
+const DEFAULT_AXIS_LEFT = 46;
 const AXIS_RIGHT = 10;
 const AXIS_TOP = 10;
 const AXIS_BOTTOM = 24;
@@ -56,6 +64,8 @@ export function TrendChart({
   valueFormatter = (value) => value.toFixed(2),
   filled,
   compactBelow = 460,
+  axisWidth = DEFAULT_AXIS_LEFT,
+  axisFormatter,
 }: TrendChartProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -89,9 +99,17 @@ export function TrendChart({
     let minValue = Math.min(...values);
     let maxValue = Math.max(...values);
     if (minValue === maxValue) {
-      const pad = Math.abs(minValue) * 0.1 || 1;
-      minValue -= pad;
-      maxValue += pad;
+      const pad = Math.abs(minValue) * 0.1;
+      if (pad === 0) {
+        // 恒定 0（静默节点）：对称补边会造出 -1…1 的负值区间，
+        // 而速率/计数这类量本来非负，看起来像在 0 上下波动。
+        // 改成贴着 0 的 0…1，平线落在底部。
+        minValue = 0;
+        maxValue = 1;
+      } else {
+        minValue -= pad;
+        maxValue += pad;
+      }
     }
     const span = maxValue - minValue;
     const step = niceStep(span / 4);
@@ -103,11 +121,11 @@ export function TrendChart({
     const timeSpan = maxTime - minTime || 1;
     const withDate = timeSpan > 24 * 3600 * 1000;
 
-    const plotWidth = width - AXIS_LEFT - AXIS_RIGHT;
+    const plotWidth = width - axisWidth - AXIS_RIGHT;
     const plotHeight = height - AXIS_TOP - AXIS_BOTTOM;
 
     const x = (ts: number) =>
-      AXIS_LEFT + ((ts - minTime) / timeSpan) * plotWidth;
+      axisWidth + ((ts - minTime) / timeSpan) * plotWidth;
     const y = (value: number) =>
       AXIS_TOP + ((tickMax - value) / (tickMax - tickMin)) * plotHeight;
 
@@ -124,7 +142,8 @@ export function TrendChart({
 
     // 刻度文案去重：量程很窄时（例如磁盘 98.6%→99.0%），调用方给的
     // 1 位小数格式会把相邻刻度渲染成同一串字符，这里按步长补足精度。
-    const rawLabels = ticks.map((tick) => valueFormatter(tick));
+    const formatTick = axisFormatter ?? valueFormatter;
+    const rawLabels = ticks.map((tick) => formatTick(tick));
     const hasDuplicate = new Set(rawLabels).size !== rawLabels.length;
     const adaptiveDecimals = Number.isInteger(step)
       ? 0
@@ -133,7 +152,7 @@ export function TrendChart({
         : Math.min(4, Math.ceil(-Math.log10(step)) + 1);
     const tickLabel = hasDuplicate
       ? (tick: number) => tick.toFixed(adaptiveDecimals)
-      : valueFormatter;
+      : formatTick;
 
     const paths = usable.map((s) => {
       // 逐点比较相邻时间戳：连续区段内做折线，遇到时间断档就断线，
@@ -181,14 +200,14 @@ export function TrendChart({
       tickLabel,
       paths,
     };
-  }, [allPoints, height, usable, valueFormatter, width]);
+  }, [allPoints, axisWidth, height, usable, valueFormatter, width]);
 
   const bubble: Bubble | null = useMemo(() => {
     if (!model || hoverX === null) return null;
     const times = allPoints.map((p) => p[0]);
     const targetTime =
       model.minTime +
-      ((hoverX - AXIS_LEFT) / model.plotWidth) *
+      ((hoverX - axisWidth) / model.plotWidth) *
         (model.maxTime - model.minTime);
     let nearest = times[0];
     for (const t of times) {
@@ -274,7 +293,7 @@ export function TrendChart({
             return (
               <g key={tick}>
                 <line
-                  x1={AXIS_LEFT}
+                  x1={axisWidth}
                   y1={ty}
                   x2={width - AXIS_RIGHT}
                   y2={ty}
@@ -282,7 +301,7 @@ export function TrendChart({
                 />
                 {showLabel ? (
                   <text
-                    x={AXIS_LEFT - 8}
+                    x={axisWidth - 8}
                     y={ty + 3.5}
                     className={styles.axisLabel}
                     textAnchor="end"
@@ -363,14 +382,14 @@ export function TrendChart({
 
           {/* 命中层：整块绘图区捕获指针，避免只在线条上才响应 */}
           <rect
-            x={AXIS_LEFT}
+            x={axisWidth}
             y={AXIS_TOP}
             width={Math.max(model.plotWidth, 0)}
             height={Math.max(model.plotHeight, 0)}
             fill="transparent"
             onPointerMove={(event) => {
               const box = event.currentTarget.getBoundingClientRect();
-              setHoverX(event.clientX - box.left + AXIS_LEFT);
+              setHoverX(event.clientX - box.left + axisWidth);
             }}
             onPointerLeave={() => setHoverX(null)}
           />

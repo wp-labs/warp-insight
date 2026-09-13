@@ -7,7 +7,7 @@ admin_api_token = "${WARP_INSIGHT_ADMIN_TOKEN}"
 victoria_metrics_url = "http://127.0.0.1:18429"
 
 [agent]
-package_file = "../../target/debug/warp-agentd"
+package_file = "../../../wist-agentd/target/debug/wist-agentd"
 bootstrap_token_ttl_seconds = 900
 credential_ttl_seconds = 2592000
 store_file = "state/warp-gateway-store.json"

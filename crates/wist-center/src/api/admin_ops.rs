@@ -465,7 +465,7 @@ async fn download_artifact(client: &reqwest::Client, url: &str) -> Result<Vec<u8
         .map_err(|err| format!("read artifact body failed: {err}"))
 }
 
-/// 发布版本：POST /api/v1/admin/releases/:component（warp-agentd / warp-gateway）。
+/// 发布版本：POST /api/v1/admin/releases/:component（wist-agentd / warp-gateway）。
 /// 从外部 artifact_url 下载制品 → 镜像到本地文件/对象存储 → 返回快的下载地址。
 pub async fn admin_publish_release(
     State(state): State<ApiState>,

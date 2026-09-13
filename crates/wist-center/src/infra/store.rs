@@ -39,7 +39,7 @@ pub struct CenterStoreSnapshot {
     pub agents: HashMap<String, StoredAgent>,
     /// 网关生命周期转变历史（key = gateway_id，有界保留最近 ~100 条）。
     pub lifecycle_events: HashMap<String, Vec<LifecycleEvent>>,
-    /// 版本发布记录（key = component，如 warp-agentd / warp-gateway）。
+    /// 版本发布记录（key = component，如 wist-agentd / warp-gateway）。
     pub releases: HashMap<String, Vec<ReleaseRecord>>,
     /// 升级计划（按创建顺序，新→旧）。
     pub upgrade_plans: Vec<UpgradePlanRecord>,
@@ -114,7 +114,7 @@ pub struct UpgradePlanRecord {
     pub approved_at: Option<DateTime>,
 }
 
-/// 一次版本发布记录（映射模型 WarpAgentdRelease / WarpGateWayRelease）。
+/// 一次版本发布记录（映射模型 WistAgentdRelease / WarpGateWayRelease）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReleaseRecord {
     pub version: String,
@@ -307,7 +307,7 @@ pub trait Store: Send + Sync + std::fmt::Debug {
         &self,
         gateway_id: &str,
     ) -> Result<Vec<LifecycleEvent>, StoreError>;
-    /// 记录一次版本发布（component = warp-agentd / warp-gateway），返回记录。
+    /// 记录一次版本发布（component = wist-agentd / warp-gateway），返回记录。
     async fn publish_release(
         &self,
         component: &str,

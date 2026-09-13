@@ -1,4 +1,4 @@
-// 模拟器运行配置（手写参数解析，与 warp-agentd 一致，无 clap）。
+// 模拟器运行配置（手写参数解析，与 wist-agentd 一致，无 clap）。
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Role {

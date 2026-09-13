@@ -756,3 +756,142 @@ export async function upgradeAgent(
   );
   return normalizeReceipt(payload);
 }
+
+/* ------------------------------------------------------------------ *
+ * 数据采集吞吐视图（/api/v1/admin/pipeline/topology）
+ *
+ * 口径提醒：后端返回的是 wparse 三层计数器的 1 分钟粒度速率，
+ * 不是逐秒实时值（数据面写入 VictoriaMetrics 的粒度实测为 60 秒）。
+ * ------------------------------------------------------------------ */
+
+/** 采集单层里的一个节点（来源 / 解析规则 / 单个输出口）。 */
+export interface PipelineNode {
+  id: string;
+  label: string;
+  /** 当前速率（e/s） */
+  rate: number;
+  /** 进程启动至今累计 */
+  total: number;
+  /** `[unix 毫秒, e/s]` */
+  series: [number, number][];
+  /** `[unix 毫秒, 累计量]`，供「数量」视图切换 */
+  totalSeries: [number, number][];
+  /** `loss` 表示未落存储的出口（miss / residue / error） */
+  kind?: string;
+}
+
+/** 解析层 / 输出层的分组（父级速率取自组输入，不等同于子项求和）。 */
+export interface PipelineGroup {
+  id: string;
+  label: string;
+  rate: number;
+  total: number;
+  series: [number, number][];
+  totalSeries: [number, number][];
+  children: PipelineNode[];
+  kind?: string;
+}
+
+export interface PipelineSummary {
+  ingressRate: number;
+  parseRate: number;
+  egressRate: number;
+  lossRate: number;
+  totalReceived: number;
+  /** 入流合计曲线（各来源求和），供「接入与输出」节的汇总图 */
+  ingressSeries: [number, number][];
+  /** 落存储合计曲线（非 loss 输出口求和） */
+  egressSeries: [number, number][];
+  /** 解析合计曲线 */
+  parseSeries: [number, number][];
+}
+
+export interface PipelineTopology {
+  generatedAt: number;
+  /** 所有序列里最新采样点（unix 秒）；窗口内无任何数据时为 undefined */
+  latestSampleAt?: number;
+  windowSeconds: number;
+  stepSeconds: number;
+  summary: PipelineSummary;
+  sources: PipelineNode[];
+  parses: PipelineGroup[];
+  sinks: PipelineGroup[];
+}
+
+function normalizeSeriesPoints(payload: unknown): [number, number][] {
+  if (!Array.isArray(payload)) return [];
+  return payload.flatMap((point) => {
+    if (!Array.isArray(point) || point.length < 2) return [];
+    const timestamp = Number(point[0]);
+    const value = Number(point[1]);
+    if (!Number.isFinite(timestamp) || !Number.isFinite(value)) return [];
+    return [[timestamp, value] as [number, number]];
+  });
+}
+
+function normalizePipelineNode(payload: any): PipelineNode {
+  return {
+    id: String(payload?.id ?? ""),
+    label: String(payload?.label ?? payload?.id ?? ""),
+    rate: Number(payload?.rate ?? 0),
+    total: Number(payload?.total ?? 0),
+    series: normalizeSeriesPoints(payload?.series),
+    totalSeries: normalizeSeriesPoints(payload?.totalSeries),
+    ...(payload?.kind ? { kind: String(payload.kind) } : {}),
+  };
+}
+
+function normalizePipelineGroup(payload: any): PipelineGroup {
+  const children = Array.isArray(payload?.children)
+    ? payload.children.map(normalizePipelineNode)
+    : [];
+  return {
+    id: String(payload?.id ?? ""),
+    label: String(payload?.label ?? payload?.id ?? ""),
+    rate: Number(payload?.rate ?? 0),
+    total: Number(payload?.total ?? 0),
+    series: normalizeSeriesPoints(payload?.series),
+    totalSeries: normalizeSeriesPoints(payload?.totalSeries),
+    children,
+    ...(payload?.kind ? { kind: String(payload.kind) } : {}),
+  };
+}
+
+function normalizePipelineTopology(payload: any): PipelineTopology {
+  const summary = payload?.summary ?? {};
+  const latestSampleAt = Number(payload?.latestSampleAt);
+  return {
+    generatedAt: Number(payload?.generatedAt ?? 0),
+    ...(Number.isFinite(latestSampleAt) ? { latestSampleAt } : {}),
+    windowSeconds: Number(payload?.windowSeconds ?? 0),
+    stepSeconds: Number(payload?.stepSeconds ?? 60),
+    summary: {
+      ingressRate: Number(summary.ingressRate ?? 0),
+      parseRate: Number(summary.parseRate ?? 0),
+      egressRate: Number(summary.egressRate ?? 0),
+      lossRate: Number(summary.lossRate ?? 0),
+      totalReceived: Number(summary.totalReceived ?? 0),
+      ingressSeries: normalizeSeriesPoints(summary.ingressSeries),
+      egressSeries: normalizeSeriesPoints(summary.egressSeries),
+      parseSeries: normalizeSeriesPoints(summary.parseSeries),
+    },
+    sources: Array.isArray(payload?.sources)
+      ? payload.sources.map(normalizePipelineNode)
+      : [],
+    parses: Array.isArray(payload?.parses)
+      ? payload.parses.map(normalizePipelineGroup)
+      : [],
+    sinks: Array.isArray(payload?.sinks)
+      ? payload.sinks.map(normalizePipelineGroup)
+      : [],
+  };
+}
+
+export async function fetchPipelineTopology(
+  windowSeconds = 1800,
+): Promise<PipelineTopology> {
+  const payload = await requestJson<unknown>(
+    `/api/v1/admin/pipeline/topology?window=${windowSeconds}`,
+  );
+  return normalizePipelineTopology(payload);
+}

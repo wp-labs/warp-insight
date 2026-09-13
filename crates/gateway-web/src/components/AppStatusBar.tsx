@@ -22,6 +22,8 @@ function describeRoute(pathname: string): RouteMeta {
   switch (pathname) {
     case "/hosts":
       return { section: "monitoring", crumbs: ["主机指标"] };
+    case "/pipeline":
+      return { section: "monitoring", crumbs: ["数据采集"] };
     case "/control":
       return { section: "ops", crumbs: ["控制中心"] };
     case "/install":

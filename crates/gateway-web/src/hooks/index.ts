@@ -6,6 +6,7 @@ import {
   fetchAgentInstallCode,
   fetchAgentOverview,
   fetchAllAgentsHostMetrics,
+  fetchPipelineTopology,
   getAdminApiToken,
   initializeGatewayViaUrl,
   pauseAgent,
@@ -73,6 +74,27 @@ export function useAgentInstallCode() {
   return useQuery({
     queryKey: ["agent-install-code"],
     queryFn: fetchAgentInstallCode,
+  });
+}
+
+/**
+ * 数据采集吞吐。轮询 30s —— 数据面写入 VM 的粒度实测是 60 秒，
+ * 刷得比它更快只会重复读到同一个值。
+ */
+export function usePipelineTopology(windowSeconds = 1800) {
+  const [, setAuthVersion] = useState(0);
+  useEffect(() => {
+    const onAuthChanged = () => setAuthVersion((version) => version + 1);
+    window.addEventListener(ADMIN_AUTH_CHANGED_EVENT, onAuthChanged);
+    return () =>
+      window.removeEventListener(ADMIN_AUTH_CHANGED_EVENT, onAuthChanged);
+  }, []);
+  const enabled = Boolean(getAdminApiToken());
+  return useQuery({
+    queryKey: ["pipeline-topology", windowSeconds],
+    queryFn: () => fetchPipelineTopology(windowSeconds),
+    enabled,
+    refetchInterval: enabled ? 30_000 : false,
   });
 }
 

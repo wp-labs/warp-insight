@@ -35,7 +35,7 @@ export interface GatewayInitialConfig {
   telemetryOutput: string;
 }
 
-export interface WarpAgentdRelease {
+export interface WistAgentdRelease {
   version: string;
   artifactUrl: string;
   status: string;

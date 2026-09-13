@@ -1,4 +1,4 @@
-# macOS P0 安全/审计日志（warp-agentd 上送）独立 sink 分组。
+# macOS P0 安全/审计日志（wist-agentd 上送）独立 sink 分组。
 # 与 business.d/demo.toml（oml=["*"]）并存：本分组用精确 OML 名优先命中，
 # 让 macos_agent 记录落到独立文件，其余业务记录仍走 demo。
 [sink_group]

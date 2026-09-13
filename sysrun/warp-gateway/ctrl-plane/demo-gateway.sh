@@ -18,6 +18,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 本脚本位于 sysrun/warp-gateway/ctrl-plane/：仓库根 = SCRIPT_DIR/../../..
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+# wist-agentd 已迁出 warp-insight workspace，独立 crate 位于仓库根的上级目录
+AGENTD_CRATE="${REPO_ROOT}/../wist-agentd"
 RUN_DIR="${REPO_ROOT}/.run"
 mkdir -p "${RUN_DIR}/center" "${RUN_DIR}/gateways"
 
@@ -205,12 +207,12 @@ start_gateway_server() {
       -addext "subjectAltName=IP:127.0.0.1,DNS:localhost" >/dev/null 2>&1
   fi
   # warp-gateway 启动校验 agent.package_file 存在；模板相对路径在 .run 下会解析错，
-  # 改为仓库绝对路径，并确保 warp-agentd 已构建。
-  if [[ ! -x "${REPO_ROOT}/target/debug/warp-agentd" ]]; then
+  # 改为仓库绝对路径，并确保 wist-agentd 已构建。
+  if [[ ! -x "${AGENTD_CRATE}/target/debug/wist-agentd" ]]; then
     require_cmd cargo
-    cargo build --manifest-path "${REPO_ROOT}/Cargo.toml" -p warp-agentd >/dev/null
+    cargo build --manifest-path "${AGENTD_CRATE}/Cargo.toml" >/dev/null
   fi
-  sed -i '' "s|^package_file = .*|package_file = \"${REPO_ROOT}/target/debug/warp-agentd\"|" "${dir}/warp-gateway.toml"
+  sed -i '' "s|^package_file = .*|package_file = \"${AGENTD_CRATE}/target/debug/wist-agentd\"|" "${dir}/warp-gateway.toml"
   # agent 安装期通过脚本内嵌 trust_bundle（--cacert）校验网关 TLS；
   # demo 用自签证书，直接把该证书本身嵌为信任锚（install.sh 内嵌 CA PEM 不能是占位符）。
   python3 - "${state_dir}/admin-tls.crt.pem" "${dir}/warp-gateway.toml" <<'PY'

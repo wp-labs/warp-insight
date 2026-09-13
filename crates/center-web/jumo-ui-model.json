@@ -53,7 +53,7 @@
         ]
       },
       {
-        "name": "WarpAgentdRelease",
+        "name": "WistAgentdRelease",
         "fields": [
           { "name": "version", "ts_type": "string", "unique": false, "optional": false },
           { "name": "artifactUrl", "ts_type": "string", "unique": false, "optional": false },
@@ -125,7 +125,7 @@
         ]
       },
       {
-        "name": "PublishWarpAgentdRequested",
+        "name": "PublishWistAgentdRequested",
         "fields": [
           { "name": "version", "ts_type": "string", "unique": false, "optional": false },
           { "name": "artifactUrl", "ts_type": "string", "unique": false, "optional": false },
@@ -318,7 +318,7 @@
       "orientation": "vertical",
       "contains": [
         { "region": "GlobalTopNavigation", "prop_name": "globalTopNavigation", "slot_fills": [] },
-        { "region": "WarpAgentdReleasePanel", "prop_name": "warpAgentdReleasePanel", "slot_fills": [] },
+        { "region": "WistAgentdReleasePanel", "prop_name": "wistAgentdReleasePanel", "slot_fills": [] },
         { "region": "WarpGateWayReleasePanel", "prop_name": "warpGateWayReleasePanel", "slot_fills": [] }
       ],
       "when": null,
@@ -327,13 +327,13 @@
       "repeat": null
     },
     {
-      "name": "WarpAgentdReleasePanel",
+      "name": "WistAgentdReleasePanel",
       "orientation": "vertical",
       "contains": [],
       "when": null,
       "layout_props": [],
       "interactions": [
-        { "op": "onSubmit", "handler_name": "onSubmit", "emit_event": "PublishWarpAgentdRequested" }
+        { "op": "onSubmit", "handler_name": "onSubmit", "emit_event": "PublishWistAgentdRequested" }
       ],
       "repeat": null
     },

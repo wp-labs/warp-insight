@@ -1,7 +1,7 @@
 // 系统分解：顶层子系统边界
 
 // InsightSimulator — 开发/联调仿真器
-// 可扮演 WarpGateway（网关）或 WarpAgentd（agent 守护进程）角色，向各自上层节点发送数据：
+// 可扮演 WarpGateway（网关）或 WistAgentd（agent 守护进程）角色，向各自上层节点发送数据：
 // 网关角色连 WistCenter 上报状态并拉取初始配置；Agentd 角色连 WarpGateway
 // 上报 Agent 状态与动作结果。非部署组件，不入 warp-insight-managed 平台 target。
 
@@ -9,7 +9,7 @@ subsystem InsightSimulator {
   meta {
     label zh "Insight 仿真器"
     label en "Insight Simulator"
-    summary zh "用于开发与联调的仿真器，可扮演 WarpGateway（网关）或 WarpAgentd（agent 守护进程）角色，向各自上层节点发送数据：网关角色向 WistCenter 上报状态并拉取初始配置，Agentd 角色向 WarpGateway 上报 Agent 状态与动作结果。"
+    summary zh "用于开发与联调的仿真器，可扮演 WarpGateway（网关）或 WistAgentd（agent 守护进程）角色，向各自上层节点发送数据：网关角色向 WistCenter 上报状态并拉取初始配置，Agentd 角色向 WarpGateway 上报 Agent 状态与动作结果。"
     tags "dev", "simulator", "testing"
   }
 

@@ -15,9 +15,9 @@
 相关文档：
 
 - [`../edge/error-codes.md`](../edge/error-codes.md)：稳定错误码和原因码词典
-- [`../../crates/warp-agentd/docs/agentd-failure-handling.md`](../../crates/warp-agentd/docs/agentd-failure-handling.md)：`warp-insightd` 故障分层、恢复和 health 口径
-- [`../../crates/warp-agentd/docs/agentd-events.md`](../../crates/warp-agentd/docs/agentd-events.md)：daemon 进程内事件对象
-- [`../../crates/warp-agentd/docs/agentd-state-schema.md`](../../crates/warp-agentd/docs/agentd-state-schema.md)：本地状态里的错误字段
+- [`../../crates/wist-agentd/docs/agentd-failure-handling.md`](../../crates/wist-agentd/docs/agentd-failure-handling.md)：`warp-insightd` 故障分层、恢复和 health 口径
+- [`../../crates/wist-agentd/docs/agentd-events.md`](../../crates/wist-agentd/docs/agentd-events.md)：daemon 进程内事件对象
+- [`../../crates/wist-agentd/docs/agentd-state-schema.md`](../../crates/wist-agentd/docs/agentd-state-schema.md)：本地状态里的错误字段
 - [`../execution/action-result-schema.md`](../execution/action-result-schema.md)：`ActionResult.exit_reason` 与 `StepActionRecord.error_code`
 - [`../center/agent-gateway-protocol.md`](../center/agent-gateway-protocol.md)：中心与 agent 的南向协议
 - [`security-model.md`](security-model.md)：权限、审批、审计和敏感信息边界

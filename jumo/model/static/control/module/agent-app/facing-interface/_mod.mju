@@ -2,12 +2,12 @@ module<interface> AgentApp.FacingInterface {
   meta {
     label zh "Agent 侧服务接口"
     label en "Agent Facing Service Interface"
-    summary zh "管理节点面向 WarpAgentd 暴露的 HTTP 接口，承载在线注册、状态提交、最新指令获取和任务执行结果提交。"
+    summary zh "管理节点面向 WistAgentd 暴露的 HTTP 接口，承载在线注册、状态提交、最新指令获取和任务执行结果提交。"
     tags "agent-facing", "agentd", "registration", "enrollment", "backend", "http", "interface"
   }
 
   layer Application
-  provides WarpAgentdOnlineRegistrationInterface by protocol<http>
+  provides WistAgentdOnlineRegistrationInterface by protocol<http>
   depends Control.Agent.Registration
   depends Control.Agent.Credential
   depends Control.Agent.Command

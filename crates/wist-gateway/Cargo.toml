@@ -6,7 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-wist-contracts.workspace = true
+wist-contracts = { path = "../../../wist-contracts" }
 
 [lib]
 path = "src/lib.rs"

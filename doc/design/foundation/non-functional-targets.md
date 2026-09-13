@@ -15,8 +15,8 @@
 
 - [`target.md`](target.md)
 - [`architecture.md`](architecture.md)
-- [`self-observability.md`](../../crates/warp-agentd/docs/self-observability.md)
-- [`agent-config-schema.md`](../../crates/warp-agentd/docs/agent-config-schema.md)
+- [`self-observability.md`](../../crates/wist-agentd/docs/self-observability.md)
+- [`agent-config-schema.md`](../../crates/wist-agentd/docs/agent-config-schema.md)
 
 ---
 
@@ -44,7 +44,7 @@
 - `buffering`
 - `protection`
 
-对应定义见 [`agent-config-schema.md`](../../crates/warp-agentd/docs/agent-config-schema.md)
+对应定义见 [`agent-config-schema.md`](../../crates/wist-agentd/docs/agent-config-schema.md)
 
 ---
 

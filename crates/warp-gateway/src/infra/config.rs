@@ -464,7 +464,7 @@ mod tests {
 
     #[test]
     fn loads_config_with_environment_expansion() {
-        let package_file = write_temp_file("warp-agentd");
+        let package_file = write_temp_file("wist-agentd");
         env::set_var("WARP_INSIGHT_TEST_AGENT_PACKAGE_FILE", &package_file);
         env::set_var("WARP_INSIGHT_TEST_ADMIN_API_TOKEN", "test-admin-token");
         let path = write_temp_config(
@@ -558,7 +558,7 @@ environment_id = "env-default"
 
     #[test]
     fn rejects_missing_tls_certificate_file() {
-        let package_file = write_temp_file("warp-agentd");
+        let package_file = write_temp_file("wist-agentd");
         let key_file = write_temp_file("key");
         let missing_cert = env::temp_dir().join(format!(
             "warp-insight-missing-admin-tls-{}.crt.pem",
@@ -618,7 +618,7 @@ environment_id = "env-default"
 
     #[test]
     fn rejects_short_admin_api_token() {
-        let package_file = write_temp_file("warp-agentd");
+        let package_file = write_temp_file("wist-agentd");
         let path = write_temp_config(&format!(
             r#"
 [server]
@@ -645,7 +645,7 @@ environment_id = "env-default"
 
     #[test]
     fn rejects_long_bootstrap_token_ttl() {
-        let package_file = write_temp_file("warp-agentd");
+        let package_file = write_temp_file("wist-agentd");
         let path = write_temp_config(&format!(
             r#"
 [server]
@@ -675,7 +675,7 @@ environment_id = "env-default"
 
     #[test]
     fn rejects_http_public_base_url() {
-        let package_file = write_temp_file("warp-agentd");
+        let package_file = write_temp_file("wist-agentd");
         let path = write_temp_config(&format!(
             r#"
 [server]
@@ -702,7 +702,7 @@ environment_id = "env-default"
 
     #[test]
     fn accepts_https_public_base_url() {
-        let package_file = write_temp_file("warp-agentd");
+        let package_file = write_temp_file("wist-agentd");
         let path = write_temp_config(&format!(
             r#"
 [server]
@@ -729,7 +729,7 @@ environment_id = "env-default"
 
     #[test]
     fn rejects_public_base_url_with_shell_metacharacters() {
-        let package_file = write_temp_file("warp-agentd");
+        let package_file = write_temp_file("wist-agentd");
         let text = r#"
 [server]
 listen_addr = "127.0.0.1:3000"
@@ -756,7 +756,7 @@ environment_id = "env-default"
 
     #[test]
     fn loads_multiline_trust_bundle() {
-        let package_file = write_temp_file("warp-agentd");
+        let package_file = write_temp_file("wist-agentd");
         let path = write_temp_config(&format!(
             r#"
 [server]

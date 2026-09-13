@@ -17,6 +17,9 @@ mod enrollment;
 mod host_metrics;
 mod install;
 mod overview;
+// NOTE(hand-added): pipeline 不在 jumo 静态模型 binding.mju 的声明里，与 host_metrics
+// 同一模式（模型里也没有 host-metrics 路由）。重新生成控制面代码时需回补本模块与下方路由。
+mod pipeline;
 mod rate_limit;
 
 pub mod warp_gateway_management_interface;
@@ -36,6 +39,7 @@ use install::{
     get_agent_install_script, get_agent_install_script_signature,
 };
 use overview::{get_agent_overview, RecentOnlineRegisteredAgent};
+use pipeline::get_pipeline_topology;
 
 #[derive(Debug, Clone)]
 pub struct ApiState {
@@ -93,6 +97,11 @@ pub fn router(config: AdminConfig) -> Router {
         .route(
             "/api/v1/admin/agents/:agent_id/host-metrics",
             get(get_agent_host_metrics),
+        )
+        // NOTE(hand-added): 数据采集吞吐视图（见 api/pipeline.rs 顶部说明）
+        .route(
+            "/api/v1/admin/pipeline/topology",
+            get(get_pipeline_topology),
         )
         .route("/api/v1/admin/agents/:agent_id/pause", post(pause_agent))
         .route(

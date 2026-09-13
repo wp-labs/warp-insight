@@ -14,7 +14,7 @@ export { GatewayInstanceDetailPage } from "./GatewayInstanceDetailPage";
 export { GatewayInstanceCreatePanel } from "./GatewayInstanceCreatePanel";
 export { GatewayCustomerBindPanel } from "./GatewayCustomerBindPanel";
 export { ReleasePage } from "./ReleasePage";
-export { WarpAgentdReleasePanel } from "./WarpAgentdReleasePanel";
+export { WistAgentdReleasePanel } from "./WistAgentdReleasePanel";
 export { WarpGateWayReleasePanel } from "./WarpGateWayReleasePanel";
 export { UpgradePlanPage } from "./UpgradePlanPage";
 export { UpgradePlanCreatePanel } from "./UpgradePlanCreatePanel";

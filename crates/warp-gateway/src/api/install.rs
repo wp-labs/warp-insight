@@ -194,7 +194,7 @@ pub async fn download_agent_package(
                 (header::CACHE_CONTROL, NO_STORE),
                 (
                     header::CONTENT_DISPOSITION,
-                    "attachment; filename=\"warp-agentd\"",
+                    "attachment; filename=\"wist-agentd\"",
                 ),
             ],
             bytes,

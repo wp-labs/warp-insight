@@ -14,8 +14,8 @@
 相关文档：
 
 - [`action-plan-ir.md`](action-plan-ir.md)
-- [`agentd-exec-protocol.md`](../../crates/warp-agentd/docs/agentd-exec-protocol.md)
-- [`agentd-state-schema.md`](../../crates/warp-agentd/docs/agentd-state-schema.md)
+- [`agentd-exec-protocol.md`](../../crates/wist-agentd/docs/agentd-exec-protocol.md)
+- [`agentd-state-schema.md`](../../crates/wist-agentd/docs/agentd-state-schema.md)
 
 ---
 

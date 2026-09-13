@@ -1,4 +1,4 @@
-# macOS agent 指标（warp-agentd ` METRICS:` 帧）独立 sink 分组。
+# macOS agent 指标（wist-agentd ` METRICS:` 帧）独立 sink 分组。
 # 与 business.d/macos_agent.toml（日志）并存：指标走本分组，本地落 JSON + 通用 VM sink 写入 VictoriaMetrics。
 [sink_group]
 name = "macos-agent-metrics"

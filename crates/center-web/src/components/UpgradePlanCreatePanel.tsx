@@ -14,14 +14,14 @@ import {
 } from "./ui";
 import styles from "./UpgradePlanCreatePanel.module.css";
 
-const COMPONENTS = ["warp-agentd", "warp-gateway"] as const;
+const COMPONENTS = ["wist-agentd", "warp-gateway"] as const;
 
 /** 创建升级计划：多组件目标版本 + Gateway 范围多选 + 分批执行步骤（滚动升级）。 */
 export function UpgradePlanCreatePanel() {
   const mutation = useCreateUpgradePlan();
   const { data: statusData } = useGatewayStatusView();
   const gateways = statusData?.data ?? [];
-  const { data: agentdReleases } = useReleases("warp-agentd");
+  const { data: agentdReleases } = useReleases("wist-agentd");
   const { data: gatewayReleases } = useReleases("warp-gateway");
 
   // 目标版本从已发布版本中选取（下拉）。
@@ -32,7 +32,7 @@ export function UpgradePlanCreatePanel() {
   }
 
   const [targets, setTargets] = useState<UpgradeTarget[]>([
-    { component: "warp-agentd", targetVersion: "" },
+    { component: "wist-agentd", targetVersion: "" },
   ]);
   const [selected, setSelected] = useState<string[]>([]);
   const [steps, setSteps] = useState<UpgradeStep[]>([]);
@@ -45,7 +45,7 @@ export function UpgradePlanCreatePanel() {
   function addTarget() {
     setTargets((prev) => [
       ...prev,
-      { component: "warp-agentd", targetVersion: "" },
+      { component: "wist-agentd", targetVersion: "" },
     ]);
   }
   function removeTarget(index: number) {

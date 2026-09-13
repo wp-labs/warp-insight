@@ -14,7 +14,7 @@
 
 - [`action-result-schema.md`](../execution/action-result-schema.md)
 - [`ack-action-plan-schema.md`](ack-action-plan-schema.md)
-- [`agentd-state-schema.md`](../../crates/warp-agentd/docs/agentd-state-schema.md)
+- [`agentd-state-schema.md`](../../crates/wist-agentd/docs/agentd-state-schema.md)
 
 ---
 

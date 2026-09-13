@@ -1,7 +1,7 @@
 module<package> AgentApp {
   meta {
     label zh "AgentApp"
-    summary zh "WarpAgentd 边缘 agent 控制面的应用层边界：面向接口、接入编排。"
+    summary zh "WistAgentd 边缘 agent 控制面的应用层边界：面向接口、接入编排。"
     tags "control", "application", "package"
   }
 

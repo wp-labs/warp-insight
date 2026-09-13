@@ -148,12 +148,12 @@ fn install_script_downloads_package_verifies_sha256_and_fetches_scoped_initial_c
     assert!(script.contains("WARP_INSIGHT_HOME=\"/opt/warp-insight\""));
     assert!(script.contains("WARP_INSIGHT_HOME=\"/usr/local/warp-insight\""));
     assert!(script.contains("WARP_INSIGHT_HOME=\"$HOME/.warp-insight\""));
-    assert!(script.contains("CONFIG_DIR=\"$WARP_INSIGHT_HOME/.warp-agentd\""));
+    assert!(script.contains("CONFIG_DIR=\"$WARP_INSIGHT_HOME/.wist-agentd\""));
     assert!(script.contains("-H \"authorization: Bearer $WARP_INSIGHT_ENROLLMENT_TOKEN\""));
     assert!(script.contains("\"https://127.0.0.1:3000/api/v1/agent/packages/current\""));
     assert!(script.contains("\"https://127.0.0.1:3000/api/v1/agent/initial-config\""));
     assert!(!script.contains("?token="));
-    assert!(script.contains("warp-agentd --config-dir"));
+    assert!(script.contains("wist-agentd --config-dir"));
 }
 
 #[test]
@@ -1325,7 +1325,7 @@ async fn agent_overview_reflects_successful_enrollment() {
     let state = test_state();
     let token = issue_token_for_state(&state);
     let mut request = enrollment_request(&token);
-    request.capability_summary = "warp-agentd:test,version=v0.9.1".to_string();
+    request.capability_summary = "wist-agentd:test,version=v0.9.1".to_string();
 
     let _ = enroll_agent(State(state.clone()), None, Json(request)).await;
     let overview = agent_overview(&state).await;
@@ -1358,7 +1358,7 @@ fn enrollment_request(token: &str) -> SubmitEnrollmentRequest {
             k8s_node_uid: None,
             ip_addresses: Vec::new(),
         },
-        capability_summary: "warp-agentd:test".to_string(),
+        capability_summary: "wist-agentd:test".to_string(),
         requested_at: "2026-07-28T00:00:00Z".to_string(),
     }
 }
@@ -1374,7 +1374,7 @@ impl TestEnv {
     fn new() -> Self {
         let root = std::env::temp_dir().join(format!("warp-gateway-test-{}", unique_suffix()));
         std::fs::create_dir_all(&root).expect("create root");
-        let package_file = root.join("warp-agentd");
+        let package_file = root.join("wist-agentd");
         std::fs::write(&package_file, "test-agent-package").expect("write package");
         let tls_cert_file = root.join("admin-tls.crt.pem");
         std::fs::write(&tls_cert_file, TEST_TLS_CERT_PEM).expect("write tls cert");

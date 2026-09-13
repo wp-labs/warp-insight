@@ -120,7 +120,7 @@ function chineseLabel(name: string): string | null {
     GatewayInstanceCreatePanel: "创建网关实例",
     GatewayCustomerBindPanel: "绑定客户",
     GatewayInitialConfigPanel: "初始配置详情",
-    WarpAgentdReleasePanel: "WarpAgentd 发布",
+    WistAgentdReleasePanel: "WistAgentd 发布",
     WarpGateWayReleasePanel: "WarpGateWay 发布",
     UpgradePlanCreatePanel: "创建升级计划",
     UpgradePlanApprovePanel: "批准升级计划",
@@ -191,10 +191,10 @@ function pageSummary(name: string): string {
     return "查看指定 WarpGateWay 实例的初始配置信息，包括控制中心地址、策略版本与遥测输出。";
   }
   if (/Release(Page|Screen)$/.test(name)) {
-    return "发布 WarpAgentd / WarpGateWay 新版本，供各 WarpGateWay 实例或管理实例升级。";
+    return "发布 WistAgentd / WarpGateWay 新版本，供各 WarpGateWay 实例或管理实例升级。";
   }
   if (/UpgradePlan(Page|Screen)$/.test(name)) {
-    return "创建与批准 WarpAgentd / WarpGateWay 升级计划，用于分批升级。";
+    return "创建与批准 WistAgentd / WarpGateWay 升级计划，用于分批升级。";
   }
   return "WarpInsight 全局控制中心。";
 }

@@ -1,11 +1,11 @@
 // Module: PlatformRelease — 平台版本发布
-// 覆盖 WarpAgentd / WarpGateway 新版本的发布。
+// 覆盖 WistAgentd / WarpGateway 新版本的发布。
 
-command PublishWarpAgentd = OperatorRequest {
+command PublishWistAgentd = OperatorRequest {
   meta {
-    label zh "发布 WarpAgentd"
-    label en "Publish WarpAgentd"
-    tags "release", "warp-agentd"
+    label zh "发布 WistAgentd"
+    label en "Publish WistAgentd"
+    tags "release", "wist-agentd"
   }
 
   version: String
@@ -13,11 +13,11 @@ command PublishWarpAgentd = OperatorRequest {
   requested_at: DateTime
 }
 
-struct WarpAgentdRelease {
+struct WistAgentdRelease {
   meta {
-    label zh "WarpAgentd 发布记录"
-    label en "WarpAgentd Release"
-    tags "release", "warp-agentd"
+    label zh "WistAgentd 发布记录"
+    label en "WistAgentd Release"
+    tags "release", "wist-agentd"
   }
 
   version: String
@@ -80,7 +80,7 @@ struct ArtifactMirror {
   mirrored_at: DateTime
 }
 
-// 一个升级目标：组件 + 目标版本（升级计划可含多个目标，如 WarpAgentd v2.5.0 + WarpGateway v3.1.0）。
+// 一个升级目标：组件 + 目标版本（升级计划可含多个目标，如 WistAgentd v2.5.0 + WarpGateway v3.1.0）。
 struct UpgradeTarget {
   meta {
     label zh "升级目标"

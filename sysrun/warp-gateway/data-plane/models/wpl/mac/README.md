@@ -71,7 +71,7 @@ head -n 1 /Library/Logs/DiagnosticReports/*.ips > crash-panic/sample.dat
 1. 在 `models/mac-drafts/<类>/` 内新建 `parse.wpl`（语法校验：`wpadm rule parse --wpl <dir>` 或 `wpadm check`）；
 2. 用本目录的 `sample.dat` 做样例回放：`wpgen sample --wpl <dir>`；
 3. 命中并核对字段/分类后，把规则合入正式数据面规则目录并配 sink 组：
-   - warp-agentd 上送帧（macos P0 采集）→ 合并进 `models/wpl/macos_agent/parse.wpl`（sink：`macos-agent`）；
+   - wist-agentd 上送帧（macos P0 采集）→ 合并进 `models/wpl/macos_agent/parse.wpl`（sink：`macos-agent`）；
    - 未来新增独立来源类 → 新建 `models/wpl/<pkg>/parse.wpl` 包目录 + 对应 OML 与 `topology/sinks` 分组；
 4. 重启数据面（`stop-wparse.sh` / `start-wparse.sh`）后核对 `data/out_dat/` 与 `data/rescue/`。
 

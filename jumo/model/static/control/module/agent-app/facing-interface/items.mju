@@ -24,10 +24,10 @@ message<response> AgentControlCommandsReturned {
   returned_at: DateTime
 }
 
-interface WarpAgentdOnlineRegistrationInterface {
+interface WistAgentdOnlineRegistrationInterface {
   meta {
-    label zh "WarpAgentd 在线注册接口"
-    label en "WarpAgentd Online Registration Interface"
+    label zh "WistAgentd 在线注册接口"
+    label en "WistAgentd Online Registration Interface"
     tags "agentd", "registration", "enrollment", "http", "interface"
   }
 

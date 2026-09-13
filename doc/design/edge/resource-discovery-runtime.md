@@ -20,15 +20,15 @@
 相关文档：
 
 - [`discovery-runtime-current-state.md`](discovery-runtime-current-state.md)
-- [`agentd-architecture.md`](../../crates/warp-agentd/docs/agentd-architecture.md)
-- [`agentd-state-and-boundaries.md`](../../crates/warp-agentd/docs/agentd-state-and-boundaries.md)
-- [`agentd-failure-handling.md`](../../crates/warp-agentd/docs/agentd-failure-handling.md)
-- [`capability-report-schema.md`](../../crates/warp-agentd/docs/capability-report-schema.md)
+- [`agentd-architecture.md`](../../crates/wist-agentd/docs/agentd-architecture.md)
+- [`agentd-state-and-boundaries.md`](../../crates/wist-agentd/docs/agentd-state-and-boundaries.md)
+- [`agentd-failure-handling.md`](../../crates/wist-agentd/docs/agentd-failure-handling.md)
+- [`capability-report-schema.md`](../../crates/wist-agentd/docs/capability-report-schema.md)
 - [`../center/report-discovery-snapshot-schema.md`](../center/report-discovery-snapshot-schema.md)
 - [`../foundation/architecture.md`](../foundation/architecture.md)
 - [`../foundation/roadmap.md`](../foundation/roadmap.md)
 - [`../telemetry/metrics-discovery-and-resource-mapping.md`](../telemetry/metrics-discovery-and-resource-mapping.md)
-- [`self-observability.md`](../../crates/warp-agentd/docs/self-observability.md)
+- [`self-observability.md`](../../crates/wist-agentd/docs/self-observability.md)
 
 ---
 

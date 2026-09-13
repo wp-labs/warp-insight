@@ -13,7 +13,7 @@
 相关文档：
 
 - [`dispatch-action-plan-schema.md`](dispatch-action-plan-schema.md)
-- [`agentd-state-schema.md`](../../crates/warp-agentd/docs/agentd-state-schema.md)
+- [`agentd-state-schema.md`](../../crates/wist-agentd/docs/agentd-state-schema.md)
 - [`error-codes.md`](../edge/error-codes.md)
 
 ---

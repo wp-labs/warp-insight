@@ -14,7 +14,7 @@ export interface GetGatewayInitialConfigRequested {
   requestedBy: string;
 }
 
-export interface PublishWarpAgentdRequested {
+export interface PublishWistAgentdRequested {
   version: string;
   artifactUrl: string;
   requestedBy: string;
@@ -38,4 +38,4 @@ export interface ApproveUpgradePlanRequested {
   approvedBy: string;
 }
 
-export type AppEvent = CreateGatewayInstanceRequested | BindGatewayCustomerRequested | GetGatewayInitialConfigRequested | PublishWarpAgentdRequested | PublishWarpGateWayRequested | CreateUpgradePlanRequested | ApproveUpgradePlanRequested;
+export type AppEvent = CreateGatewayInstanceRequested | BindGatewayCustomerRequested | GetGatewayInitialConfigRequested | PublishWistAgentdRequested | PublishWarpGateWayRequested | CreateUpgradePlanRequested | ApproveUpgradePlanRequested;

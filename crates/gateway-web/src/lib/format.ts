@@ -119,3 +119,73 @@ export function lastValue(
   if (!points || points.length === 0) return undefined;
   return points[points.length - 1][1];
 }
+
+/** 速率（e/s）：小于 10 保留两位，避免 0.29 被压成 0.3。 */
+export function formatRate(value?: number | null): string {
+  if (value === undefined || value === null || !Number.isFinite(value)) {
+    return EMPTY;
+  }
+  if (value === 0) return "0 e/s";
+  if (Math.abs(value) < 10) return value.toFixed(2) + " e/s";
+  if (Math.abs(value) < 10_000) {
+    return value.toLocaleString("zh-CN", { maximumFractionDigits: 1 }) + " e/s";
+  }
+  return (value / 1000).toFixed(1) + "K e/s";
+}
+
+/**
+ * 累计计数：按中文习惯用「万 / 亿」分级，而不是 K/M。
+ * 运维界面上 12.7 万 比 127.2K 更容易一眼读出量级。
+ */
+export function formatCount(value?: number | null): string {
+  if (value === undefined || value === null || !Number.isFinite(value)) {
+    return EMPTY;
+  }
+  const abs = Math.abs(value);
+  if (abs < 10_000) {
+    return value.toLocaleString("zh-CN", { maximumFractionDigits: 0 });
+  }
+  if (abs < 100_000_000) return (value / 10_000).toFixed(1) + " 万";
+  return (value / 100_000_000).toFixed(2) + " 亿";
+}
+
+/** 占比：用于「未落存储占入流比例」这类判断。 */
+export function formatShare(part: number, whole: number): string {
+  if (!Number.isFinite(part) || !Number.isFinite(whole) || whole <= 0) {
+    return EMPTY;
+  }
+  const percent = (part / whole) * 100;
+  if (percent > 0 && percent < 0.01) return "<0.01%";
+  return percent.toFixed(2) + "%";
+}
+
+/**
+ * 坐标轴标签专用的紧凑数值：不带单位、按量级缩写。
+ * 轴宽有限，带千分位和 "e/s" 的长标签会被画布左边缘裁掉。
+ */
+export function formatAxis(value: number): string {
+  const abs = Math.abs(value);
+  if (abs === 0) return "0";
+  if (abs >= 100_000_000) return (value / 100_000_000).toFixed(1) + "亿";
+  if (abs >= 10_000) {
+    // 三位数以上的「万」不再留小数 —— "1000.0万" 读起来很别扭。
+    const wan = value / 10_000;
+    return (Math.abs(wan) >= 100 ? wan.toFixed(0) : wan.toFixed(1)) + "万";
+  }
+  if (abs >= 1000) return (value / 1000).toFixed(1) + "k";
+  if (abs < 10) return value.toFixed(2);
+  return value.toFixed(0);
+}
+
+/** 采样时刻（unix 秒）→ 本地时钟 "HH:MM:SS"。 */
+export function formatClock(seconds?: number | null): string {
+  if (seconds === undefined || seconds === null || !Number.isFinite(seconds)) {
+    return EMPTY;
+  }
+  return new Date(seconds * 1000).toLocaleTimeString("zh-CN", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}

@@ -1,4 +1,4 @@
-// warp-agentd 上送帧（数据平面 TCP）：
+// wist-agentd 上送帧（数据平面 TCP）：
 //   日志帧   {schema, agent, ts, seq} RAW: <原文>
 //   指标帧   {schema, agent, ts, seq} METRICS: <VM JSON line>
 // 信封字段（短名）信号无关：schema / agent / ts / seq；信号类型靠帧标记区分。
@@ -6,6 +6,9 @@
 package macos_agent {
 
   // 日志帧：信封 + ` RAW:` 标记 + 原文。
+  // 注意 `chars:raw\0` 的终止符不能省：`chars` 需要显式终止符才会一直读到报文末尾，
+  // 省略时只会匹配到极短片段，其余字节变成 residue 落进 miss 分支。
+  // 对照 models/mac-drafts/launchd-service/parse.wpl 的 `chars:msg\0`。
   #[tag(log_desc: "macOS agent 日志-原文", log_type: "macos.file")]
   rule mac_agent_log {
     (
@@ -16,7 +19,7 @@ package macos_agent {
         digit@seq,
       ),
       symbol(RAW:),
-      chars:raw
+      chars:raw\0
     )
   }
 

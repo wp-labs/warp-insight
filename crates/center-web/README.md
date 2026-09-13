@@ -9,7 +9,7 @@ WarpInsightCenter 子系统的浏览器端 WEB 前端（Jumo `module<ui> Insight
 | `/` | 网关列表 | ViewGatewayStatus |
 | `/instance` | 网关实例 | CreateGatewayInstance / BindGatewayCustomer |
 | `/config` | 初始配置 | GetInitialConfig |
-| `/release` | 版本发布 | PublishWarpAgentd / PublishWarpGateWay |
+| `/release` | 版本发布 | PublishWistAgentd / PublishWarpGateWay |
 | `/upgrade-plan` | 升级计划 | CreateUpgradePlan / ApproveUpgradePlan |
 
 ## 快速开始

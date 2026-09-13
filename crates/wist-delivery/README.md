@@ -180,4 +180,4 @@ let json = serde_json::to_string(&report).unwrap();
 
 - 设计：`doc/design/telemetry/data-loss-prevention.md`
 - 帧格式：`doc/design/telemetry/telemetry-uplink-protocol.md`
-- 文件日志输入 spec（`seq`/去重 §11.1.1、背压 §12）：`crates/warp-agentd/docs/log-file-input-spec.md`
+- 文件日志输入 spec（`seq`/去重 §11.1.1、背压 §12）：`crates/wist-agentd/docs/log-file-input-spec.md`

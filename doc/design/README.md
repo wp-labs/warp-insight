@@ -8,15 +8,15 @@
   动作 DSL、`ActionPlan IR`、执行 schema、opcode schema、`run.gxl` 相关文档
 - `edge/`
   `wist-exec` / 本地状态 / 故障处理 / 资源发现（agentd 专属设计文档已移至
-  [`crates/warp-agentd/docs/`](../../crates/warp-agentd/docs/README.md)）
+  [`crates/wist-agentd/docs/`](../../crates/wist-agentd/docs/README.md)）
 - `center/`
   控制中心、控制平面、管理平台容器 bootstrap、Gateway 协议、计划投递、discovery 同步、主机库存与运行态、软件归一化、公开漏洞源接入、图谱关系与结果回报 schema
 - `telemetry/`
   metrics 集成、discovery、resource mapping、uplink 设计、数据防丢失与 Batch A 规格（logs file input / macOS 采集文档已移至
-  [`crates/warp-agentd/docs/`](../../crates/warp-agentd/docs/README.md)）
+  [`crates/wist-agentd/docs/`](../../crates/wist-agentd/docs/README.md)）
 
 > agentd（edge daemon）实现相关的核心设计文档统一放在
-> [`crates/warp-agentd/docs/`](../../crates/warp-agentd/docs/README.md)（架构/状态/事件/执行/配置/自观测/日志采集），
+> [`crates/wist-agentd/docs/`](../../crates/wist-agentd/docs/README.md)（架构/状态/事件/执行/配置/自观测/日志采集），
 > 本目录保留跨端共享设计。
 
 建议阅读顺序：

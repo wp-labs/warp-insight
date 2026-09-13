@@ -14,7 +14,7 @@
 
 - [`action-plan-ir.md`](action-plan-ir.md)
 - [`control-plane.md`](../center/control-plane.md)
-- [`agentd-exec-protocol.md`](../../crates/warp-agentd/docs/agentd-exec-protocol.md)
+- [`agentd-exec-protocol.md`](../../crates/wist-agentd/docs/agentd-exec-protocol.md)
 
 ---
 

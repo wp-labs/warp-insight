@@ -15,7 +15,7 @@
 
 - [`control-center-architecture.md`](control-center-architecture.md)
 - [`control-plane.md`](control-plane.md)
-- [`capability-report-schema.md`](../../crates/warp-agentd/docs/capability-report-schema.md)
+- [`capability-report-schema.md`](../../crates/wist-agentd/docs/capability-report-schema.md)
 - [`dispatch-action-plan-schema.md`](dispatch-action-plan-schema.md)
 - [`ack-action-plan-schema.md`](ack-action-plan-schema.md)
 - [`report-action-result-schema.md`](report-action-result-schema.md)
@@ -241,7 +241,7 @@ Gateway 不应因偶发一次心跳抖动就立即把 agent 标记永久离线�
 
 直接复用：
 
-- [`capability-report-schema.md`](../../crates/warp-agentd/docs/capability-report-schema.md)
+- [`capability-report-schema.md`](../../crates/wist-agentd/docs/capability-report-schema.md)
 
 ### 7.3 Gateway 职责
 

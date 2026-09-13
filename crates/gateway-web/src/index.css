@@ -7,20 +7,28 @@
 }
 
 :root {
-  /* ---------- 表面分层（由深到浅，表达层级而非装饰） ---------- */
-  --bg: #0b1120;
-  --bg-elevated: #0f172a;
-  --surface: #141d31;
-  --surface-2: #1b2740;
-  --surface-3: #223054;
-  --border: #26344d;
-  --border-strong: #35486b;
+  /* ---------- 表面分层（由深到浅，表达层级而非装饰） ----------
+     深色不等于压抑：这一组整体比"纯正黑"亮一档，页面底亮度约为
+     #0b1120 的 1.8 倍。原来的取值在长时间盯屏下整体发灰发暗。 */
+  --bg: #101a2e;
+  --bg-elevated: #16223a;
+  --surface: #1c2a45;
+  --surface-2: #24334f;
+  --surface-3: #2c3d5c;
+  --border: #3d4e72;
+  --border-strong: #566a94;
+  /* 代码块是「凹陷」的表面：比页面底再暗一档，但不能是纯黑 —— 纯黑在
+     提亮后的页面里会变成一块黑洞。 */
+  --code-bg: #0d1828;
+  --code-text: #dbe6f7;
 
-  /* ---------- 文本 ---------- */
-  --text: #eef2f9;
-  --text-2: #b3c0d4;
-  --text-3: #7c8aa5;
-  --text-4: #5a6780;
+  /* ---------- 文本 ----------
+     全部对齐 WCAG AA（正文 4.5:1）。--text-4 原来只有 2.9~3.3:1，
+     而 KPI 口径说明、计数、图表轴标签都用它 —— 这是"看起来暗淡"的主因。 */
+  --text: #f4f7fc;
+  --text-2: #c9d4e6;
+  --text-3: #a3b1c9;
+  --text-4: #8693ab;
 
   /* ---------- 品牌 / 交互 ---------- */
   --accent: #6366f1;
@@ -58,13 +66,13 @@
   --series-3: #34d399;
   --series-4: #fbbf24;
   --series-5: #fb7185;
-  --grid: rgba(148, 163, 184, 0.14);
-  --grid-strong: rgba(148, 163, 184, 0.26);
+  --grid: rgba(148, 163, 184, 0.2);
+  --grid-strong: rgba(148, 163, 184, 0.34);
 
   /* ---------- 侧边栏 ---------- */
-  --sidebar-bg: #080d18;
-  --sidebar-border: rgba(255, 255, 255, 0.07);
-  --sidebar-text: #8b99b3;
+  --sidebar-bg: #0c1626;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-text: #a3b1c9;
   --sidebar-text-active: #ffffff;
   --sidebar-hover: rgba(255, 255, 255, 0.055);
   --sidebar-active: rgba(99, 102, 241, 0.16);

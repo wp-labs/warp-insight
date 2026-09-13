@@ -2,9 +2,9 @@
 
 actor<system> Agentd {
   meta {
-    label zh "WarpAgentd 守护进程"
-    label en "WarpAgentd Daemon"
-    summary zh "运行在业务服务器上的 warp-agentd 守护进程，作为系统 actor 发起注册、凭据轮换、状态上报与控制指令轮询。"
+    label zh "WistAgentd 守护进程"
+    label en "WistAgentd Daemon"
+    summary zh "运行在业务服务器上的 wist-agentd 守护进程，作为系统 actor 发起注册、凭据轮换、状态上报与控制指令轮询。"
     tags "edge", "agentd", "daemon"
   }
 
@@ -118,7 +118,7 @@ actor PlatformMaintenanceEngineer {
   }
 
   access protocol<http>
-  can PublishWarpAgentd
+  can PublishWistAgentd
   can PublishWarpGateway
   can CreateUpgradePlan
   can AdminDispatchGlobalPolicy

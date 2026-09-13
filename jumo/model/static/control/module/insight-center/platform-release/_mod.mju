@@ -2,7 +2,7 @@ module<logic> InsightCenter.PlatformRelease {
   meta {
     label zh "平台版本发布"
     label en "Platform Release"
-    summary zh "负责 WarpAgentd 与 WarpGateway 新版本的发布。"
+    summary zh "负责 WistAgentd 与 WarpGateway 新版本的发布。"
     tags "control", "release"
   }
 

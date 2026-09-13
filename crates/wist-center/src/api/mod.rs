@@ -205,7 +205,7 @@ pub fn router_for(state: ApiState) -> Router {
             "/api/v1/admin/gateways/:gateway_id/lifecycle",
             get(admin_list_gateway_lifecycle),
         )
-        // 管理面：版本发布（warp-agentd / warp-gateway，镜像外部制品）
+        // 管理面：版本发布（wist-agentd / warp-gateway，镜像外部制品）
         .route(
             "/api/v1/admin/releases/:component",
             post(admin_publish_release).get(admin_list_releases),

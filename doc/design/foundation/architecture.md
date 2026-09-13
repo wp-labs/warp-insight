@@ -8,16 +8,16 @@
 - [`error-handling-system.md`](error-handling-system.md)：Rust 错误模型、协议错误投影、故障裁决和观测暴露
 - [`action-plan-schema.md`](../execution/action-plan-schema.md)：`ActionPlan` 的字段级协议定义
 - [`action-result-schema.md`](../execution/action-result-schema.md)：`ActionResult` 和 `StepActionRecord` 的字段级协议定义
-- [`agentd-architecture.md`](../../crates/warp-agentd/docs/agentd-architecture.md)：`warp-insightd` 的模块边界、本地状态机和调度职责
-- [`agentd-failure-handling.md`](../../crates/warp-agentd/docs/agentd-failure-handling.md)：`warp-insightd` 的故障分层、状态权威性、恢复和 health 口径
-- [`agentd-exec-protocol.md`](../../crates/warp-agentd/docs/agentd-exec-protocol.md)：`warp-insightd` 与 `wist-exec` 的本地交互协议
-- [`agentd-state-and-boundaries.md`](../../crates/warp-agentd/docs/agentd-state-and-boundaries.md)：`warp-insightd` 的本地状态模型、唯一写入权和模块协作边界
-- [`agentd-state-schema.md`](../../crates/warp-agentd/docs/agentd-state-schema.md)：`warp-insightd` 本地状态对象的字段级 schema
-- [`agentd-events.md`](../../crates/warp-agentd/docs/agentd-events.md)：`warp-insightd` 进程内事件对象和模块事件流
-- [`capability-report-schema.md`](../../crates/warp-agentd/docs/capability-report-schema.md)：agent 能力声明和匹配规则
-- [`agent-config-schema.md`](../../crates/warp-agentd/docs/agent-config-schema.md)：`warp-insightd` 总配置骨架
+- [`agentd-architecture.md`](../../crates/wist-agentd/docs/agentd-architecture.md)：`warp-insightd` 的模块边界、本地状态机和调度职责
+- [`agentd-failure-handling.md`](../../crates/wist-agentd/docs/agentd-failure-handling.md)：`warp-insightd` 的故障分层、状态权威性、恢复和 health 口径
+- [`agentd-exec-protocol.md`](../../crates/wist-agentd/docs/agentd-exec-protocol.md)：`warp-insightd` 与 `wist-exec` 的本地交互协议
+- [`agentd-state-and-boundaries.md`](../../crates/wist-agentd/docs/agentd-state-and-boundaries.md)：`warp-insightd` 的本地状态模型、唯一写入权和模块协作边界
+- [`agentd-state-schema.md`](../../crates/wist-agentd/docs/agentd-state-schema.md)：`warp-insightd` 本地状态对象的字段级 schema
+- [`agentd-events.md`](../../crates/wist-agentd/docs/agentd-events.md)：`warp-insightd` 进程内事件对象和模块事件流
+- [`capability-report-schema.md`](../../crates/wist-agentd/docs/capability-report-schema.md)：agent 能力声明和匹配规则
+- [`agent-config-schema.md`](../../crates/wist-agentd/docs/agent-config-schema.md)：`warp-insightd` 总配置骨架
 - [`error-codes.md`](../edge/error-codes.md)：统一错误码和原因码词典
-- [`self-observability.md`](../../crates/warp-agentd/docs/self-observability.md)：`warp-insight` 自身可观测性和验收指标面设计
+- [`self-observability.md`](../../crates/wist-agentd/docs/self-observability.md)：`warp-insight` 自身可观测性和验收指标面设计
 - [`non-functional-targets.md`](non-functional-targets.md)：资源预算、退化阈值、buffer/backpressure 和保底目标
 - [`metrics-integration-roadmap.md`](../telemetry/metrics-integration-roadmap.md)：metrics integration 的目标分层、优先级和批次规划
 - [`metrics-batch-a-plan.md`](../telemetry/metrics-batch-a-plan.md)：Batch A 的最小 target 覆盖、指标范围和统一配置骨架

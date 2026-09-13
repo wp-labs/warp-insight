@@ -4,7 +4,7 @@
 // - GatewayListPage      查看网关列表状态（ViewGatewayStatus）
 // - GatewayInstancePage   网关实例管理（CreateGatewayInstance / BindGatewayCustomer）
 // - GatewayConfigPage     网关初始配置查询（GetInitialConfig）
-// - ReleasePage           版本发布（PublishWarpAgentd / PublishWarpGateway）
+// - ReleasePage           版本发布（PublishWistAgentd / PublishWarpGateway）
 // - UpgradePlanPage       升级计划管理（CreateUpgradePlan / ApproveUpgradePlan）
 // ReceiveGatewayStatusReport 为系统上报（WarpGateway 后台），喂给状态展示，无独立页面。
 
@@ -135,23 +135,23 @@ region<page> ReleasePage {
   meta {
     label zh "版本发布"
     label en "Release"
-    summary zh "发布 WarpAgentd / WarpGateway 新版本，供各 WarpGateway 实例或管理实例升级。"
+    summary zh "发布 WistAgentd / WarpGateway 新版本，供各 WarpGateway 实例或管理实例升级。"
     tags "center", "release", "page"
   }
 
   orientation vertical
   contains GlobalTopNavigation
-  contains WarpAgentdReleasePanel { slot_usecase: PublishWarpAgentd }
+  contains WistAgentdReleasePanel { slot_usecase: PublishWistAgentd }
   contains WarpGatewayReleasePanel { slot_usecase: PublishWarpGateway }
   layout fill_remaining
 }
 
-region<section> WarpAgentdReleasePanel {
+region<section> WistAgentdReleasePanel {
   meta {
-    label zh "WarpAgentd 发布"
-    label en "Publish WarpAgentd"
-    summary zh "平台维护工程师发布 WarpAgentd 新版本。"
-    tags "center", "release", "warp-agentd"
+    label zh "WistAgentd 发布"
+    label en "Publish WistAgentd"
+    summary zh "平台维护工程师发布 WistAgentd 新版本。"
+    tags "center", "release", "wist-agentd"
   }
 
   orientation vertical
@@ -174,7 +174,7 @@ region<page> UpgradePlanPage {
   meta {
     label zh "升级计划"
     label en "Upgrade Plan"
-    summary zh "创建与批准 WarpAgentd / WarpGateway 升级计划。"
+    summary zh "创建与批准 WistAgentd / WarpGateway 升级计划。"
     tags "center", "release", "upgrade", "page"
   }
 

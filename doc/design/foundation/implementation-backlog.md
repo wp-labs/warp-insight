@@ -16,9 +16,9 @@
 
 - [`roadmap.md`](roadmap.md)
 - [`glossary.md`](glossary.md)
-- [`../../crates/warp-agentd/docs/agentd-architecture.md`](../../crates/warp-agentd/docs/agentd-architecture.md)
-- [`../../crates/warp-agentd/docs/agentd-state-schema.md`](../../crates/warp-agentd/docs/agentd-state-schema.md)
-- [`../../crates/warp-agentd/docs/log-file-state-schema.md`](../../crates/warp-agentd/docs/log-file-state-schema.md)
+- [`../../crates/wist-agentd/docs/agentd-architecture.md`](../../crates/wist-agentd/docs/agentd-architecture.md)
+- [`../../crates/wist-agentd/docs/agentd-state-schema.md`](../../crates/wist-agentd/docs/agentd-state-schema.md)
+- [`../../crates/wist-agentd/docs/log-file-state-schema.md`](../../crates/wist-agentd/docs/log-file-state-schema.md)
 - [`../execution/action-plan-schema.md`](../execution/action-plan-schema.md)
 - [`../center/agent-gateway-protocol.md`](../center/agent-gateway-protocol.md)
 

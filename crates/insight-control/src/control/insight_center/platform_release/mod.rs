@@ -1,10 +1,10 @@
 // @jumo generated
 // Model module: Control.InsightCenter.PlatformRelease
 
-pub mod publish_warp_agentd;
-pub use publish_warp_agentd::*;
-pub mod warp_agentd_release;
-pub use warp_agentd_release::*;
+pub mod publish_wist_agentd;
+pub use publish_wist_agentd::*;
+pub mod wist_agentd_release;
+pub use wist_agentd_release::*;
 pub mod publish_warp_gate_way;
 pub use publish_warp_gate_way::*;
 pub mod warp_gate_way_release;

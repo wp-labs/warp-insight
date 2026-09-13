@@ -1,6 +1,6 @@
 # Agent 身份与通讯安全设计记录
 
-本文记录 Control 域中 WarpAgentd 合法身份、注册 token、HTTPS 证书和后续通讯凭据的设计方向。核心语义已映射到 `.mju` 模型；具体 PKI 后端和证书轮换细节仍作为后续实现选择。
+本文记录 Control 域中 WistAgentd 合法身份、注册 token、HTTPS 证书和后续通讯凭据的设计方向。核心语义已映射到 `.mju` 模型；具体 PKI 后端和证书轮换细节仍作为后续实现选择。
 
 ## 设计结论
 

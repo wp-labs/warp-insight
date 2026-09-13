@@ -24,8 +24,8 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow-x: auto;
-  background: #0a1020;
-  color: #d7e2f4;
+  background: var(--code-bg);
+  color: var(--code-text);
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.75;

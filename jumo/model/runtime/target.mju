@@ -4,6 +4,6 @@ target<platform> warp-insight-managed {
   subsystem WistCenter
   subsystem WarpGateway
   subsystem DataPlatform
-  subsystem WarpAgentd
+  subsystem WistAgentd
 }
 

@@ -12,7 +12,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 tokio.workspace = true
 insight-control = { path = "../insight-control" }
 wist-reporting = { path = "../wist-reporting" }
-wist-shared = { path = "../wist-shared" }
+wist-shared = { path = "../../../wist-shared" }
 
 [lib]
 path = "src/lib.rs"

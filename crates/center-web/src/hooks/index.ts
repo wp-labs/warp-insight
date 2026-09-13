@@ -19,7 +19,7 @@ import {
   fetchReleases,
   fetchUpgradePlans,
   getAdminApiToken,
-  publishWarpAgentd,
+  publishWistAgentd,
   publishWarpGateWay,
   type ApproveUpgradePlanCommand,
   type BindGatewayCustomerCommand,
@@ -236,13 +236,13 @@ export function useGatewayInitialConfig() {
   });
 }
 
-export function usePublishWarpAgentd() {
+export function usePublishWistAgentd() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (command: PublishReleaseCommand) => publishWarpAgentd(command),
+    mutationFn: (command: PublishReleaseCommand) => publishWistAgentd(command),
     // 发布成功后刷新当前组件的历史，立即反馈新版本已进入发布记录。
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["releases", "warp-agentd"] }),
+      queryClient.invalidateQueries({ queryKey: ["releases", "wist-agentd"] }),
   });
 }
 

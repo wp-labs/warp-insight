@@ -128,7 +128,7 @@ export interface GatewayInitialConfig {
   telemetryOutput: string;
 }
 
-export interface WarpAgentdRelease {
+export interface WistAgentdRelease {
   version: string;
   artifactUrl: string;
   status: string;
@@ -526,7 +526,7 @@ function normalizeGatewayInitialConfig(payload: any): GatewayInitialConfig {
   };
 }
 
-function normalizeRelease(payload: any): WarpAgentdRelease {
+function normalizeRelease(payload: any): WistAgentdRelease {
   return {
     version: requiredString(payload.version, "release.version"),
     artifactUrl: requiredString(
@@ -1003,7 +1003,7 @@ function exampleInitialConfig(
   };
 }
 
-function exampleRelease(command: PublishReleaseCommand): WarpAgentdRelease {
+function exampleRelease(command: PublishReleaseCommand): WistAgentdRelease {
   return {
     version: command.version,
     artifactUrl: command.artifactUrl,
@@ -1298,7 +1298,7 @@ export async function fetchGatewayInitialConfig(
 
 export async function fetchReleases(
   component: string,
-): Promise<ExampleResult<WarpAgentdRelease[]>> {
+): Promise<ExampleResult<WistAgentdRelease[]>> {
   const path = `/api/v1/admin/releases/${encodeURIComponent(component)}`;
   return fetchOrFallback(path, () => exampleReleases(component)).then(
     async (result) => {
@@ -1310,7 +1310,7 @@ export async function fetchReleases(
   );
 }
 
-function exampleReleases(component: string): WarpAgentdRelease[] {
+function exampleReleases(component: string): WistAgentdRelease[] {
   return [
     {
       version: "v2.4.1",
@@ -1321,11 +1321,11 @@ function exampleReleases(component: string): WarpAgentdRelease[] {
   ];
 }
 
-export async function publishWarpAgentd(
+export async function publishWistAgentd(
   command: PublishReleaseCommand,
-): Promise<ExampleResult<WarpAgentdRelease>> {
+): Promise<ExampleResult<WistAgentdRelease>> {
   return fetchOrFallback(
-    "/api/v1/admin/releases/warp-agentd",
+    "/api/v1/admin/releases/wist-agentd",
     () => exampleRelease(command),
     {
       method: "POST",
@@ -1384,7 +1384,7 @@ function exampleUpgradePlans(): UpgradePlan[] {
     {
       planId: "plan-example-1",
       targets: [
-        { component: "warp-agentd", targetVersion: "v2.5.0" },
+        { component: "wist-agentd", targetVersion: "v2.5.0" },
         { component: "warp-gateway", targetVersion: "v3.1.0" },
       ],
       targetCount: 2,

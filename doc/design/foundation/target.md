@@ -8,15 +8,15 @@
 - [`action-plan-ir.md`](../execution/action-plan-ir.md)：边缘唯一执行契约、IR 对象模型、步骤语义、结果模型与校验规则
 - [`action-plan-schema.md`](../execution/action-plan-schema.md)：`ActionPlan v1` 的字段级 schema、步骤类型与约束定义
 - [`action-result-schema.md`](../execution/action-result-schema.md)：`ActionResult v1` 和 `StepActionRecord` 的字段级 schema
-- [`agentd-architecture.md`](../../crates/warp-agentd/docs/agentd-architecture.md)：`warp-insightd` 模块拆分、本地状态机、调度职责与进程边界
-- [`agentd-exec-protocol.md`](../../crates/warp-agentd/docs/agentd-exec-protocol.md)：`warp-insightd` 与 `wist-exec` 的本地协议、工作目录、状态文件与取消机制
-- [`agentd-state-and-boundaries.md`](../../crates/warp-agentd/docs/agentd-state-and-boundaries.md)：`warp-insightd` 的本地状态分层、唯一写入权、状态机拥有者与模块协作边界
-- [`agentd-state-schema.md`](../../crates/warp-agentd/docs/agentd-state-schema.md)：`warp-insightd` 本地状态文件的字段级 schema 草案
-- [`agentd-events.md`](../../crates/warp-agentd/docs/agentd-events.md)：`warp-insightd` 模块协作事件对象、最小事件流与审计事件边界
-- [`capability-report-schema.md`](../../crates/warp-agentd/docs/capability-report-schema.md)：agent 能力声明、能力匹配和限制字段的 schema 草案
-- [`agent-config-schema.md`](../../crates/warp-agentd/docs/agent-config-schema.md)：`warp-insightd` 本地总配置骨架和各配置段结构
+- [`agentd-architecture.md`](../../crates/wist-agentd/docs/agentd-architecture.md)：`warp-insightd` 模块拆分、本地状态机、调度职责与进程边界
+- [`agentd-exec-protocol.md`](../../crates/wist-agentd/docs/agentd-exec-protocol.md)：`warp-insightd` 与 `wist-exec` 的本地协议、工作目录、状态文件与取消机制
+- [`agentd-state-and-boundaries.md`](../../crates/wist-agentd/docs/agentd-state-and-boundaries.md)：`warp-insightd` 的本地状态分层、唯一写入权、状态机拥有者与模块协作边界
+- [`agentd-state-schema.md`](../../crates/wist-agentd/docs/agentd-state-schema.md)：`warp-insightd` 本地状态文件的字段级 schema 草案
+- [`agentd-events.md`](../../crates/wist-agentd/docs/agentd-events.md)：`warp-insightd` 模块协作事件对象、最小事件流与审计事件边界
+- [`capability-report-schema.md`](../../crates/wist-agentd/docs/capability-report-schema.md)：agent 能力声明、能力匹配和限制字段的 schema 草案
+- [`agent-config-schema.md`](../../crates/wist-agentd/docs/agent-config-schema.md)：`warp-insightd` 本地总配置骨架和各配置段结构
 - [`error-codes.md`](../edge/error-codes.md)：统一错误码、原因码和使用建议
-- [`self-observability.md`](../../crates/warp-agentd/docs/self-observability.md)：`warp-insight` 自身的 metrics、logs、events 与验收观测面设计
+- [`self-observability.md`](../../crates/wist-agentd/docs/self-observability.md)：`warp-insight` 自身的 metrics、logs、events 与验收观测面设计
 - [`metrics-integration-roadmap.md`](../telemetry/metrics-integration-roadmap.md)：metrics integration 覆盖范围、优先级、分批落地与 exporter 策略
 - [`metrics-batch-a-plan.md`](../telemetry/metrics-batch-a-plan.md)：Batch A 的 target 范围、最小指标集、resource 绑定与验收标准
 - [`metrics-config-schema.md`](../telemetry/metrics-config-schema.md)：metrics integration 的统一配置骨架、通用字段与 budget 结构

@@ -38,7 +38,7 @@ usecase SimulateAgentStatusReport {
   meta {
     label zh "模拟 Agentd 状态上报"
     label en "Simulate Agentd Status Report"
-    summary zh "仿真器扮演 WarpAgentd，向 WarpGateway 上报 Agent 运行状态（AgentHello）。"
+    summary zh "仿真器扮演 WistAgentd，向 WarpGateway 上报 Agent 运行状态（AgentHello）。"
     tags "simulator", "agentd", "status"
   }
 
@@ -52,7 +52,7 @@ usecase SimulateActionResultReport {
   meta {
     label zh "模拟 Agentd 动作结果上报"
     label en "Simulate Agentd Action Result Report"
-    summary zh "仿真器扮演 WarpAgentd，向 WarpGateway 上报动作执行结果（ReportActionResult）。"
+    summary zh "仿真器扮演 WistAgentd，向 WarpGateway 上报动作执行结果（ReportActionResult）。"
     tags "simulator", "agentd", "action-result"
   }
 

@@ -13,7 +13,7 @@ node AgentHost1 {
   meta {
     label zh "业务节点1"
     label en "Agent Host 1"
-    summary zh "在线业务区内已经存在的业务服务器节点，安装 WarpAgentd 后运行其 warp-agentd 守护进程与 wist-upgrader，集成本机 OS、进程、网络、容器运行时、业务日志、本地状态与 spool 资源，负责本地发现、采集、缓冲、上送和受控升级。"
+    summary zh "在线业务区内已经存在的业务服务器节点，安装 WistAgentd 后运行其 wist-agentd 守护进程与 wist-upgrader，集成本机 OS、进程、网络、容器运行时、业务日志、本地状态与 spool 资源，负责本地发现、采集、缓冲、上送和受控升级。"
     tags "edge", "online-business-zone", "existing-host"
   }
 }
@@ -22,7 +22,7 @@ node AgentHost2 {
   meta {
     label zh "现有业务服务器节点 2"
     label en "Agent Host 2"
-    summary zh "在线业务区内已经存在的业务服务器节点，安装 WarpAgentd 后运行其 warp-agentd 守护进程与 wist-upgrader，集成本机 OS、进程、网络、容器运行时、业务日志、本地状态与 spool 资源，负责本地发现、采集、缓冲、上送和受控升级。"
+    summary zh "在线业务区内已经存在的业务服务器节点，安装 WistAgentd 后运行其 wist-agentd 守护进程与 wist-upgrader，集成本机 OS、进程、网络、容器运行时、业务日志、本地状态与 spool 资源，负责本地发现、采集、缓冲、上送和受控升级。"
     tags "edge", "online-business-zone", "existing-host"
   }
 }
@@ -89,10 +89,10 @@ network ManagedServiceZone {
 bind AgentHost1ControlClient to AgentHost1 with topology
 bind AgentHost2ControlClient to AgentHost2 with topology
 bind ManagedServiceHostControlClient to ManagedServiceHost with topology
-// Agent 主机部署 WarpAgentd：先绑 agent 数据面模块，再绑管理节点，使控制面模块
+// Agent 主机部署 WistAgentd：先绑 agent 数据面模块，再绑管理节点，使控制面模块
 // 最终归属管理节点，Agent 节点保留 Discovery/Observed/Reporting 数据面。
-bind warp-agentd-bin to AgentHost1 with topology
-bind warp-agentd-bin to AgentHost2 with topology
+bind wist-agentd-bin to AgentHost1 with topology
+bind wist-agentd-bin to AgentHost2 with topology
 bind gateway-web to WarpGatewayHost with topology
 bind warp-gateway to WarpGatewayHost with topology
 

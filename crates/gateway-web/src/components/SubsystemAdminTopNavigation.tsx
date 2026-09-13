@@ -42,6 +42,19 @@ function IconHost() {
   );
 }
 
+function IconPipeline() {
+  return (
+    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+      <circle cx="3.4" cy="8" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M5.1 8h2.1" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <circle cx="9.2" cy="4.4" r="1.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <circle cx="9.2" cy="11.6" r="1.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M7.2 8 9.2 5.6M7.2 8l2 2.4" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M10.7 4.4h2.2M10.7 11.6h2.2" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function IconControl() {
   return (
     <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
@@ -78,6 +91,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/", label: "Agent 总览", icon: <IconOverview />, end: true },
       { to: "/hosts", label: "主机指标", icon: <IconHost /> },
+      { to: "/pipeline", label: "数据采集", icon: <IconPipeline /> },
     ],
   },
   {

@@ -32,17 +32,17 @@ usecase BindGatewayCustomer {
   outcome Control.GatewayCustomerBinding
 }
 
-// 发布WarpAgentd
-usecase PublishWarpAgentd {
+// 发布WistAgentd
+usecase PublishWistAgentd {
   meta {
-    label zh "发布 WarpAgentd"
-    label en "Publish WarpAgentd"
-    tags "release", "warp-agentd"
+    label zh "发布 WistAgentd"
+    label en "Publish WistAgentd"
+    tags "release", "wist-agentd"
   }
 
   actor Control.PlatformMaintenanceEngineer
-  trigger Control.PublishWarpAgentd
-  outcome Control.WarpAgentdRelease
+  trigger Control.PublishWistAgentd
+  outcome Control.WistAgentdRelease
 }
 
 // 发布WarpGateway

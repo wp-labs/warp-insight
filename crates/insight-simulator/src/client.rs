@@ -1,4 +1,4 @@
-// HTTP 客户端：镜像 warp-agentd 的 enrollment_http_client（超时 + TLS 处理）。
+// HTTP 客户端：镜像 wist-agentd 的 enrollment_http_client（超时 + TLS 处理）。
 
 use std::time::Duration;
 

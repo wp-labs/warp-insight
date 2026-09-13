@@ -19,8 +19,8 @@
 
 相关文档：
 
-- [`log-file-input-spec.md`](../../../crates/warp-agentd/docs/log-file-input-spec.md)（§11.1.1 `seq`/去重、§12 背压、§15 交付语义）
-- [`agentd-failure-handling.md`](../../../crates/warp-agentd/docs/agentd-failure-handling.md)
+- [`log-file-input-spec.md`](../../../crates/wist-agentd/docs/log-file-input-spec.md)（§11.1.1 `seq`/去重、§12 背压、§15 交付语义）
+- [`agentd-failure-handling.md`](../../../crates/wist-agentd/docs/agentd-failure-handling.md)
 - [`telemetry-uplink-and-warp-parse.md`](telemetry-uplink-and-warp-parse.md)
 - [`architecture.md`](../foundation/architecture.md)
 

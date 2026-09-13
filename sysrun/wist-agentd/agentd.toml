@@ -1,0 +1,49 @@
+# wist-agentd macOS P0 采集——运行设定（agentd 运行配置）
+#
+# 用法：
+#   target/debug/wist-agentd --config-dir case/agentd-p0-macos
+#
+# 分层约定：
+# - 本文件只放「运行设定」（输出/缓冲/spool/目录等，稳定度较高）；
+# - 「采集工作任务清单」（要 tail 哪些文件、head/tail 策略）是低稳定度内容，
+#   独立放在 tasks/macos-p0.toml，由 [telemetry.logs] file_inputs_file 引用；
+#   增删采集任务只改 tasks 文件，不必动运行设定。
+# - install.log / launchd.log 体量大：tail（只收新增行）；需要首次回放历史时在任务清单里改 head。
+# - 权限：部分路径需 root/Full Disk Access（wifi 需 admin 组）；读不到会失败/进 spool 重试。
+schema_version = "v1"
+
+[agent]
+# 注册到 gateway 的实例名（节点内唯一，gateway 上以此区分 agent）
+instance_name = "mbp-p0-collector"
+
+[control_plane]
+# 注册到本机 gateway（warp-gateway :3000）。
+# endpoint/tls_mode：本机 dev 网关为自签 TLS，用 none 跳过校验；
+#   生产应改用 https + verify + trust_bundle（PEM）。
+# enrollment_token 通过环境变量注入（${ENV} 展开），注册成功后 daemon 会自动从本文件清除该行。
+enabled = true
+endpoint = "https://127.0.0.1:3000"
+tls_mode = "none"
+
+[telemetry.logs]
+in_memory_buffer_bytes = 1048576
+spool_dir = "state/spool/logs"
+file_inputs_file = "tasks/macos-p0.toml"
+
+[telemetry.logs.output]
+kind = "tcp"
+
+[telemetry.logs.output.tcp]
+addr = "127.0.0.1"
+port = 9000
+framing = "line"
+
+# 可选：本地落盘调试（把 kind 改成 "file" 并填 [telemetry.logs.output.file]）
+# [telemetry.logs.output.file]
+# path = "log/warp-parse-records.ndjson"
+
+[paths]
+root_dir = "."
+run_dir = "run"
+state_dir = "state"
+log_dir = "log"

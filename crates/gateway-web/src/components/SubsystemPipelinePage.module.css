@@ -1,0 +1,784 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 100%;
+  gap: 18px;
+  padding-bottom: 56px;
+}
+
+.pageHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 26px 24px 0;
+}
+
+.pageTitle {
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.pageSummary {
+  max-width: 820px;
+  color: var(--text-3);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.pageNote {
+  max-width: 860px;
+  color: var(--text-4);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.errorBanner {
+  width: calc(100% - 48px);
+  max-width: calc(var(--content-max) - 48px);
+  margin: 0 auto;
+  padding: 10px 13px;
+  border: 1px solid var(--crit-border);
+  border-radius: var(--radius);
+  background: var(--crit-soft);
+  color: var(--crit);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 通道中断提示：用警示色而非故障色 —— 数据面没坏，是观测链路断了，
+   两者处理动作不同（重启数据面 vs 排查数据面），不该同色。 */
+.staleBanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  width: calc(100% - 48px);
+  max-width: calc(var(--content-max) - 48px);
+  margin: 0 auto;
+  padding: 10px 13px;
+  border: 1px solid var(--warn-border);
+  border-radius: var(--radius);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.staleBanner strong {
+  flex: 0 0 auto;
+  font-weight: 800;
+}
+
+.staleBanner code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* ---------- 顶部 KPI ---------- */
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ---------- 三列拓扑 ---------- */
+
+/* ---------- 分节 ---------- */
+
+/* 页面按「一节 = 一类东西」组织：
+   接入与输出数量稳定，解析规则可能很多 —— 两类内容的量级不同，不该挤在同一行里。 */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sectionTitle {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.sectionNote {
+  color: var(--text-3);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.board {
+  display: grid;
+  gap: 14px;
+  /* 同一行内的列拉平为同一高度：长的那列在列内滚动，
+     短的那列不会在下方留出一片空洞。 */
+  align-items: stretch;
+}
+
+.boardPair {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.boardSingle {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* 接入与输出两列都不长：压低上限，把高度让给下面的解析规则与曲线。 */
+.boardPair .columnBody {
+  max-height: 26vh;
+}
+
+/* 解析规则铺满宽度：规则卡片按可用宽度自动分栏，
+   规则多时不会拉成一条很长很窄的列表。 */
+.boardSingle .columnBody {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  align-content: start;
+  align-items: start;
+  max-height: 42vh;
+}
+
+/* 满宽那一节里别把分段控件拉满整行 —— 两个选项撑到 1100px 宽不成比例。 */
+.boardSingle .activityTabs {
+  align-self: start;
+  width: 100%;
+  max-width: 320px;
+}
+
+.column {
+  --column-accent: var(--unknown);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.column_source {
+  --column-accent: var(--series-1);
+}
+
+.column_parse {
+  --column-accent: var(--series-2);
+}
+
+.column_sink {
+  --column-accent: var(--series-3);
+}
+
+.columnHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.columnDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--column-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--column-accent) 22%, transparent);
+}
+
+.columnTitle {
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.columnCount {
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.columnActions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.linkButton {
+  padding: 2px 6px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-4);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.linkButton:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.columnBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  /* 跟随列高伸展（三列等高后把外框填满）；同时保留限高：
+     解析规则可能很多，不做上限会把下方曲线面板顶出屏幕。
+     超出部分在列内滚动。 */
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 42vh; /* 各节按需覆写 */
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+/* ---------- 一节的汇总趋势图 ---------- */
+
+/* 与列同样的面板质感，让「图」明确属于它所在的节。 */
+.sectionChart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.chartEmpty {
+  display: grid;
+  place-items: center;
+  min-height: 170px;
+  color: var(--text-4);
+  font-size: 12.5px;
+}
+
+/* ---------- 活跃 / 静默 切换（tab） ---------- */
+
+/* 放在列头与列表之间，不随列表滚动 —— 切换控件跟着列表滚走会很难用。 */
+.activityTabs {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  margin: 0 9px 8px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.activityTab,
+.activityTabActive {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.activityTab:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+/* 数量为 0 的一侧禁用但保留：「静默 0」本身是有用的健康信息。 */
+.activityTab:disabled {
+  color: var(--text-4);
+  opacity: 0.5;
+}
+
+.activityTabActive {
+  background: var(--bg-elevated);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.activityTabCount {
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: inherit;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 静默项：降一级视觉权重，但不隐藏、不禁止交互 ——
+   「配了却没流量」本身往往就是要处理的信号。 */
+.silentItem {
+  border-color: color-mix(in srgb, var(--border) 65%, transparent);
+  background: transparent;
+}
+
+.silentItem .groupName,
+.silentItem .nodeName,
+.silentItem .rate {
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+.idleBadge {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-4);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------- 节点卡片 ---------- */
+
+.group {
+  display: flex;
+  /* 关键：.columnBody 是限高 + overflow 的纵向 flex，而本卡片带 overflow:hidden，
+     其自动最小尺寸会退化成 0 —— 于是卡片被「压扁」、内容被横切，而不是让列滚动。
+     明确不允许收缩，超出的部分交给列的滚动条。 */
+  flex: 0 0 auto;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+
+.groupLoss {
+  border-color: var(--border);
+}
+
+/* 只有速率 > 0 才标红：0 值的 miss/residue/error 是健康状态，
+   给它上红色边框会把注意力引到无事发生的地方。 */
+.groupLossActive {
+  border-color: var(--crit-border);
+  background: color-mix(in srgb, var(--crit) 7%, var(--bg-elevated));
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 9px 10px 6px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.groupHead:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.caret,
+.caretOpen {
+  flex: 0 0 auto;
+  color: var(--text-4);
+  font-size: 10px;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.caretOpen {
+  transform: rotate(90deg);
+}
+
+.groupName {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lossBadge {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border: 1px solid var(--crit-border);
+  border-radius: 999px;
+  background: var(--crit-soft);
+  color: var(--crit);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.lossBadgeIdle {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-4);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.groupStats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 9px;
+}
+
+.children {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 8px 8px 16px;
+  border-left: 1px solid var(--border);
+  margin-left: 14px;
+}
+
+.node {
+  display: flex;
+  /* 同 .group：列限高时不能被压缩 */
+  flex: 0 0 auto;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+}
+
+.nodeSelected {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+
+.nodeBody {
+  display: flex;
+  /* 三列并排时单列只有 ~250px（例如 1250px 宽的窗口），
+     节点名会被挤成 "mac_agent_l…"。允许换行：放不下时数值行下移，
+     名字保持完整——名字比速率更关键。 */
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  text-align: left;
+}
+
+.nodeBody:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.nodeName {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nodeStats {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.rate {
+  /* 不用等宽字体：数值里带「万 / 亿」单位，等宽字体缺 CJK 字形会掉回
+     另一套字体、字号明显偏小。正文 + 表格数字同样能保证列对齐。 */
+  color: var(--text);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.total {
+  color: var(--text-4);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.childCount {
+  color: var(--text-4);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.plotButton,
+.plotButtonActive {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.plotButton {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-4);
+}
+
+.plotButton:hover:not(:disabled) {
+  border-color: var(--accent-border);
+  color: var(--text-2);
+}
+
+.plotButtonActive {
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.empty {
+  flex: 0 0 auto;
+  padding: 16px 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-4);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ---------- 节点详情 ---------- */
+
+.detailIdleNote {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-4);
+  font-size: 10.5px;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: calc(100% - 48px);
+  max-width: calc(var(--content-max) - 48px);
+  margin: 0 auto;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.detailHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.detailTitleGroup {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.detailTitle {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.detailTarget {
+  overflow: hidden;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detailControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.windowSelect {
+  width: auto;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+/* 速率与累计量并排各占一格。窄到放不下两张图时改为上下 —— 
+   单张图低于 ~460px 会隐藏 Y 轴，缩成并排反而不如堆叠可读。 */
+.detailCharts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.chartPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chartHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.chartTitle {
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.chartNote {
+  color: var(--text-4);
+  font-size: 11.5px;
+}
+
+.detailBody {
+  min-height: 200px;
+}
+
+@media (max-width: 1080px) {
+  .detailCharts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.detailEmpty {
+  display: grid;
+  place-items: center;
+  min-height: 200px;
+  color: var(--text-4);
+  font-size: 13px;
+}
+
+/* ---------- 骨架屏 ---------- */
+
+.skeletonWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.skeletonPair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.skeletonColumn {
+  height: 220px;
+  border-radius: var(--radius);
+  background: linear-gradient(
+    90deg,
+    var(--surface) 0%,
+    var(--surface-2) 50%,
+    var(--surface) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 1180px) {
+  .summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .board,
+  .skeletonWrap {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .pageHeader,
+  .summary,
+  .board,
+  .skeletonWrap {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .detail,
+  .errorBanner {
+    width: calc(100% - 32px);
+  }
+
+  .summary {
+    grid-template-columns: 1fr;
+  }
+}
