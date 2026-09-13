@@ -9,8 +9,6 @@ Workspace layout (`warp-insight` workspace):
   Admin WEB backend skeleton for install links, Agent status, and remote upgrades.
 - `crates/gateway-web`
   Browser WEB frontend for the WarpGateWay console.
-- `crates/wist-exec`
-  ActionPlan runtime skeleton.
 - `crates/wist-upgrader`
   Upgrade helper skeleton.
 - `crates/wist-gateway`

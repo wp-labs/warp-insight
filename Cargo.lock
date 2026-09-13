@@ -3674,16 +3674,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wist-exec"
-version = "0.1.1"
-dependencies = [
- "serde",
- "wist-contracts",
- "wist-shared",
- "wist-validate",
-]
-
-[[package]]
 name = "wist-gateway"
 version = "0.1.1"
 dependencies = [
@@ -3736,16 +3726,6 @@ dependencies = [
 [[package]]
 name = "wist-upgrader"
 version = "0.1.1"
-
-[[package]]
-name = "wist-validate"
-version = "0.1.1"
-dependencies = [
- "serde_json",
- "time",
- "toml",
- "wist-contracts",
-]
 
 [[package]]
 name = "wp-primitives"

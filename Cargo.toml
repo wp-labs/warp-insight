@@ -3,7 +3,6 @@ members = [
   "crates/wist-delivery",
   "crates/wist-error",
   "crates/warp-gateway",
-  "crates/wist-exec",
   "crates/wist-upgrader",
   "crates/wist-gateway",
   "crates/insight-control",
