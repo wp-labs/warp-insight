@@ -16,7 +16,7 @@ use insight_control::{
     PollControlCommands, ReportActionResult,
 };
 use wist_contracts::enrollment::{
-    AgentCredentialBundle, AgentCredentialRenewed, RenewAgentCredential,
+    CredentialBundle, CredentialRenewed, CredentialRenewal,
     RENEW_AGENT_CREDENTIAL_KIND,
 };
 use wist_reporting::{
@@ -146,7 +146,7 @@ pub async fn poll_control_commands(
 pub async fn renew_agent_credential(
     State(state): State<ApiState>,
     headers: HeaderMap,
-    Json(input): Json<RenewAgentCredential>,
+    Json(input): Json<CredentialRenewal>,
 ) -> Response {
     if input.api_version != "v1" || input.kind != RENEW_AGENT_CREDENTIAL_KIND {
         return (
@@ -180,7 +180,7 @@ pub async fn renew_agent_credential(
         Ok(id) => id,
         Err(reason) => return (StatusCode::INTERNAL_SERVER_ERROR, reason).into_response(),
     };
-    let bundle = AgentCredentialBundle {
+    let bundle = CredentialBundle {
         credential_id: credential_id.clone(),
         agent_id: agent.agent_id.clone(),
         instance_id: agent.instance_id.clone(),
@@ -218,7 +218,7 @@ pub async fn renew_agent_credential(
             );
             (
                 StatusCode::OK,
-                Json(AgentCredentialRenewed {
+                Json(CredentialRenewed {
                     credential_bundle: bundle,
                 }),
             )

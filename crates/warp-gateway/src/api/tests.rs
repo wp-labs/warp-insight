@@ -14,8 +14,8 @@ use ring::{
 };
 use tower::ServiceExt;
 use wist_contracts::enrollment::{
-    AgentCredentialRenewed, EnrollmentEnvelope, AgentEnrollmentResultStatus,
-    AgentIdentityStatus, RenewAgentCredential, SubmitEnrollmentRequest,
+    CredentialRenewed, EnrollmentEnvelope, EnrollmentStatus,
+    AgentIdentityStatus, CredentialRenewal, EnrollmentRequest,
 };
 
 use crate::infra::{
@@ -218,7 +218,7 @@ fn install_script_signature_rejects_modified_script_body() {
 fn initial_config_is_valid_agent_config_contract_with_scoped_token() {
     let env = TestEnv::new();
     let text = agent_initial_config_toml(&env.config, "install-token-a");
-    let parsed: wist_contracts::agent_config::AgentConfigContract =
+    let parsed: wist_contracts::agent_config::AgentConfig =
         toml::from_str(&text).expect("valid agent config toml");
 
     assert_eq!(parsed.schema_version, "v1");
@@ -276,7 +276,7 @@ fn initial_config_preserves_multiline_trust_bundle_as_valid_toml() {
         .expect("trust_bundle line");
     assert!(trust_bundle_line.contains("\\n"));
 
-    let parsed: wist_contracts::agent_config::AgentConfigContract =
+    let parsed: wist_contracts::agent_config::AgentConfig =
         toml::from_str(&text).expect("valid agent config toml");
     assert_eq!(parsed.control_plane.trust_bundle, Some(trust_bundle));
 }
@@ -292,7 +292,7 @@ fn enrollment_accepts_valid_token_and_issues_identity() {
         "v0.1.0",
     );
 
-    assert_eq!(result.status, AgentEnrollmentResultStatus::Accepted);
+    assert_eq!(result.status, EnrollmentStatus::Accepted);
     assert_eq!(result.agent_id.as_deref(), Some("agent-node-a"));
     assert_eq!(result.instance_id.as_deref(), Some("node-a"));
     let identity = result.issued_identity.expect("identity");
@@ -319,7 +319,7 @@ fn enrollment_rejects_invalid_token_without_identity() {
         "v0.1.0",
     );
 
-    assert_eq!(result.status, AgentEnrollmentResultStatus::Rejected);
+    assert_eq!(result.status, EnrollmentStatus::Rejected);
     assert_eq!(
         result.reason_code.as_deref(),
         Some("invalid_enrollment_token")
@@ -339,7 +339,7 @@ fn enrollment_rejects_invalid_token_before_generating_credential() {
         |_| panic!("credential generation must not run for an invalid token"),
     );
 
-    assert_eq!(result.status, AgentEnrollmentResultStatus::Rejected);
+    assert_eq!(result.status, EnrollmentStatus::Rejected);
     assert_eq!(
         result.reason_code.as_deref(),
         Some("invalid_enrollment_token")
@@ -359,7 +359,7 @@ fn enrollment_rolls_back_token_reservation_when_credential_generation_fails() {
         |_| Err("injected_random_failure".to_string()),
     );
 
-    assert_eq!(result.status, AgentEnrollmentResultStatus::Rejected);
+    assert_eq!(result.status, EnrollmentStatus::Rejected);
     assert_eq!(
         result.reason_code.as_deref(),
         Some("injected_random_failure")
@@ -420,8 +420,8 @@ fn enrollment_consumes_token_and_rejects_replay() {
         "v0.1.0",
     );
 
-    assert_eq!(first.status, AgentEnrollmentResultStatus::Accepted);
-    assert_eq!(second.status, AgentEnrollmentResultStatus::Rejected);
+    assert_eq!(first.status, EnrollmentStatus::Accepted);
+    assert_eq!(second.status, EnrollmentStatus::Rejected);
     assert_eq!(
         second.reason_code.as_deref(),
         Some("invalid_enrollment_token")
@@ -446,8 +446,8 @@ fn enrollment_rejects_duplicate_agent_registration_without_consuming_token() {
         "v0.1.0",
     );
 
-    assert_eq!(first.status, AgentEnrollmentResultStatus::Accepted);
-    assert_eq!(duplicate.status, AgentEnrollmentResultStatus::Rejected);
+    assert_eq!(first.status, EnrollmentStatus::Accepted);
+    assert_eq!(duplicate.status, EnrollmentStatus::Rejected);
     assert_eq!(
         duplicate.reason_code.as_deref(),
         Some("duplicate_agent_registration")
@@ -500,7 +500,7 @@ async fn enrollment_handler_returns_created_contract_response() {
     assert_eq!(status, StatusCode::CREATED);
     assert_eq!(
         returned.result.status,
-        AgentEnrollmentResultStatus::Accepted
+        EnrollmentStatus::Accepted
     );
     assert_eq!(returned.result.agent_id.as_deref(), Some("agent-node-a"));
 }
@@ -515,7 +515,7 @@ async fn enrollment_route_accepts_valid_contract_request() {
     let returned = decode_enrollment_response(response).await;
     assert_eq!(
         returned.result.status,
-        AgentEnrollmentResultStatus::Accepted
+        EnrollmentStatus::Accepted
     );
     assert_eq!(returned.result.agent_id.as_deref(), Some("agent-node-a"));
     assert_eq!(returned.result.instance_id.as_deref(), Some("node-a"));
@@ -718,7 +718,7 @@ async fn agent_credential_renewal_rotates_bearer_and_rejects_old_token() {
         &env.config,
         "/api/v1/agent/credentials:renew",
         Some(&old_bearer),
-        &RenewAgentCredential::new(
+        &CredentialRenewal::new(
             "agent-node-a".to_string(),
             "node-a".to_string(),
             "bearer".to_string(),
@@ -727,7 +727,7 @@ async fn agent_credential_renewal_rotates_bearer_and_rejects_old_token() {
     )
     .await;
     assert_eq!(renewed.status(), StatusCode::OK);
-    let renewed: AgentCredentialRenewed = decode_json_response(renewed).await;
+    let renewed: CredentialRenewed = decode_json_response(renewed).await;
     let new_bearer = renewed
         .credential_bundle
         .bearer_token
@@ -782,7 +782,7 @@ async fn agent_credential_renewal_requires_current_bearer() {
         &env.config,
         "/api/v1/agent/credentials:renew",
         None,
-        &RenewAgentCredential::new(
+        &CredentialRenewal::new(
             "agent-node-a".to_string(),
             "node-a".to_string(),
             "bearer".to_string(),
@@ -862,7 +862,7 @@ async fn enrollment_route_rejects_invalid_token_as_contract_result() {
     let returned = decode_enrollment_response(response).await;
     assert_eq!(
         returned.result.status,
-        AgentEnrollmentResultStatus::Rejected
+        EnrollmentStatus::Rejected
     );
     assert_eq!(
         returned.result.reason_code.as_deref(),
@@ -1342,13 +1342,13 @@ async fn agent_overview_reflects_successful_enrollment() {
     );
 }
 
-fn enrollment_request(token: &str) -> SubmitEnrollmentRequest {
-    SubmitEnrollmentRequest {
+fn enrollment_request(token: &str) -> EnrollmentRequest {
+    EnrollmentRequest {
         api_version: "v1".to_string(),
         kind: "submit_enrollment_request".to_string(),
         token: token.to_string(),
         credential_request: "none".to_string(),
-        host_profile: wist_contracts::enrollment::AgentHostProfile {
+        host_profile: wist_contracts::enrollment::HostProfile {
             node_id: "node-a".to_string(),
             hostname: "host-a".to_string(),
             os: "linux".to_string(),

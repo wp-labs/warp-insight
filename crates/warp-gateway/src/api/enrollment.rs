@@ -7,8 +7,8 @@ use axum::{
     Json,
 };
 use wist_contracts::enrollment::{
-    AgentCredentialBundle, AgentEnrollmentResult, EnrollmentEnvelope,
-    AgentEnrollmentResultStatus, AgentIdentity, AgentIdentityStatus, SubmitEnrollmentRequest,
+    CredentialBundle, EnrollmentOutcome, EnrollmentEnvelope,
+    EnrollmentStatus, AgentIdentity, AgentIdentityStatus, EnrollmentRequest,
 };
 
 use crate::infra::{
@@ -28,7 +28,7 @@ const NO_STORE: &str = "no-store";
 pub async fn enroll_agent(
     State(state): State<ApiState>,
     client: Option<ConnectInfo<SocketAddr>>,
-    Json(input): Json<SubmitEnrollmentRequest>,
+    Json(input): Json<EnrollmentRequest>,
 ) -> Response {
     let client_key = rate_limit::client_key(client);
     if let Some(response) = rate_limit::check_rate_limit(&state, &client_key, ENROLLMENT_AUTH_SCOPE)
@@ -38,7 +38,7 @@ pub async fn enroll_agent(
     let requested_at = input.requested_at.clone();
     let version = agent_version_from_capability_summary(&input.capability_summary);
     let result = agent_enrollment_result(&state.config, &state.store, input, &version);
-    if result.status == AgentEnrollmentResultStatus::Accepted {
+    if result.status == EnrollmentStatus::Accepted {
         rate_limit::clear_auth_failures(&state, &client_key, ENROLLMENT_AUTH_SCOPE);
         if let (Some(agent_id), Some(instance_id)) =
             (result.agent_id.as_deref(), result.instance_id.as_deref())
@@ -55,18 +55,18 @@ pub async fn enroll_agent(
         rate_limit::record_auth_failure(&state, &client_key, ENROLLMENT_AUTH_SCOPE);
     }
     match result.status {
-        AgentEnrollmentResultStatus::Accepted => eprintln!(
+        EnrollmentStatus::Accepted => eprintln!(
             "audit enrollment_accepted agent_id={} instance_id={} version={}",
             result.agent_id.as_deref().unwrap_or("unknown"),
             result.instance_id.as_deref().unwrap_or("unknown"),
             version,
         ),
-        AgentEnrollmentResultStatus::Rejected => eprintln!(
+        EnrollmentStatus::Rejected => eprintln!(
             "audit enrollment_rejected reason={} agent_id={}",
             result.reason_code.as_deref().unwrap_or("unknown"),
             result.agent_id.as_deref().unwrap_or("unknown"),
         ),
-        AgentEnrollmentResultStatus::PendingReview => {
+        EnrollmentStatus::PendingReview => {
             eprintln!("audit enrollment_pending_review");
         }
     }
@@ -82,19 +82,19 @@ pub async fn enroll_agent(
 pub fn agent_enrollment_result(
     config: &AdminConfig,
     store: &AdminStore,
-    input: SubmitEnrollmentRequest,
+    input: EnrollmentRequest,
     version: &str,
-) -> AgentEnrollmentResult {
+) -> EnrollmentOutcome {
     agent_enrollment_result_with_token_issuer(config, store, input, version, new_secret_token)
 }
 
 pub(super) fn agent_enrollment_result_with_token_issuer(
     config: &AdminConfig,
     store: &AdminStore,
-    input: SubmitEnrollmentRequest,
+    input: EnrollmentRequest,
     version: &str,
     issue_secret_token: impl FnOnce(&str) -> Result<String, String>,
-) -> AgentEnrollmentResult {
+) -> EnrollmentOutcome {
     if let Err(reason) = validate_enrollment_message(&input) {
         return rejected_result(reason);
     }
@@ -133,7 +133,7 @@ pub(super) fn agent_enrollment_result_with_token_issuer(
         expires_at: None,
         status: AgentIdentityStatus::Active,
     };
-    let credential_bundle = AgentCredentialBundle {
+    let credential_bundle = CredentialBundle {
         credential_id: credential_id.clone(),
         agent_id: agent_id.clone(),
         instance_id: instance_id.clone(),
@@ -147,8 +147,8 @@ pub(super) fn agent_enrollment_result_with_token_issuer(
         not_after: Some(not_after),
     };
 
-    let result = AgentEnrollmentResult {
-        status: AgentEnrollmentResultStatus::Accepted,
+    let result = EnrollmentOutcome {
+        status: EnrollmentStatus::Accepted,
         reason_code: None,
         agent_id: Some(agent_id),
         instance_id: Some(instance_id),
@@ -166,7 +166,7 @@ pub(super) fn agent_enrollment_result_with_token_issuer(
     result
 }
 
-fn validate_enrollment_message(input: &SubmitEnrollmentRequest) -> Result<(), String> {
+fn validate_enrollment_message(input: &EnrollmentRequest) -> Result<(), String> {
     if input.api_version != "v1" {
         return Err("unsupported_api_version".to_string());
     }
@@ -183,7 +183,7 @@ struct EnrollmentTokenReservation {
 fn reserve_enrollment_token(
     config: &AdminConfig,
     store: &AdminStore,
-    input: &SubmitEnrollmentRequest,
+    input: &EnrollmentRequest,
     agent_id: &str,
 ) -> Result<EnrollmentTokenReservation, String> {
     let token_hash = token_hash(&input.token);
@@ -229,8 +229,8 @@ fn reserve_enrollment_token(
 fn commit_reserved_registration(
     config: &AdminConfig,
     store: &AdminStore,
-    input: &SubmitEnrollmentRequest,
-    result: &AgentEnrollmentResult,
+    input: &EnrollmentRequest,
+    result: &EnrollmentOutcome,
     version: &str,
     bearer_token: &str,
 ) -> Result<(), String> {
@@ -320,9 +320,9 @@ fn rollback_enrollment_token_reservation(
         .map_err(|err| err.to_string())
 }
 
-fn rejected_result(reason_code: String) -> AgentEnrollmentResult {
-    AgentEnrollmentResult {
-        status: AgentEnrollmentResultStatus::Rejected,
+fn rejected_result(reason_code: String) -> EnrollmentOutcome {
+    EnrollmentOutcome {
+        status: EnrollmentStatus::Rejected,
         reason_code: Some(reason_code),
         agent_id: None,
         instance_id: None,
