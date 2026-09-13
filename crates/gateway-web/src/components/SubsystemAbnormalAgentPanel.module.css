@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: 12px;
   width: 100%;
-  max-width: 1120px;
+  max-width: var(--content-max);
   margin: 0 auto;
   padding: 0 24px;
 }
@@ -16,17 +16,17 @@
 }
 
 .title {
-  color: #172033;
+  color: var(--text);
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .count {
-  padding: 3px 8px;
-  border: 1px solid #d7dee8;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: #ffffff;
-  color: #637083;
+  background: var(--surface);
+  color: var(--text-2);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 600;
 }

@@ -1,5 +1,4 @@
 import styles from "./SubsystemAgentInstallPage.module.css";
-import { SubsystemAdminTopNavigation } from "./SubsystemAdminTopNavigation";
 import { SubsystemBootstrapTokenCard } from "./SubsystemBootstrapTokenCard";
 import { SubsystemX86LinuxInstallCode } from "./SubsystemX86LinuxInstallCode";
 import { SubsystemArmLinuxInstallCode } from "./SubsystemArmLinuxInstallCode";
@@ -16,12 +15,16 @@ export function SubsystemAgentInstallPage() {
 
   return (
     <div className={styles.container}>
-      <SubsystemAdminTopNavigation />
       <header className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Agent 安装</h1>
+        <h1 className={styles.pageTitle}>安装 Agent</h1>
         <p className={styles.pageSummary}>
-          获取 Bootstrap Token，然后在目标主机（Linux / macOS）上运行对应架构的安装命令，让 agent 加入集群。
+          在目标主机上装一次采集 Agent，它就会把该主机的指标与日志持续上报到本网关。
         </p>
+        <ol className={styles.steps}>
+          <li>复制 Bootstrap Token（一次性注册凭证）</li>
+          <li>在目标主机上按架构执行对应安装命令</li>
+          <li>回到「主机指标」确认该主机已开始上报</li>
+        </ol>
       </header>
       {isError ? (
         isRateLimitedError(error) ? (
@@ -42,7 +45,7 @@ export function SubsystemAgentInstallPage() {
       <div className={styles.content}>
         <SubsystemBootstrapTokenCard token={token} loading={isLoading} />
         <section className={styles.commandsSection}>
-          <h2 className={styles.sectionTitle}>安装命令</h2>
+          <h2 className={styles.sectionTitle}>按目标主机架构选择安装命令</h2>
           <div className={styles.commandGrid}>
             <SubsystemX86LinuxInstallCode
               command={data?.x86LinuxInstallCode}

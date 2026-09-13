@@ -1,47 +1,113 @@
 .chart {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  min-width: 0;
+}
+
+.plot {
+  position: relative;
   min-width: 0;
 }
 
 .svg {
   display: block;
   width: 100%;
-  height: auto;
-  background: #fbfcfe;
-  border: 1px solid #edf1f6;
-  border-radius: 6px;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.gridLine {
+  stroke: var(--grid);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
 }
 
 .axisLabel {
-  fill: #718095;
+  fill: var(--text-4);
   font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.crosshair {
+  stroke: var(--grid-strong);
+  stroke-width: 1;
+}
+
+.bubble {
+  position: absolute;
+  z-index: 3;
+  min-width: 132px;
+  padding: 7px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.96);
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  transform: translateY(-100%);
+}
+
+.bubbleTime {
+  margin-bottom: 5px;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bubbleRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.7;
+}
+
+.bubbleName {
+  flex: 1 1 auto;
+  color: var(--text-2);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.bubbleValue {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
+  gap: 6px 16px;
 }
 
 .legendItem {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  color: #5f6f86;
+  gap: 6px;
+  color: var(--text-2);
   font-size: 12px;
 }
 
+.legendValue {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
 .legendDot {
+  flex: 0 0 auto;
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  flex: 0 0 auto;
 }
 
 .empty {
-  color: #718095;
+  padding: 26px 0;
+  color: var(--text-4);
   font-size: 13px;
-  padding: 12px 0;
+  text-align: center;
 }

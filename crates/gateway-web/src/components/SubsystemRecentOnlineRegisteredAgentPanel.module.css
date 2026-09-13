@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: 12px;
   width: 100%;
-  max-width: 1120px;
+  max-width: var(--content-max);
   margin: 0 auto;
   padding: 0 24px;
 }
@@ -16,27 +16,27 @@
 }
 
 .title {
-  color: #172033;
+  color: var(--text);
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .summary {
   margin-top: 4px;
-  color: #64748b;
+  color: var(--text-2);
   font-size: 13px;
   line-height: 1.45;
 }
 
 .count {
   flex: 0 0 auto;
-  padding: 3px 8px;
-  border: 1px solid #c8d6e5;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: #ffffff;
-  color: #31516f;
+  background: var(--surface);
+  color: var(--text-2);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 @media (max-width: 640px) {

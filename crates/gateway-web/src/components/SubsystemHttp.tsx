@@ -6,9 +6,9 @@ interface SubsystemHttpProps {
 
 export function SubsystemHttp({ children }: SubsystemHttpProps) {
   return (
-    <div className={styles.container}>
-      <div className={styles.label}>HTTP</div>
+    <span className={styles.value}>
+      HTTPS Admin API
       {children}
-    </div>
+    </span>
   );
 }

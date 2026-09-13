@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import styles from "./ShellCode.module.css";
 
-type TokenKind = "comment" | "string" | "variable" | "keyword" | "text";
+type TokenKind = "comment" | "string" | "variable" | "keyword" | "operator" | "text";
 
 type Token = { kind: TokenKind; value: string };
 
@@ -76,6 +76,17 @@ function tokenize(code: string): Token[] {
       continue;
     }
 
+    // 管道 / 重定向 / 逻辑连接符单独着色：它们是命令结构，
+    // 混在 text 里会让多段命令难以扫读。
+    const operator = rest.match(
+      /^(?:2>&1|2>&2|&&|\|\||[0-9]?>>?|[0-9]?<{1,2}|\||;)/,
+    );
+    if (operator) {
+      tokens.push({ kind: "operator", value: operator[0] });
+      i += operator[0].length;
+      continue;
+    }
+
     const word = rest.match(/^[A-Za-z_][A-Za-z0-9_-]*/);
     if (word && KEYWORDS.has(word[0])) {
       tokens.push({ kind: "keyword", value: word[0] });
@@ -94,6 +105,7 @@ const STYLE_BY_KIND: Record<TokenKind, string> = {
   string: styles.string,
   variable: styles.variable,
   keyword: styles.keyword,
+  operator: styles.operator,
   text: styles.text,
 };
 

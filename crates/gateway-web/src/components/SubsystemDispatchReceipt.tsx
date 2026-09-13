@@ -4,11 +4,15 @@ interface SubsystemDispatchReceiptProps {
   children?: React.ReactNode;
 }
 
-export function SubsystemDispatchReceipt({ children }: SubsystemDispatchReceiptProps) {
+/** 回执通道标识：与动作标签同族的行内标签。 */
+export function SubsystemDispatchReceipt({
+  children,
+}: SubsystemDispatchReceiptProps) {
   return (
-    <div className={styles.container}>
-      <div className={styles.label}>派发回执</div>
+    <span className={styles.chip}>
+      <span className={styles.key}>回执</span>
+      派发回执
       {children}
-    </div>
+    </span>
   );
 }

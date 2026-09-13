@@ -3,10 +3,10 @@
   flex-direction: column;
   min-width: 280px;
   padding: 16px;
-  border: 1px solid #dbe3ee;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 8px 22px rgba(33, 48, 73, 0.05);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
   gap: 14px;
 }
 
@@ -18,14 +18,14 @@
 }
 
 .agentId {
-  color: #172033;
+  color: var(--text);
   font-size: 15px;
   font-weight: 800;
 }
 
 .instance {
   margin-top: 3px;
-  color: #5f6f86;
+  color: var(--text-2);
   font-size: 12px;
 }
 
@@ -38,13 +38,13 @@
 }
 
 .badgeWarn {
-  background: #fff7e6;
-  color: #9a5b00;
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 .badgeDanger {
-  background: #feecec;
-  color: #b42318;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .details {
@@ -52,7 +52,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   padding-top: 12px;
-  border-top: 1px solid #edf1f6;
+  border-top: 1px solid var(--border);
 }
 
 .item {
@@ -60,14 +60,14 @@
 }
 
 .label {
-  color: #718095;
+  color: var(--text-3);
   font-size: 12px;
 }
 
 .value {
   margin-top: 3px;
   overflow: hidden;
-  color: #26364d;
+  color: var(--text);
   font-size: 13px;
   font-weight: 750;
   text-overflow: ellipsis;

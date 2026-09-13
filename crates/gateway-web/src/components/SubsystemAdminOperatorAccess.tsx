@@ -4,11 +4,13 @@ interface SubsystemAdminOperatorAccessProps {
   children?: React.ReactNode;
 }
 
-export function SubsystemAdminOperatorAccess({ children }: SubsystemAdminOperatorAccessProps) {
+export function SubsystemAdminOperatorAccess({
+  children,
+}: SubsystemAdminOperatorAccessProps) {
   return (
-    <div className={styles.container}>
-      <div className={styles.label}>操作权限</div>
+    <span className={styles.chip}>
+      <span className={styles.key}>通道</span>
       {children}
-    </div>
+    </span>
   );
 }

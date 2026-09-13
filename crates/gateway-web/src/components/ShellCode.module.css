@@ -1,19 +1,28 @@
+/*
+ * Shell 语法着色。
+ * 注意：这里刻意不用红色系——红/橙在运维控制台里代表故障与危险状态，
+ * 拿它标关键字会让一段正常命令看起来像报错。
+ */
 .comment {
-  color: #8b949e;
+  color: #64748b;
   font-style: italic;
 }
 
 .string {
-  color: #22863a;
+  color: #86efac;
 }
 
 .variable {
-  color: #0550ae;
+  color: #7dd3fc;
 }
 
 .keyword {
-  color: #cf222e;
+  color: #c084fc;
   font-weight: 600;
+}
+
+.operator {
+  color: #f0abfc;
 }
 
 .text {

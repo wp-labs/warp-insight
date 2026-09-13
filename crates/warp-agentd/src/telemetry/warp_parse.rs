@@ -2,10 +2,12 @@
 
 use std::io;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
+use tokio::time::{Instant, timeout};
 use wist_contracts::agent_config::LogsOutputSection;
 use wist_contracts::telemetry_record::{DataFrame, TelemetryRecordContract};
 use wist_shared::fs::ensure_parent;
@@ -125,12 +127,24 @@ impl TcpFraming {
     }
 }
 
+/// TCP 连接超时：避免死网卡/黑洞地址让 tick 永久挂起。
+const TCP_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+/// TCP 写超时：避免对端不读导致的写永久挂起。
+const TCP_WRITE_TIMEOUT: Duration = Duration::from_secs(5);
+/// 退避初始时长与上限（失败翻倍、成功重置）。
+const TCP_BACKOFF_INITIAL: Duration = Duration::from_secs(1);
+const TCP_BACKOFF_MAX: Duration = Duration::from_secs(30);
+
 #[derive(Debug, ::jumo_derive::Jumo)]
 #[jumo(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
 pub(crate) struct TcpRecordSink {
     target_addr: String,
     framing: TcpFraming,
     stream: Option<TcpStream>,
+    /// 退避窗口内不允许再尝试连接的时间点（指数退避）。
+    next_attempt_at: Option<Instant>,
+    /// 当前退避时长：失败翻倍、成功重置为初始值。
+    backoff: Duration,
 }
 
 impl TcpRecordSink {
@@ -139,23 +153,74 @@ impl TcpRecordSink {
             target_addr: format!("{addr}:{port}"),
             framing,
             stream: None,
+            next_attempt_at: None,
+            backoff: TCP_BACKOFF_INITIAL,
         }
     }
 
-    async fn stream(&mut self) -> io::Result<&mut TcpStream> {
-        if self.stream.is_none() {
-            self.stream = Some(TcpStream::connect(&self.target_addr).await?);
-        }
-        Ok(self.stream.as_mut().expect("stream initialized"))
+    fn in_backoff(&self) -> bool {
+        self.next_attempt_at.is_some_and(|at| Instant::now() < at)
     }
 
-    /// 写一段已分帧的字节到连接；失败时重置连接以便下次重连。
-    async fn write_payload(&mut self, payload: &[u8]) -> io::Result<()> {
-        match self.stream().await?.write_all(payload).await {
-            Ok(()) => Ok(()),
-            Err(err) => {
-                self.stream = None;
+    fn schedule_backoff(&mut self) {
+        self.backoff = self.backoff.saturating_mul(2).min(TCP_BACKOFF_MAX);
+        self.next_attempt_at = Some(Instant::now() + self.backoff);
+    }
+
+    fn backoff_error() -> io::Error {
+        io::Error::new(io::ErrorKind::WouldBlock, "tcp uplink in backoff")
+    }
+
+    /// 确保连接可用：无连接则先 connect（带超时）；退避窗口内直接失败交给 spool。
+    async fn ensure_connected(&mut self) -> io::Result<()> {
+        if self.stream.is_some() {
+            return Ok(());
+        }
+        if self.in_backoff() {
+            return Err(Self::backoff_error());
+        }
+        match timeout(TCP_CONNECT_TIMEOUT, TcpStream::connect(&self.target_addr)).await {
+            Ok(Ok(stream)) => {
+                self.stream = Some(stream);
+                self.backoff = TCP_BACKOFF_INITIAL;
+                self.next_attempt_at = None;
+                Ok(())
+            }
+            Ok(Err(err)) => {
+                self.schedule_backoff();
                 Err(err)
+            }
+            Err(_) => {
+                self.schedule_backoff();
+                Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "tcp connect timed out",
+                ))
+            }
+        }
+    }
+
+    /// 写一段已分帧的字节到连接；失败时重置连接并进入指数退避，以便下次重连。
+    async fn write_payload(&mut self, payload: &[u8]) -> io::Result<()> {
+        self.ensure_connected().await?;
+        let write = {
+            let stream = self.stream.as_mut().expect("connected");
+            timeout(TCP_WRITE_TIMEOUT, stream.write_all(payload)).await
+        };
+        match write {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(err)) => {
+                self.stream = None;
+                self.schedule_backoff();
+                Err(err)
+            }
+            Err(_) => {
+                self.stream = None;
+                self.schedule_backoff();
+                Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "tcp write timed out",
+                ))
             }
         }
     }
@@ -169,6 +234,13 @@ impl TcpRecordSink {
         let frame = build_metrics_frame(envelope, metrics)?;
         self.write_payload(&build_payload_bytes(&frame, self.framing))
             .await
+    }
+
+    /// 测试用：缩短退避窗口，避免真实等待默认的 1s。
+    #[cfg(test)]
+    fn with_backoff(mut self, initial: Duration) -> Self {
+        self.backoff = initial;
+        self
     }
 }
 
@@ -241,12 +313,16 @@ fn build_payload_bytes(data: &[u8], framing: TcpFraming) -> Vec<u8> {
 mod tests {
     use std::fs;
     use std::io;
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     use tokio::io::AsyncReadExt;
     use tokio::net::TcpListener;
+    use tokio::time::Instant;
 
-    use super::{FileRecordSink, RecordSink, TcpFraming, TcpRecordSink, build_payload_bytes};
+    use super::{
+        FileRecordSink, RecordSink, TCP_BACKOFF_INITIAL, TCP_BACKOFF_MAX, TcpFraming,
+        TcpRecordSink, build_payload_bytes,
+    };
 
     use crate::telemetry::metrics::samples::{VmMetricLabels, VmMetricLine};
     use wist_contracts::telemetry_record::{DataFrame, TelemetryRecordContract};
@@ -320,6 +396,74 @@ mod tests {
             );
             assert!(raw.starts_with("line-"), "raw body: {raw}");
         }
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn tcp_sink_backs_off_after_connect_failure() {
+        // 绑定后立即 drop，拿到一个确定关闭的端口，connect 会立即 ECONNREFUSED。
+        let port = {
+            let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+            listener.local_addr().expect("addr").port()
+        };
+        // 测试用缩短退避窗口，避免真实等待 1s。
+        let mut sink = TcpRecordSink::new("127.0.0.1".to_string(), port, TcpFraming::Line)
+            .with_backoff(Duration::from_millis(10));
+
+        // 第一次 connect 失败，进入退避（10ms → 20ms）。
+        assert!(sink.write_records(&[record("a")]).await.is_err());
+
+        // 退避窗口内：快速返回 WouldBlock，不再尝试 connect。
+        let err = sink
+            .write_records(&[record("b")])
+            .await
+            .expect_err("backoff");
+        assert_eq!(err.kind(), io::ErrorKind::WouldBlock);
+
+        // 越过退避窗口：重新尝试 connect（仍失败，退避翻倍到 40ms）。
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        assert!(sink.write_records(&[record("c")]).await.is_err());
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn tcp_sink_backoff_doubles_and_caps() {
+        let mut sink = TcpRecordSink::new("127.0.0.1".to_string(), 1, TcpFraming::Line);
+
+        // 1s → 2s → 4s → 8s → 16s → 30s（封顶）。
+        let mut expected = TCP_BACKOFF_INITIAL;
+        for _ in 0..5 {
+            sink.schedule_backoff();
+            expected = expected.saturating_mul(2).min(TCP_BACKOFF_MAX);
+            assert_eq!(sink.backoff, expected);
+        }
+
+        // 已封顶：继续失败不再增长。
+        let capped = sink.backoff;
+        assert_eq!(capped, TCP_BACKOFF_MAX);
+        sink.schedule_backoff();
+        assert_eq!(sink.backoff, capped);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn tcp_sink_resets_backoff_on_successful_connect() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let port = listener.local_addr().expect("addr").port();
+        let server = tokio::spawn(async move {
+            let (_socket, _) = listener.accept().await.expect("accept");
+            // 保持连接一小段时间，确保客户端 connect + write 完成。
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        });
+
+        let mut sink = TcpRecordSink::new("127.0.0.1".to_string(), port, TcpFraming::Line);
+        // 直接置为非初始退避态（窗口已过期），模拟之前失败过。
+        sink.backoff = TCP_BACKOFF_MAX;
+        sink.next_attempt_at = Some(Instant::now() - Duration::from_secs(1));
+
+        sink.write_records(&[record("a")]).await.expect("write");
+
+        // 成功连接后：退避重置为初始值、退避窗口清除。
+        assert_eq!(sink.backoff, TCP_BACKOFF_INITIAL);
+        assert!(sink.next_attempt_at.is_none());
+        server.await.expect("server");
     }
 
     #[test]

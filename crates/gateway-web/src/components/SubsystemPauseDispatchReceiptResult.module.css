@@ -1,32 +1,105 @@
 .container {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 6px;
-  background: #f7f9fc;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  height: 21px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.statusOk {
+  border-color: var(--ok-border);
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.statusCrit {
+  border-color: var(--crit-border);
+  background: var(--crit-soft);
+  color: var(--crit);
+}
+
+.statusAgent {
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 .row {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
   gap: 8px;
-  color: #526073;
-  font-size: 12px;
+  align-items: baseline;
 }
 
-.row strong {
+.row dt {
+  color: var(--text-4);
+  font-size: 11.5px;
+}
+
+.row dd {
   overflow: hidden;
-  color: #172033;
-  font-weight: 700;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .empty {
-  padding: 10px;
-  border-radius: 6px;
-  background: #f7f9fc;
-  color: #718095;
+  padding: 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-4);
   font-size: 12px;
+}
+
+.errorBox {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--crit-border);
+  border-radius: var(--radius-sm);
+  background: var(--crit-soft);
+}
+
+.errorTitle {
+  color: var(--crit);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.errorText {
+  color: var(--text-2);
+  font-size: 11.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }

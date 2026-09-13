@@ -29,7 +29,7 @@ use crate::self_observability::{
     DiscoveryHealthSnapshot, DiscoveryProbeHealth, DiscoveryReadiness, HealthState,
     RuntimeHealthSnapshot, emit,
 };
-use crate::state_store::{agent_runtime, execution_queue, planner_candidates};
+use crate::state_store::{agent_runtime, execution_queue, log_seq_state, planner_candidates};
 use crate::telemetry::metrics::target_view;
 
 #[path = "daemon_metrics.rs"]
@@ -326,15 +326,27 @@ async fn run_once_with_failure_cache(
     } else {
         emit_metrics_failures(&metrics_tick.failures);
     }
+    let global_seq_path = log_seq_state::path_for(state_dir);
+    let mut next_seq = log_seq_state::load_or_default_async(&global_seq_path)
+        .await
+        .unwrap_or(0);
     let telemetry_tick = match build_telemetry_sink(loop_ctx.config) {
         Ok(mut sink) => {
-            // 指标优先：先上送指标帧（与日志共用同一 sink/连接），再处理日志。
+            // 指标优先：先上送指标帧（与日志共用同一 sink/连接 + 同一个全局 seq），再处理日志。
             if let Some(snapshot) = metrics_tick.snapshot.as_ref() {
-                if let Err(err) = write_metrics_uplink(&mut sink, agent_id, snapshot).await {
+                if let Err(err) = write_metrics_uplink(
+                    &mut sink,
+                    agent_id,
+                    snapshot,
+                    &mut next_seq,
+                    &global_seq_path,
+                )
+                .await
+                {
                     eprintln!("warp-agentd metrics uplink failed: {err}");
                 }
             }
-            process_telemetry_inputs(loop_ctx.config, &mut sink).await
+            process_telemetry_inputs(loop_ctx.config, &mut sink, &mut next_seq).await
         }
         Err(err) => invalid_output_tick(loop_ctx.config, err.to_string()),
     };

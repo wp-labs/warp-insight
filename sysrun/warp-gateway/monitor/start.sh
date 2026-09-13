@@ -47,6 +47,36 @@ resolve_compose_cmd() {
   exit 1
 }
 
+# Docker Hub 在当前网络环境常不可达；配置镜像加速源作为拉取失败时的兜底。
+# 留空可禁用兜底（REGISTRY_MIRROR=）。
+REGISTRY_MIRROR="${REGISTRY_MIRROR:-docker.m.daocloud.io}"
+
+# 需要从 Docker Hub 拉取的镜像（与 docker-compose.yml 中的 image 保持一致）。
+DOCKERHUB_IMAGES=(
+  "victoriametrics/victoria-metrics:v1.133.0"
+  "victoriametrics/victoria-logs:v1.43.0"
+)
+
+# 确保镜像本地存在：先直连 Docker Hub，失败再走 REGISTRY_MIRROR 拉取并重打回原 tag。
+ensure_image() {
+  local image="$1"
+  if docker image inspect "$image" >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "镜像不存在，尝试从 Docker Hub 拉取：${image}"
+  if docker pull "$image"; then
+    return 0
+  fi
+  if [[ -n "${REGISTRY_MIRROR}" ]]; then
+    echo "Docker Hub 拉取失败，改用镜像加速源 ${REGISTRY_MIRROR} 拉取并重打 tag ..."
+    docker pull "${REGISTRY_MIRROR}/${image}"
+    docker tag "${REGISTRY_MIRROR}/${image}" "${image}"
+  else
+    echo "拉取 ${image} 失败，且未配置 REGISTRY_MIRROR。" >&2
+    return 1
+  fi
+}
+
 ensure_env() {
   local force_render="${1:-0}"
   if [[ ! -f "${ENV_EXAMPLE_FILE}" ]]; then
@@ -80,6 +110,10 @@ main() {
   ensure_docker
   resolve_compose_cmd
   ensure_env "${force_render}"
+
+  for img in "${DOCKERHUB_IMAGES[@]}"; do
+    ensure_image "$img"
+  done
 
   echo "开始启动服务（${COMPOSE_FILE}）..."
   "${COMPOSE_CMD[@]}" -f "${COMPOSE_FILE}" up -d

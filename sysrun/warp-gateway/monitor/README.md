@@ -18,6 +18,9 @@ VLOG_MAX_DISK_SPACE_USAGE_BYTES=50GiB
 - `RETENTION_PERIOD`：指标与日志数据保留时间
 - `VLOG_MAX_DISK_SPACE_USAGE_BYTES`：日志最大磁盘空间，超过后触发清理
 
+> Docker Hub 拉取失败时，`start.sh` 会自动回退到镜像加速源并重打回原 tag。
+> 默认加速源为 `docker.m.daocloud.io`，可用环境变量 `REGISTRY_MIRROR` 覆盖；设为空值可禁用该兜底。
+
 ## 启动 / 停止
 
 ```bash

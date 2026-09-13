@@ -1,5 +1,4 @@
 import styles from "./SubsystemAdminHomePage.module.css";
-import { SubsystemAdminTopNavigation } from "./SubsystemAdminTopNavigation";
 import { SubsystemAgentStatusOverviewMetrics } from "./SubsystemAgentStatusOverviewMetrics";
 import { SubsystemRecentOnlineRegisteredAgentPanel } from "./SubsystemRecentOnlineRegisteredAgentPanel";
 import { SubsystemAbnormalAgentPanel } from "./SubsystemAbnormalAgentPanel";
@@ -16,7 +15,6 @@ export function SubsystemAdminHomePage({}: SubsystemAdminHomePageProps) {
 
   return (
     <div className={styles.container}>
-      <SubsystemAdminTopNavigation />
       <header className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>Agent 总览</h1>
         <p className={styles.pageSummary}>

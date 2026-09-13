@@ -12,6 +12,10 @@ use sysinfo::{Disks, System};
 use wist_contracts::discovery::StringKeyValue;
 use wist_shared::fs::write_json_atomic;
 
+pub use wist_metrics::provider::{
+    MetricProvider, MetricsCollectionOutcome, MetricsCollectionTargetSample,
+};
+
 #[cfg(test)]
 use super::target_view::path_for as target_view_path_for;
 use super::target_view::{MetricsTargetView, MetricsTargetViewEntry};
@@ -29,37 +33,6 @@ pub struct MetricsRuntimeSnapshot {
     pub container_targets: usize,
     #[serde(default)]
     pub outcomes: Vec<MetricsCollectionOutcome>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ::jumo_derive::Jumo)]
-#[serde(deny_unknown_fields)]
-#[jumo(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
-pub struct MetricsCollectionOutcome {
-    pub collection_kind: String,
-    pub status: String,
-    pub attempted_targets: usize,
-    pub succeeded_targets: usize,
-    pub failed_targets: usize,
-    pub last_error: Option<String>,
-    #[serde(default)]
-    pub runtime_facts: Vec<StringKeyValue>,
-    #[serde(default)]
-    pub sample_targets: Vec<MetricsCollectionTargetSample>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ::jumo_derive::Jumo)]
-#[serde(deny_unknown_fields)]
-#[jumo(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
-pub struct MetricsCollectionTargetSample {
-    pub candidate_id: String,
-    pub target_ref: String,
-    pub status: String,
-    pub last_error: Option<String>,
-    pub resource_ref: String,
-    #[serde(default)]
-    pub execution_hints: Vec<StringKeyValue>,
-    #[serde(default)]
-    pub runtime_facts: Vec<StringKeyValue>,
 }
 
 #[cfg(test)]
@@ -290,15 +263,6 @@ fn build_container_outcome(targets: Vec<&MetricsTargetViewEntry>) -> MetricsColl
         ],
         sample_targets,
     }
-}
-
-/// 一类指标采集的抽象（编译期注册 provider）。
-pub trait MetricProvider {
-    /// 采集 kind（与 `MetricsTargetViewEntry.collection_kind` 对应）。
-    fn collection_kind(&self) -> &'static str;
-
-    /// 对一组目标采集，产出该 kind 的采集结果。
-    fn collect(&self, targets: Vec<&MetricsTargetViewEntry>) -> MetricsCollectionOutcome;
 }
 
 /// 编译期注册的 provider 列表；新增一类指标 = 加一个 provider 并在这里登记。

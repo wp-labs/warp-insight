@@ -523,8 +523,7 @@ checkpoint 不能在“刚读到文件内容”时立即推进。
 - 若未启用 spool，则以 input 认可的本地 buffer 安全接纳点作为 `commit point`
 - 之后再推进 checkpoint
 
-**序号（`seq`）持久化**：每个 input 维护单调递增的 `next_seq`，**与 checkpoint 同一次原子写提交**（见 §11.1.1）；
-重启后从 state 续号，同 input 内不回退。
+**序号（`seq`）持久化**：`next_seq` 为 **per-`agent` 全局**计数器，存独立文件 `state/logs/seq.json`；每个 input 提交 checkpoint **前**把当时的全局值原子写回该文件（前移一位，见 §11.1.1），重启后从该文件续号，全局不回退。
 
 这样可以保证：
 
@@ -649,7 +648,7 @@ multiline 组装必须受以下限制：
 - `source.file_id`
 - `source.device_id`
 - `source.inode`
-- **`seq`（序号，v1 必须）**：per-input 单调递增 `u64`，用于下游去重与缺口检测
+- **`seq`（序号，v1 必须）**：per-`agent` 全局单调递增 `u64`，用于下游去重与缺口检测
 
 ### 11.1.1 `seq` 与去重规则
 
@@ -658,7 +657,7 @@ multiline 组装必须受以下限制：
 **`seq` 定义**：
 
 - 粒度：`per agent`（全局）；形态：`u64` 单调递增；
-- 分配：记录生成时取号；`next_seq` 为 agent 级全局计数器（原 per-input），提交时需与相关 checkpoint 协调，保证崩溃重读沿用同一 `seq`；
+- 分配：记录生成时取号；`next_seq` 为 agent 级全局计数器，存独立文件 `state/logs/seq.json`，提交 checkpoint 前原子写（前移一位）；崩溃重读沿用同一 `seq`，误删单个 checkpoint 不回退号源；
 - 重启：从 state 续号，只要求**不回退**（不要求连续）。
 
 **上送帧**：在信封中新增 `seq`（与 `agent` 等通用字段并列），原文仍在 `RAW:` 之后。帧信号无关，不携带 `input`/文件路径/偏移等来源字段（见 `telemetry-uplink-protocol.md`）。
@@ -811,6 +810,6 @@ multiline 组装必须受以下限制：
 - `M4` 先落受控单路径替代切片，`M8` 再扩展为通用 `file input` runtime
 - **长行策略**固定为“截断提交 + 计数”（`max_line_bytes`，默认 1 MiB，见 §7.3）
 - **spool 有上限，超限策略**固定为“暂停采集 + 告警”（保完整，见 §7.5/§12）；`drop_oldest` 为未来备选（v1 校验只接受 `pause`）
-- **交付语义**为 at-least-once（可能重复、不丢）：spool 接纳成功即推进 checkpoint；去重采用 per-input
-  `seq`（`next_seq` 与 checkpoint 同次原子写）+ 下游组合键去重（见 §11.1.1）
+- **交付语义**为 at-least-once（可能重复、不丢）：spool 接纳成功即推进 checkpoint；去重采用 per-`agent` 全局
+  `seq`（`next_seq` 存独立文件、先于 checkpoint 前移原子写）+ 下游组合键去重（见 §11.1.1）
 - **源日志默认不清理**（只读采集）：轮转/清理交给系统或中心策略；agent 自身的 spool 与本地输出必须有界并轮转

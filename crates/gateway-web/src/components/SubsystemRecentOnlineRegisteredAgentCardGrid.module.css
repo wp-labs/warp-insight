@@ -8,10 +8,10 @@
 .empty {
   min-height: 52px;
   padding: 14px 16px;
-  border: 1px dashed #cfd8e5;
-  border-radius: 8px;
-  background: #f8fafc;
-  color: #64748b;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-2);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 600;
 }

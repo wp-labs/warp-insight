@@ -8,21 +8,32 @@ import type { SubsystemAdminUpgradeAgentRequested } from "../types";
 import type { DispatchReceipt } from "../api";
 
 interface SubsystemUpgradeAgentRemotelyUsecaseCardProps {
-  onSubsystemAdminUpgradeAgentRequested?: (payload: SubsystemAdminUpgradeAgentRequested) => void;
+  onSubsystemAdminUpgradeAgentRequested?: (
+    payload: SubsystemAdminUpgradeAgentRequested,
+  ) => void;
   receipt?: DispatchReceipt;
+  error?: unknown;
   submitting?: boolean;
   children?: React.ReactNode;
 }
 
-export function SubsystemUpgradeAgentRemotelyUsecaseCard({ onSubsystemAdminUpgradeAgentRequested, receipt, submitting }: SubsystemUpgradeAgentRemotelyUsecaseCardProps) {
+export function SubsystemUpgradeAgentRemotelyUsecaseCard({
+  onSubsystemAdminUpgradeAgentRequested,
+  receipt,
+  error,
+  submitting,
+}: SubsystemUpgradeAgentRemotelyUsecaseCardProps) {
   return (
     <div className={styles.container}>
       <SubsystemUpgradeAgentRemotelyUsecaseMeta>
         <SubsystemUpgradeAgent />
         <SubsystemDispatchReceipt />
       </SubsystemUpgradeAgentRemotelyUsecaseMeta>
-      <SubsystemUpgradeAgentRemotelyForm onSubsystemAdminUpgradeAgentRequested={onSubsystemAdminUpgradeAgentRequested} submitting={submitting} />
-      <SubsystemUpgradeDispatchReceiptResult receipt={receipt} />
+      <SubsystemUpgradeAgentRemotelyForm
+        onSubsystemAdminUpgradeAgentRequested={onSubsystemAdminUpgradeAgentRequested}
+        submitting={submitting}
+      />
+      <SubsystemUpgradeDispatchReceiptResult receipt={receipt} error={error} />
     </div>
   );
 }

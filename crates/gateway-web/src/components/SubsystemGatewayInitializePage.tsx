@@ -7,7 +7,6 @@ import {
 } from "../api";
 import { useGatewayInitialConfig } from "../hooks";
 import { CopyButton } from "./CopyButton";
-import { SubsystemAdminTopNavigation } from "./SubsystemAdminTopNavigation";
 import styles from "./SubsystemGatewayInitializePage.module.css";
 
 function errorMessage(error: unknown): string {
@@ -29,6 +28,12 @@ function errorMessage(error: unknown): string {
   return "初始化配置响应不符合当前契约，请检查 Center 与 Gateway 版本。";
 }
 
+const STEPS = [
+  "粘贴 Center 交付的初始化 URL（必须带 instance_id）",
+  "如 Center 要求鉴权，填入随附的 Bearer 凭证",
+  "获取初始配置 JSON，交给 Gateway 落地",
+];
+
 /** 展示 Center 返回的 GatewayInitialConfig JSON，并保留完整对象供复制核对。 */
 function ConfigResult({ config }: { config: GatewayInitialConfig }) {
   const serializedConfig = JSON.stringify(config, null, 2);
@@ -40,12 +45,9 @@ function ConfigResult({ config }: { config: GatewayInitialConfig }) {
     >
       <header className={styles.resultHeader}>
         <div>
-          <div className={styles.resultEyebrow}>application/json</div>
-          <h2
-            id="gateway-initial-config-result"
-            className={styles.sectionTitle}
-          >
-            网关初始配置
+          <div className={styles.resultEyebrow}>网关初始配置</div>
+          <h2 id="gateway-initial-config-result" className={styles.sectionTitle}>
+            已获取配置内容
           </h2>
         </div>
         <span className={styles.successBadge}>获取成功</span>
@@ -81,17 +83,23 @@ export function SubsystemGatewayInitializePage() {
 
   return (
     <div className={styles.container}>
-      <SubsystemAdminTopNavigation />
       <main className={styles.main}>
         <header className={styles.pageHeader}>
-          <div className={styles.eyebrow}>
-            Gateway / InitializeGatewayViaUrl
-          </div>
-          <h1 className={styles.pageTitle}>通过 URL 初始化</h1>
+          <h1 className={styles.pageTitle}>初始化 Gateway</h1>
           <p className={styles.pageSummary}>
-            Gateway 安装完成后，访问控制中心提供的初始化 URL，获取 JSON
-            网关初始配置并完成接入。
+            这是新装 Gateway 接入控制中心的唯一步骤。初始化材料由 Center
+            在创建实例时交付，且只能消费一次。
           </p>
+          <ol className={styles.steps}>
+            {STEPS.map((step, index) => (
+              <li key={step} className={styles.step}>
+                <span className={styles.stepIndex} aria-hidden="true">
+                  {index + 1}
+                </span>
+                <span className={styles.stepText}>{step}</span>
+              </li>
+            ))}
+          </ol>
         </header>
 
         <section
@@ -100,17 +108,12 @@ export function SubsystemGatewayInitializePage() {
         >
           <header className={styles.usecaseMeta}>
             <div className={styles.usecaseMetaCopy}>
-              <span className={styles.usecaseTag}>USECASE</span>
-              <h2 id="gateway-initialize-usecase">通过 URL 初始化 Gateway</h2>
+              <span className={styles.usecaseTag}>一次性操作</span>
+              <h2 id="gateway-initialize-usecase">填入初始化材料</h2>
               <p>
-                输入控制中心初始化 URL，获取 JSON
-                GatewayInitialConfig，完成网关初始化。
+                提交后先查询 Center 侧的实例状态；只有状态为未初始化时才会返回配置，
+                重复提交会被拒绝。
               </p>
-            </div>
-            <div className={styles.usecaseFlow} aria-label="初始化流程">
-              <span>InitializeGatewayViaUrl</span>
-              <span className={styles.flowArrow}>→</span>
-              <span>GatewayInitialConfig</span>
             </div>
           </header>
 
@@ -154,10 +157,10 @@ export function SubsystemGatewayInitializePage() {
                 className={styles.primaryButton}
                 disabled={!canSubmit || initialConfig.isPending}
               >
-                {initialConfig.isPending ? "正在初始化…" : "获取初始配置"}
+                {initialConfig.isPending ? "正在获取…" : "获取初始配置"}
               </button>
               <span className={styles.actionHint}>
-                触发 InitializeGatewayViaUrl
+                初始化材料只能消费一次，请确认 URL 与实例一致后再提交。
               </span>
             </div>
           </form>
@@ -166,9 +169,8 @@ export function SubsystemGatewayInitializePage() {
         {initialConfig.data ? (
           <>
             <div className={styles.statusBanner} role="status">
-              初始化状态检查通过：实例原状态为{" "}
-              {initialConfig.data.status.lifecycle_state}，已获取 JSON
-              GatewayInitialConfig。
+              状态检查通过：实例原状态为{" "}
+              {initialConfig.data.status.lifecycle_state}，已取回网关初始配置。
             </div>
             <ConfigResult config={initialConfig.data.config} />
           </>

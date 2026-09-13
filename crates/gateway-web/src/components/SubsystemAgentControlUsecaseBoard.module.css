@@ -1,12 +1,16 @@
 .container {
   display: grid;
-  flex-direction: row;
-  flex-wrap: wrap;
   gap: 16px;
   width: 100%;
-  max-width: 1120px;
+  max-width: var(--content-max);
   margin: 0 auto;
   padding: 0 24px;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
   align-items: start;
+}
+
+@media (max-width: 860px) {
+  .container {
+    padding: 0 16px;
+  }
 }

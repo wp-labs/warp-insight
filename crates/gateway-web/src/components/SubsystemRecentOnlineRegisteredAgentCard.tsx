@@ -8,6 +8,9 @@ interface SubsystemRecentOnlineRegisteredAgentCardProps {
   children?: React.ReactNode;
 }
 
+/** 与 crates/warp-gateway/src/api/overview.rs 的 ONLINE_WINDOW_SECONDS 保持一致。 */
+const ONLINE_WINDOW_SECONDS = 300;
+
 function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat("zh-CN", {
     month: "2-digit",
@@ -45,6 +48,13 @@ export function SubsystemRecentOnlineRegisteredAgentCard({
   agent,
 }: SubsystemRecentOnlineRegisteredAgentCardProps) {
   const sourceLabel = agent.source === "real" ? "真实" : "示例";
+  // 与网关侧判定保持一致：online_since 距今 ≤ 5 分钟才算在线
+  // （见 crates/warp-gateway/src/api/overview.rs 的 ONLINE_WINDOW_SECONDS）。
+  const secondsSinceOnline = Math.max(
+    0,
+    (Date.now() - new Date(agent.onlineSince).getTime()) / 1000,
+  );
+  const isOnline = secondsSinceOnline <= ONLINE_WINDOW_SECONDS;
   return (
     <article className={styles.container}>
       <div className={styles.top}>
@@ -53,7 +63,11 @@ export function SubsystemRecentOnlineRegisteredAgentCard({
           <div className={styles.instance}>{agent.instanceId}</div>
         </div>
         <div className={styles.badges}>
-          <span className={styles.badge}>在线</span>
+          <span className={isOnline ? styles.badge : styles.offlineBadge}>
+            {isOnline
+              ? "在线"
+              : `离线 ${formatDuration(Math.round(secondsSinceOnline))}`}
+          </span>
           <span className={agent.source === "real" ? styles.realBadge : styles.exampleBadge}>
             {sourceLabel}
           </span>
@@ -82,21 +96,21 @@ export function SubsystemRecentOnlineRegisteredAgentCard({
           <span className={styles.trendLabel}>内存趋势</span>
           <Sparkline
             values={(agent.metricsHistory ?? []).map((s) => s.memoryBytes)}
-            color="#0550ae"
+            color="var(--series-1)"
           />
         </div>
         <div className={styles.trendItem}>
           <span className={styles.trendLabel}>CPU 趋势</span>
           <Sparkline
             values={(agent.metricsHistory ?? []).map((s) => s.cpuPercent)}
-            color="#cf222e"
+            color="var(--series-5)"
           />
         </div>
         <div className={styles.trendItem}>
           <span className={styles.trendLabel}>延时趋势</span>
           <Sparkline
             values={(agent.metricsHistory ?? []).map((s) => s.adminLatencyMs)}
-            color="#22863a"
+            color="var(--series-3)"
           />
         </div>
       </div>

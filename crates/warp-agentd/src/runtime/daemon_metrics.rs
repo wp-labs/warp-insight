@@ -7,6 +7,7 @@ use wist_shared::fs::read_json;
 use wist_shared::time::{now_rfc3339, now_ts_ms};
 
 use crate::self_observability::MetricsHealthSnapshot;
+use crate::state_store::log_seq_state;
 use crate::telemetry::metrics::{
     runtime::{self, MetricsRuntimeSnapshot},
     samples,
@@ -101,10 +102,15 @@ impl MetricsTick {
 }
 
 /// 把指标运行时快照规范化成样本并拍平成 VM JSON lines 逐帧上送。无样本时跳过（避免空帧占用 uplink）。
+///
+/// 指标帧与日志帧共用同一个 agent 级全局 `seq`（`next_seq`）：取号递增、先持久化高水位再发送，
+/// 保证跨重启不回退、且与日志帧在 `(agent, seq)` 去重键上不撞号。
 pub(super) async fn write_metrics_uplink(
     sink: &mut TelemetryRecordSink,
     agent_id: &str,
     snapshot: &MetricsRuntimeSnapshot,
+    next_seq: &mut u64,
+    global_seq_path: &Path,
 ) -> io::Result<()> {
     let samples = samples::build_samples_snapshot(snapshot);
     let lines = samples::build_vm_metric_lines(&samples, agent_id, now_ts_ms());
@@ -112,14 +118,16 @@ pub(super) async fn write_metrics_uplink(
         return Ok(());
     }
     let observed_at = now_rfc3339();
-    for (index, line) in lines.iter().enumerate() {
-        // TODO(W2)：信封 `seq` 应统一为 agent 级全局 `seq`（与日志同源、跨重启不回退）；
-        // 在 W2 全局计数器落地前，以 batch_seq 为基 + 批内序号占位，保证批内各帧 `(agent, seq)` 唯一。
-        let seq = samples
-            .batch_seq
-            .saturating_mul(10_000)
-            .saturating_add(index as u64);
-        let envelope = DataFrame::new(agent_id, observed_at.clone(), seq);
+    // 先从全局计数器取号（与日志同源），再统一持久化高水位、最后发送。
+    let mut frames = Vec::with_capacity(lines.len());
+    for line in &lines {
+        let seq = *next_seq;
+        *next_seq += 1;
+        frames.push((DataFrame::new(agent_id, observed_at.clone(), seq), line));
+    }
+    // 前移一位持久化：崩溃只会浪费号，绝不回退撞号。
+    log_seq_state::store_async(global_seq_path, *next_seq).await?;
+    for (envelope, line) in frames {
         sink.write_metrics(&envelope, line).await?;
     }
     Ok(())
@@ -426,9 +434,18 @@ mod tests {
             }],
         };
 
-        write_metrics_uplink(&mut sink, "agent-001", &snapshot)
-            .await
-            .expect("write metrics uplink");
+        let state_dir = temp_dir("metrics-uplink");
+        let global_seq_path = crate::state_store::log_seq_state::path_for(&state_dir);
+        let mut next_seq = 0u64;
+        write_metrics_uplink(
+            &mut sink,
+            "agent-001",
+            &snapshot,
+            &mut next_seq,
+            &global_seq_path,
+        )
+        .await
+        .expect("write metrics uplink");
 
         let body = server.await.expect("join");
         assert!(body.contains(" METRICS: "), "frame: {body}");
@@ -437,5 +454,89 @@ mod tests {
             body.contains("system.load_average.1m"),
             "normalized sample: {body}"
         );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn write_metrics_uplink_draws_from_global_seq_and_persists() {
+        let listener = match TcpListener::bind("127.0.0.1:0").await {
+            Ok(listener) => listener,
+            Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => return,
+            Err(err) => panic!("bind listener: {err}"),
+        };
+        let port = listener.local_addr().expect("listener addr").port();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.expect("accept");
+            let mut buf = vec![0u8; 4096];
+            let n = socket.read(&mut buf).await.expect("read");
+            String::from_utf8_lossy(&buf[..n]).into_owned()
+        });
+        let state_dir = temp_dir("metrics-seq");
+        let global_seq_path = crate::state_store::log_seq_state::path_for(&state_dir);
+        let mut sink = TelemetryRecordSink::Tcp(TcpRecordSink::new(
+            "127.0.0.1".to_string(),
+            port,
+            TcpFraming::Line,
+        ));
+
+        // 两个数值样本 → 两帧，seq 应从传入的全局计数器 5 开始递增。
+        let snapshot = MetricsRuntimeSnapshot {
+            generated_at: "2026-04-19T00:00:00Z".to_string(),
+            total_targets: 1,
+            host_targets: 1,
+            process_targets: 0,
+            container_targets: 0,
+            outcomes: vec![MetricsCollectionOutcome {
+                collection_kind: "host_metrics".to_string(),
+                status: "succeeded".to_string(),
+                attempted_targets: 1,
+                succeeded_targets: 1,
+                failed_targets: 0,
+                last_error: None,
+                runtime_facts: vec![],
+                sample_targets: vec![MetricsCollectionTargetSample {
+                    candidate_id: "host-1".to_string(),
+                    target_ref: "host-1:host".to_string(),
+                    status: "succeeded".to_string(),
+                    last_error: None,
+                    resource_ref: "host-1".to_string(),
+                    execution_hints: vec![],
+                    runtime_facts: vec![
+                        StringKeyValue::new("host.loadavg.1m", "0.25"),
+                        StringKeyValue::new("host.uptime.seconds", "3600"),
+                    ],
+                }],
+            }],
+        };
+
+        let mut next_seq = 5u64;
+        write_metrics_uplink(
+            &mut sink,
+            "agent-001",
+            &snapshot,
+            &mut next_seq,
+            &global_seq_path,
+        )
+        .await
+        .expect("write metrics uplink");
+
+        // 取号递增 + 高水位持久化到独立全局 seq 文件。
+        assert_eq!(next_seq, 7);
+        let persisted = crate::state_store::log_seq_state::load_or_default_async(&global_seq_path)
+            .await
+            .expect("load global seq");
+        assert_eq!(persisted, 7);
+
+        // 帧信封 seq 来自全局计数器（5、6），而非 batch_seq。
+        let body = server.await.expect("join");
+        let seqs: Vec<u64> = body
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| {
+                let (envelope, _) = line.split_once(" METRICS: ").expect("METRICS marker");
+                let parsed: serde_json::Value = serde_json::from_str(envelope).expect("envelope");
+                parsed["seq"].as_u64().expect("seq")
+            })
+            .collect();
+        assert_eq!(seqs, vec![5, 6]);
     }
 }

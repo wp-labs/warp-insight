@@ -1,14 +1,33 @@
-import styles from "./SubsystemOnlineAgentMetric.module.css";
+import { MetricTile } from "./MetricTile";
 
 interface SubsystemOnlineAgentMetricProps {
-  children?: React.ReactNode;
+  value: number;
+  total?: number;
+  hint?: string;
+  loading?: boolean;
 }
 
-export function SubsystemOnlineAgentMetric({ children }: SubsystemOnlineAgentMetricProps) {
+/** "在线" 的判定窗口是 5 分钟（见 overview.rs 的 ONLINE_WINDOW_SECONDS）。 */
+export function SubsystemOnlineAgentMetric({
+  value,
+  total,
+  hint,
+  loading,
+}: SubsystemOnlineAgentMetricProps) {
+  const percent =
+    total && total > 0 ? Math.round((value / total) * 100) : undefined;
   return (
-    <div className={styles.container}>
-      <div className={styles.label}>在线 Agent 数</div>
-      {children}
-    </div>
+    <MetricTile
+      label="在线 Agent 数"
+      value={String(value)}
+      hint={
+        hint ??
+        (percent === undefined
+          ? "最近 5 分钟内有心跳的 Agent 数量"
+          : `在线率 ${percent}% · 最近 5 分钟内有心跳的 Agent`)
+      }
+      tone={percent !== undefined && percent < 100 ? "warn" : "ok"}
+      loading={loading}
+    />
   );
 }

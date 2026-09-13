@@ -93,6 +93,7 @@ pub(super) fn invalid_output_tick(config: &AgentConfigContract, detail: String) 
 pub(super) async fn process_telemetry_inputs(
     config: &AgentConfigContract,
     sink: &mut TelemetryRecordSink,
+    next_seq: &mut u64,
 ) -> TelemetryTick {
     let mut outcomes = Vec::new();
     let mut failures = Vec::new();
@@ -106,6 +107,7 @@ pub(super) async fn process_telemetry_inputs(
             &mut outcomes,
             &mut failures,
             &mut notifications,
+            next_seq,
         )
         .await;
     }
@@ -124,6 +126,7 @@ async fn process_telemetry_input<S: RecordSink>(
     outcomes: &mut Vec<ProcessOutcome>,
     failures: &mut Vec<TelemetryFailure>,
     notifications: &mut Vec<TelemetryWorkState>,
+    next_seq: &mut u64,
 ) {
     let source_path = PathBuf::from(&input.path);
     if !source_path.exists() {
@@ -139,7 +142,7 @@ async fn process_telemetry_input<S: RecordSink>(
         return;
     }
 
-    match process_input_with_sink(config, input, source_path, sink).await {
+    match process_input_with_sink(config, input, source_path, sink, next_seq).await {
         Ok(outcome) => {
             if outcome.paused {
                 notifications.push(TelemetryWorkState {
@@ -160,8 +163,9 @@ async fn process_input_with_sink<S: RecordSink>(
     input: &LogFileInputSection,
     source_path: PathBuf,
     sink: &mut S,
+    next_seq: &mut u64,
 ) -> io::Result<ProcessOutcome> {
     let mut processor =
         FileInputProcessor::new(build_file_input_config(config, input, source_path), sink);
-    processor.process_once_async().await
+    processor.process_once_async(next_seq).await
 }

@@ -8,6 +8,7 @@ use wist_shared::time::now_rfc3339;
 
 use crate::state_store::log_checkpoint_state::{PendingMultilineState, TrackedFileCheckpoint};
 use crate::state_store::log_checkpoints;
+use crate::state_store::log_seq_state;
 use crate::telemetry::logs::files::file_reader::{
     ReadLimits, inspect_path_async, read_from_offset_async,
 };
@@ -157,7 +158,7 @@ where
         Self { config, sink }
     }
 
-    pub async fn process_once_async(&mut self) -> io::Result<ProcessOutcome> {
+    pub async fn process_once_async(&mut self, next_seq: &mut u64) -> io::Result<ProcessOutcome> {
         let mut runtime = self.load_runtime_state_async().await?;
         match replay_spool_if_present(
             &mut self.sink,
@@ -176,8 +177,7 @@ where
                 };
             }
         }
-        let mut next_seq = runtime.log_state.next_seq;
-        let batch = self.collect_read_batch(&mut runtime, &mut next_seq).await?;
+        let batch = self.collect_read_batch(&mut runtime, next_seq).await?;
         let CollectedReadBatch {
             records,
             pending_multiline,
@@ -187,7 +187,12 @@ where
             resume,
         } = batch;
         let delivery = self.deliver_records_async(records).await?;
-        runtime.log_state.next_seq = next_seq;
+        if delivery.records_processed > 0 {
+            // 全局 `seq` 前移：写入独立文件（先于 checkpoint 提交、原子写）。
+            // 前移一位保证崩溃只会造成「重复」（重读拿到新号），绝不回退撞号丢数据。
+            let global_seq_path = log_seq_state::path_for(&self.config.state_dir);
+            log_seq_state::store_async(&global_seq_path, *next_seq).await?;
+        }
         self.commit_log_state(&mut runtime, checkpoints, pending_multiline)
             .await?;
 
@@ -203,7 +208,12 @@ where
 
     #[cfg(test)]
     pub fn process_once(&mut self) -> io::Result<ProcessOutcome> {
-        block_on_io(self.process_once_async())
+        // 单 input 单测：从全局 `seq` 文件读取高水位作为起点（独立于 checkpoint）。
+        let global_seq_path = log_seq_state::path_for(&self.config.state_dir);
+        let mut next_seq = block_on_io(async {
+            Ok::<u64, io::Error>(log_seq_state::load_or_default_async(&global_seq_path).await?)
+        })?;
+        block_on_io(self.process_once_async(&mut next_seq))
     }
 
     async fn load_runtime_state_async(&mut self) -> io::Result<RuntimeState> {

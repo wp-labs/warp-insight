@@ -212,10 +212,10 @@ fn assigns_monotonic_seq_and_persists_next_seq() {
     assert_eq!(records[0].seq, 0);
     assert_eq!(records[1].seq, 1);
 
-    let checkpoint_path = log_checkpoints::path_for(&root.join("state"), "input-app");
-    let state: crate::state_store::log_checkpoint_state::LogCheckpointState =
-        read_json(&checkpoint_path).expect("read checkpoint");
-    assert_eq!(state.next_seq, 2);
+    let global_seq_path = crate::state_store::log_seq_state::path_for(&root.join("state"));
+    let seq_state: crate::state_store::log_seq_state::LogSeqState =
+        read_json(&global_seq_path).expect("read global seq");
+    assert_eq!(seq_state.next_seq, 2);
 }
 
 #[test]
@@ -244,4 +244,37 @@ fn restart_resumes_seq_from_persisted_next_seq() {
     let records = read_output_records(&output_path);
     assert_eq!(records.len(), 3);
     assert_eq!(records[2].seq, 2);
+}
+
+#[test]
+fn deleting_checkpoint_does_not_regress_global_seq() {
+    let root = temp_dir("seq-checkpoint-deleted");
+    let source_path = root.join("app.log");
+    let output_path = root.join("log").join("records.ndjson");
+    fs::create_dir_all(root.join("state")).expect("create state");
+    fs::create_dir_all(root.join("log")).expect("create log");
+    fs::write(&source_path, "first\nsecond\n").expect("write log");
+
+    let mut first = FileInputProcessor::new(
+        config(&root, &source_path),
+        FileRecordSink::new(output_path.clone()),
+    );
+    first.process_once().expect("first process");
+
+    // 误删该 input 的 checkpoint：全局 seq 应仍保存在独立文件里，不回退。
+    let checkpoint_path = log_checkpoints::path_for(&root.join("state"), "input-app");
+    fs::remove_file(&checkpoint_path).expect("delete checkpoint");
+
+    // 追加新行后重启（新 processor，head 重读全部内容）。
+    fs::write(&source_path, "first\nsecond\nthird\n").expect("append log");
+    let mut second = FileInputProcessor::new(
+        config(&root, &source_path),
+        FileRecordSink::new(output_path.clone()),
+    );
+    second.process_once().expect("second process");
+
+    let records = read_output_records(&output_path);
+    // head 重读全部 3 行，seq 从全局高水位 2 续号（而不是回退到 0 撞号）。
+    let seqs: Vec<u64> = records.iter().map(|record| record.seq).collect();
+    assert_eq!(seqs, vec![0, 1, 2, 3, 4]);
 }

@@ -48,6 +48,12 @@ fn exec_capabilities() -> ExecCapabilities {
 
 fn metrics_capabilities() -> MetricsCapabilities {
     MetricsCapabilities {
+        // 声明 agent 支持的采集 provider（collection kind 即 metric 家族），让 center 知道
+        // 这个 agent 到底能采哪些指标；与 `telemetry::metrics::runtime::providers()` 保持一致。
+        collectors: crate::telemetry::metrics::runtime::providers()
+            .iter()
+            .map(|provider| provider.collection_kind().to_string())
+            .collect(),
         discovery_modes: vec!["local_runtime".to_string()],
         ..MetricsCapabilities::default()
     }
@@ -169,6 +175,24 @@ mod tests {
                 },
             },
         })
+    }
+
+    #[test]
+    fn metrics_capabilities_declare_provider_collection_kinds() {
+        let report = build_capability_report(&config_with_logs());
+
+        let expected: Vec<String> = crate::telemetry::metrics::runtime::providers()
+            .iter()
+            .map(|provider| provider.collection_kind().to_string())
+            .collect();
+
+        assert_eq!(report.metrics.collectors, expected);
+        assert!(
+            expected.contains(&"host_metrics".to_string())
+                && expected.contains(&"process_metrics".to_string())
+                && expected.contains(&"container_metrics".to_string()),
+            "collectors must declare all batch-a providers: {expected:?}"
+        );
     }
 
     #[test]

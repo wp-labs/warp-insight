@@ -1,46 +1,74 @@
 .container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
-.field {
+.actions {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  align-items: center;
+  gap: 8px;
 }
 
-.label {
-  color: #526073;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.input {
+.button,
+.buttonDanger,
+.buttonGhost {
   min-height: 34px;
-  padding: 6px 9px;
-  border: 1px solid #c8d2e0;
-  border-radius: 6px;
-  color: #172033;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
+  font-weight: 700;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .button {
-  align-self: flex-start;
-  min-height: 34px;
-  padding: 0 12px;
-  border: 1px solid #1f6feb;
-  border-radius: 6px;
-  background: #1f6feb;
+  border: 1px solid var(--accent);
+  background: var(--accent);
   color: #ffffff;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
 }
 
-.button:disabled {
-  border-color: #b9c5d6;
-  background: #eef3f8;
-  color: #718095;
-  cursor: not-allowed;
+.button:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+.buttonDanger {
+  border: 1px solid var(--crit);
+  background: rgba(248, 113, 113, 0.9);
+  color: #2b0b0b;
+}
+
+.buttonDanger:hover:not(:disabled) {
+  background: var(--crit);
+}
+
+.buttonGhost {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-2);
+}
+
+.buttonGhost:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.button:disabled,
+.buttonDanger:disabled {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-3);
+}
+
+.note {
+  color: var(--text-4);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.noteWarn {
+  color: var(--warn);
+  font-weight: 600;
 }

@@ -698,6 +698,57 @@ fn daemon_run_once_continues_when_one_file_input_fails() {
 
 #[cfg(unix)]
 #[test]
+fn daemon_run_once_assigns_globally_monotonic_seq_across_inputs() {
+    let root = temp_dir("daemon-global-seq");
+    let run_dir = root.join("run");
+    let state_dir = root.join("state");
+    let log_dir = root.join("log");
+    let input_a = root.join("a.log");
+    let input_b = root.join("b.log");
+    bootstrap::initialize(&root, &run_dir, &state_dir, &log_dir).expect("bootstrap");
+    fs::write(&input_a, "a1\na2\n").expect("write input a");
+    fs::write(&input_b, "b1\nb2\nb3\n").expect("write input b");
+
+    let config = standalone_config_with_file_inputs(
+        &root,
+        vec![
+            LogFileInputSection {
+                input_id: "a".to_string(),
+                path: input_a.display().to_string(),
+                startup_position: "head".to_string(),
+                multiline_mode: "none".to_string(),
+            },
+            LogFileInputSection {
+                input_id: "b".to_string(),
+                path: input_b.display().to_string(),
+                startup_position: "head".to_string(),
+                multiline_mode: "none".to_string(),
+            },
+        ],
+    );
+    daemon::run_once(&daemon::DaemonLoop {
+        config: &config,
+        exec_bin: &test_exec_bin(&root),
+    })
+    .expect("daemon run once");
+
+    let output_path = root.join("log").join("warp-parse-records.ndjson");
+    let output = fs::read_to_string(&output_path).expect("read output");
+    let records: Vec<TelemetryRecordContract> = output
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| serde_json::from_str(line).expect("parse telemetry record"))
+        .collect();
+
+    assert_eq!(records.len(), 5);
+    // 跨 input 共享同一个单调计数器：5 条日志 seq 全局连续且不撞号（起始值被先行发送的指标帧占掉）。
+    let seqs: Vec<u64> = records.iter().map(|record| record.seq).collect();
+    let start = seqs[0];
+    assert_eq!(seqs, (start..start + 5).collect::<Vec<u64>>());
+}
+
+#[cfg(unix)]
+#[test]
 fn daemon_run_once_marks_active_when_only_file_input_fails() {
     let root = temp_dir("daemon-file-input-only-error");
     let run_dir = root.join("run");

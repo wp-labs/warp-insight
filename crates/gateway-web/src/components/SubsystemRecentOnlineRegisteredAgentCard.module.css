@@ -3,10 +3,10 @@
   flex-direction: column;
   min-width: 0;
   padding: 14px;
-  border: 1px solid #cfdce9;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 8px 20px rgba(33, 48, 73, 0.045);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
   gap: 12px;
 }
 
@@ -23,17 +23,18 @@
 
 .agentId {
   overflow: hidden;
-  color: #172033;
-  font-size: 14px;
-  font-weight: 800;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: var(--font-mono);
 }
 
 .instance {
   margin-top: 3px;
   overflow: hidden;
-  color: #5f6f86;
+  color: var(--text-2);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -47,6 +48,7 @@
 }
 
 .badge,
+.offlineBadge,
 .realBadge,
 .exampleBadge {
   padding: 4px 9px;
@@ -58,18 +60,25 @@
 }
 
 .badge {
-  background: #e9f7ef;
-  color: #187141;
+  border: 1px solid var(--ok-border);
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.offlineBadge {
+  border: 1px solid var(--crit-border);
+  background: var(--crit-soft);
+  color: var(--crit);
 }
 
 .realBadge {
-  background: #e7f0ff;
-  color: #2452a3;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
 .exampleBadge {
-  background: #f4f0e8;
-  color: #7a5a1f;
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 .durationBlock {
@@ -78,20 +87,22 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border: 1px solid #d6e7f2;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #f5fafc;
+  background: var(--surface-2);
 }
 
 .durationLabel {
-  color: #64748b;
+  color: var(--text-2);
   font-size: 12px;
   font-weight: 700;
 }
 
 .duration {
-  color: #12334d;
-  font-size: 18px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
 
@@ -106,16 +117,18 @@
 }
 
 .label {
-  color: #718095;
+  color: var(--text-3);
   font-size: 12px;
 }
 
 .value {
   margin-top: 3px;
   overflow: hidden;
-  color: #26364d;
-  font-size: 13px;
-  font-weight: 750;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -125,9 +138,9 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   padding: 8px 10px;
-  border: 1px solid #e3e9f1;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #f8fafc;
+  background: var(--surface-2);
 }
 
 .metric {
@@ -138,51 +151,52 @@
 }
 
 .metricLabel {
-  color: #718095;
+  color: var(--text-3);
   font-size: 11px;
 }
 
 .metricValue {
   overflow: hidden;
-  color: #1f3a5f;
-  font-size: 13px;
-  font-weight: 800;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .trend {
   display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  overflow-x: auto;
+  gap: 12px;
 }
 
 .trendItem {
   display: flex;
+  flex: 1 1 0;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
+  align-items: stretch;
+  gap: 4px;
   min-width: 0;
 }
 
 .trendLabel {
-  color: #718095;
+  color: var(--text-3);
   font-size: 11px;
 }
 
 .footer {
   margin-top: auto;
   padding-top: 4px;
-  border-top: 1px solid #eef2f7;
+  border-top: 1px solid var(--border);
 }
 
 .metricsLink {
   display: inline-flex;
   align-items: center;
-  color: #2452a3;
+  color: var(--accent-strong);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: none;
 }
 

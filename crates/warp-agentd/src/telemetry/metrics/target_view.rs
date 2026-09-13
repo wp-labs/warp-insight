@@ -3,11 +3,13 @@
 use std::io;
 use std::path::Path;
 
-use serde::{Deserialize, Serialize};
-use wist_contracts::discovery::{CandidateCollectionTarget, StringKeyValue};
 use crate::fs_async::write_json_atomic_async;
+use serde::{Deserialize, Serialize};
+use wist_contracts::discovery::CandidateCollectionTarget;
 
 use crate::state_store::planner_candidates;
+
+pub use wist_metrics::target::MetricsTargetViewEntry;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ::jumo_derive::Jumo)]
 #[serde(deny_unknown_fields)]
@@ -16,18 +18,6 @@ pub struct MetricsTargetView {
     pub generated_at: String,
     #[serde(default)]
     pub targets: Vec<MetricsTargetViewEntry>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ::jumo_derive::Jumo)]
-#[serde(deny_unknown_fields)]
-#[jumo(kind = "struct", domain = "Discovery", module = "Discovery.Collect")]
-pub struct MetricsTargetViewEntry {
-    pub candidate_id: String,
-    pub collection_kind: String,
-    pub target_ref: String,
-    pub resource_ref: String,
-    #[serde(default)]
-    pub execution_hints: Vec<StringKeyValue>,
 }
 
 #[cfg(test)]

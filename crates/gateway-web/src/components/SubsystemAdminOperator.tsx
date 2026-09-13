@@ -6,9 +6,9 @@ interface SubsystemAdminOperatorProps {
 
 export function SubsystemAdminOperator({ children }: SubsystemAdminOperatorProps) {
   return (
-    <div className={styles.container}>
-      <div className={styles.label}>管理员</div>
+    <span className={styles.value}>
+      admin-operator
       {children}
-    </div>
+    </span>
   );
 }

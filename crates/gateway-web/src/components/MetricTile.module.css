@@ -1,0 +1,82 @@
+.tile {
+  --tile-accent: var(--unknown);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 104px;
+  padding: 16px 17px 15px 19px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.tile::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--tile-accent);
+}
+
+.toneAccent {
+  --tile-accent: var(--accent);
+}
+
+.toneOk {
+  --tile-accent: var(--ok);
+}
+
+.toneWarn {
+  --tile-accent: var(--warn);
+}
+
+.toneCrit {
+  --tile-accent: var(--crit);
+}
+
+.toneUnknown {
+  --tile-accent: var(--unknown);
+}
+
+.label {
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.value {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 27px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.toneCrit .value {
+  color: var(--crit);
+}
+
+.toneWarn .value {
+  color: var(--warn);
+}
+
+/* 提示贴底：让四张磁贴的数值基线保持一致，而不是各自被文案推着走。 */
+.hint {
+  display: -webkit-box;
+  margin-top: auto;
+  color: var(--text-4);
+  font-size: 11.5px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+[data-loading="true"] .value {
+  color: var(--text-4);
+}

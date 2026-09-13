@@ -10,6 +10,7 @@ pub mod execution_queue;
 pub mod history;
 pub(crate) mod log_checkpoint_state;
 pub mod log_checkpoints;
+pub(crate) mod log_seq_state;
 pub mod planner_candidates;
 pub mod reporting;
 pub mod running;

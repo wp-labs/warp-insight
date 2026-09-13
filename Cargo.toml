@@ -5,6 +5,7 @@ members = [
   "crates/wist-validate",
   "crates/wist-shared",
   "crates/wist-error",
+  "crates/wist-metrics",
   "crates/warp-gateway",
   "crates/warp-agentd",
   "crates/wist-exec",
@@ -31,6 +32,7 @@ wist-delivery = { path = "crates/wist-delivery" }
 wist-validate = { path = "crates/wist-validate" }
 wist-shared = { path = "crates/wist-shared" }
 wist-error = { path = "crates/wist-error" }
+wist-metrics = { path = "crates/wist-metrics" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 orion-error = { version = "0.8", features = ["derive", "serde_json"] }

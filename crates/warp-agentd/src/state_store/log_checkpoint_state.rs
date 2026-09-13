@@ -10,7 +10,9 @@ pub(crate) struct LogCheckpointState {
     pub schema_version: String,
     pub input_id: String,
     pub updated_at: String,
-    /// 下一个待分配的 `seq`（per-input 单调递增），与 checkpoint 同文件同次原子写。
+    /// 【已废弃，保留兼容】历史遗留的 per-input `seq` 字段，仅用于兼容旧 checkpoint 反序列化
+    /// （`deny_unknown_fields`）；全局 `seq` 高水位已迁移到独立文件 `state/logs/seq.json`
+    /// （见 `state_store::log_seq_state`），本字段不再读写。
     #[serde(default)]
     pub next_seq: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]

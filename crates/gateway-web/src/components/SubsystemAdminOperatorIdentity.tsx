@@ -4,11 +4,13 @@ interface SubsystemAdminOperatorIdentityProps {
   children?: React.ReactNode;
 }
 
-export function SubsystemAdminOperatorIdentity({ children }: SubsystemAdminOperatorIdentityProps) {
+export function SubsystemAdminOperatorIdentity({
+  children,
+}: SubsystemAdminOperatorIdentityProps) {
   return (
-    <div className={styles.container}>
-      <div className={styles.label}>管理员身份</div>
+    <span className={styles.chip}>
+      <span className={styles.key}>操作者</span>
       {children}
-    </div>
+    </span>
   );
 }
