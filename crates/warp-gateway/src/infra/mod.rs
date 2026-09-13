@@ -11,3 +11,4 @@ pub mod store;
 pub use store::*;
 pub mod tls;
 pub use tls::*;
+pub mod victoria_metrics;

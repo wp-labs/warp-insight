@@ -1312,7 +1312,7 @@ async fn enrollment_route_uses_no_store_and_rate_limits_rejections() {
 #[tokio::test]
 async fn agent_overview_is_empty_before_enrollment() {
     let state = test_state();
-    let overview = agent_overview(&state);
+    let overview = agent_overview(&state).await;
 
     assert_eq!(overview.metrics.total_agents, 0);
     assert_eq!(overview.metrics.online_agents, 0);
@@ -1328,7 +1328,7 @@ async fn agent_overview_reflects_successful_enrollment() {
     request.capability_summary = "warp-agentd:test,version=v0.9.1".to_string();
 
     let _ = enroll_agent(State(state.clone()), None, Json(request)).await;
-    let overview = agent_overview(&state);
+    let overview = agent_overview(&state).await;
 
     assert_eq!(overview.metrics.total_agents, 1);
     assert_eq!(overview.metrics.online_agents, 1);

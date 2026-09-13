@@ -8,11 +8,11 @@ use axum::{
 };
 use serde::Deserialize;
 
+use insight_control::types::{AgentRuntimeStatus, DateTime, DispatchReceipt};
 use insight_control::{
     AdminAgentRuntimeStatusReturned, AdminPauseAgentDispatchReturned,
     AdminUpgradeAgentDispatchReturned,
 };
-use insight_control::types::{AgentRuntimeStatus, DateTime, DispatchReceipt};
 
 use super::{admin_auth::require_admin_bearer, rate_limit, ApiState};
 
@@ -48,11 +48,7 @@ pub async fn get_agent_runtime_status(
         }
     };
     let Some(agent) = snapshot.agents.get(&agent_id).cloned() else {
-        return (
-            StatusCode::NOT_FOUND,
-            format!("unknown agent {agent_id}"),
-        )
-            .into_response();
+        return (StatusCode::NOT_FOUND, format!("unknown agent {agent_id}")).into_response();
     };
     Json(AdminAgentRuntimeStatusReturned {
         status: runtime_status(
@@ -61,6 +57,7 @@ pub async fn get_agent_runtime_status(
             &agent.version,
             "online",
             "healthy",
+            &agent.last_seen_at,
             agent.last_memory_bytes,
             agent.last_cpu_percent,
             agent.last_admin_latency_ms,
@@ -129,13 +126,7 @@ pub async fn upgrade_agent(
 fn agent_not_found_response(state: &ApiState, agent_id: &str) -> Option<Response> {
     match state.store.load() {
         Ok(snapshot) if snapshot.agents.contains_key(agent_id) => None,
-        Ok(_) => Some(
-            (
-                StatusCode::NOT_FOUND,
-                format!("unknown agent {agent_id}"),
-            )
-                .into_response(),
-        ),
+        Ok(_) => Some((StatusCode::NOT_FOUND, format!("unknown agent {agent_id}")).into_response()),
         Err(err) => Some(
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -152,6 +143,7 @@ fn runtime_status(
     version: &str,
     status: &str,
     health: &str,
+    last_seen_at: &str,
     memory_bytes: Option<u64>,
     cpu_percent: Option<f64>,
     admin_latency_ms: Option<u64>,
@@ -165,7 +157,7 @@ fn runtime_status(
         memory_bytes: memory_bytes.map(|value| value as i64),
         cpu_percent,
         admin_latency_ms: admin_latency_ms.map(|value| value as i64),
-        last_seen_at: DateTime::now(),
+        last_seen_at: DateTime::from_rfc3339(last_seen_at).unwrap_or_else(DateTime::now),
     }
 }
 

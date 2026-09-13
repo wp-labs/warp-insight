@@ -88,9 +88,6 @@ pub struct StoredAgentRegistration {
     pub last_cpu_percent: Option<f64>,
     #[serde(default)]
     pub last_admin_latency_ms: Option<u64>,
-    /// Rolling window of the most recent reported status samples (newest last).
-    #[serde(default)]
-    pub metrics_history: Vec<AgentMetricSample>,
     /// 最近一次状态上报携带的工作状态变化（paused/resumed），非告警/失败。
     pub work_state_changes: Option<Vec<AgentWorkStateChange>>,
 }

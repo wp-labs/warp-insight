@@ -9,6 +9,7 @@ use axum::{
 use serde::Serialize;
 
 use super::{admin_auth::require_admin_bearer, rate_limit, ApiState};
+use crate::infra::victoria_metrics::query_json;
 
 /// 趋势图时间窗口（秒）与采样步长（秒）。
 const HISTORY_WINDOW_SECONDS: i64 = 3600;
@@ -150,7 +151,7 @@ async fn query_all_host_metrics(
     // 注意：VictoriaMetrics 的 PromQL 字符串字面量里 `\.` 不是合法转义，
     // 用 `system..*`（`.` 匹配任意字符）即可命中全部 `system.<name>` 指标。
     let query = r#"{__name__=~"system..*"}"#;
-    let instant = vm_get(vm_url, "/api/v1/query", &[("query", query)]).await?;
+    let instant = query_json(vm_url, "/api/v1/query", &[("query", query)]).await?;
 
     let mut map: std::collections::HashMap<String, AgentHostMetricsSummary> =
         std::collections::HashMap::new();
@@ -193,13 +194,13 @@ async fn query_host_metrics(vm_url: &str, agent_id: &str) -> Result<AgentHostMet
     let escaped = agent_id.replace('\\', "\\\\").replace('"', "\\\"");
     let query = format!("{{agent=\"{escaped}\"}}");
 
-    let instant = vm_get(vm_url, "/api/v1/query", &[("query", query.as_str())]).await?;
+    let instant = query_json(vm_url, "/api/v1/query", &[("query", query.as_str())]).await?;
 
     let now = chrono::Utc::now().timestamp();
     let start = (now - HISTORY_WINDOW_SECONDS).to_string();
     let end = now.to_string();
     let step = HISTORY_STEP_SECONDS.to_string();
-    let range = vm_get(
+    let range = query_json(
         vm_url,
         "/api/v1/query_range",
         &[
@@ -212,26 +213,6 @@ async fn query_host_metrics(vm_url: &str, agent_id: &str) -> Result<AgentHostMet
     .await?;
 
     Ok(build_metrics(agent_id, &instant, &range))
-}
-
-async fn vm_get(
-    vm_url: &str,
-    path: &str,
-    params: &[(&str, &str)],
-) -> Result<serde_json::Value, String> {
-    let response = reqwest::Client::new()
-        .get(format!("{vm_url}{path}"))
-        .query(params)
-        .send()
-        .await
-        .map_err(|err| format!("victoria metrics request failed: {err}"))?;
-    if !response.status().is_success() {
-        return Err(format!("victoria metrics returned {}", response.status()));
-    }
-    response
-        .json()
-        .await
-        .map_err(|err| format!("invalid victoria metrics response: {err}"))
 }
 
 fn build_metrics(

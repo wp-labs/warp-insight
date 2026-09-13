@@ -293,7 +293,6 @@ fn commit_reserved_registration(
                     last_memory_bytes: None,
                     last_cpu_percent: None,
                     last_admin_latency_ms: None,
-                    metrics_history: Vec::new(),
                     work_state_changes: None,
                 },
             );
