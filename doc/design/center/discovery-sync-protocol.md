@@ -157,7 +157,7 @@ discovery sync 使用以下两类消息：
 head 采用单行文本格式：
 
 ```text
-WPI1;V=1;K=DSNAP;E=JSON;C=NONE;L=000018432;F=00;
+WII1;V=1;K=DSNAP;E=JSON;C=NONE;L=000018432;F=00;
 ```
 
 说明：
@@ -181,7 +181,7 @@ ProtoHead {
 
 第一版 discovery 建议固定：
 
-- `MAGIC = WPI1`
+- `MAGIC = WII1`
 - `V = 1`
 - `K = DSNAP`
 - `E = JSON`
@@ -191,7 +191,7 @@ ProtoHead {
 字段说明：
 
 - `MAGIC`
-  固定魔数，第一版为 `WPI1`
+  固定魔数，第一版为 `WII1`
 - `V`
   协议版本
 - `K`
@@ -245,7 +245,7 @@ ProtoHead {
 
 1. 固定读取 `64 bytes` head
 2. 去掉右侧 padding 空格
-3. 校验是否以 `WPI1;` 开头
+3. 校验是否以 `WII1;` 开头
 4. 按 `;` 切分字段
 5. 严格按固定顺序解析 `V/K/E/C/L/F`
 6. 校验 `V=1`
@@ -262,7 +262,7 @@ ProtoHead {
 示例 head：
 
 ```text
-WPI1;V=1;K=DSNAP;E=JSON;C=NONE;L=000018432;F=00;
+WII1;V=1;K=DSNAP;E=JSON;C=NONE;L=000018432;F=00;
 ```
 
 示例 wire layout：

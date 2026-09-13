@@ -393,7 +393,7 @@ spool_dir = "state/spool/logs"
 kind = "file"
 
 [telemetry.logs.output.file]
-path = "log/warp-parse-records.ndjson"
+path = "log/wist-records.ndjson"
 
 [discovery]
 host_enabled = true

@@ -40,7 +40,7 @@ framing = "line"
 
 # 可选：本地落盘调试（把 kind 改成 "file" 并填 [telemetry.logs.output.file]）
 # [telemetry.logs.output.file]
-# path = "log/warp-parse-records.ndjson"
+# path = "log/wist-records.ndjson"
 
 [paths]
 root_dir = "."
