@@ -14,7 +14,7 @@ actor<system> Agentd {
   can VerifyAgentCredential
   can PollControlCommands
   can AgentUpstreamMessage
-  can Reporting.AgentHello
+  can Reporting.AgentStatusReport
   can Reporting.ReportActionResult
 }
 

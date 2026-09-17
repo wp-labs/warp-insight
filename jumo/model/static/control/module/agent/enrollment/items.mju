@@ -83,7 +83,7 @@ struct AgentEnrollmentTokenValidation {
   token_id: String
   tenant_id: String
   environment_id: String
-  host_profile: AgentHostProfile
+  host_profile: HostProfile
   status: AgentEnrollmentTokenValidationStatus
   reason_code: String
   validated_at: DateTime
@@ -112,7 +112,7 @@ struct AgentEnrollmentResult {
   agent_id: String
   instance_id: String
   issued_identity: AgentIdentity
-  credential_bundle: AgentCredentialBundle
+  credential_bundle: CredentialBundle
   initial_config: AgentInitialConfig
   policy_binding: AgentPolicyBinding
 }

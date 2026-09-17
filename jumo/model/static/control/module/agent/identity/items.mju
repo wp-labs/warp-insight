@@ -33,7 +33,7 @@ variant AgentIdentityStatus {
   RenewalRequired
 }
 
-struct AgentHostProfile {
+struct HostProfile {
   meta {
     label zh "Agent 宿主机画像"
     label en "Agent Host Profile"
@@ -50,7 +50,7 @@ struct AgentHostProfile {
   ip_addresses: List<String>
 }
 
-struct AgentCredentialBundle {
+struct CredentialBundle {
   meta {
     label zh "Agent 凭据包"
     label en "Agent Credential Bundle"

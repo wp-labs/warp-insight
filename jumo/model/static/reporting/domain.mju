@@ -38,16 +38,16 @@
 // Flow & Verify
 // ═══════════════════════════════════════════
 
-flow AgentHelloFlow {
+flow AgentStatusReportFlow {
   actor Control.Agentd
-  trigger AgentHello
+  trigger AgentStatusReport
 
   creates RuntimeHealthSnapshot
 
   step<stop> ReportHealth {
     create RuntimeHealthSnapshot {
-      state = AgentHello.agent_id
-      updated_at = AgentHello.version
+      state = AgentStatusReport.agent_id
+      updated_at = AgentStatusReport.version
     }
   }
 }
@@ -67,13 +67,13 @@ flow ReportActionResultFlow {
   }
 }
 
-verify AgentHelloVerified for flow AgentHelloFlow {
+verify AgentStatusReportVerified for flow AgentStatusReportFlow {
   given {
-    AgentHello.agent_id = "agent-001"
-    AgentHello.version = "v1"
+    AgentStatusReport.agent_id = "agent-001"
+    AgentStatusReport.version = "v1"
   }
 
-  when AgentHello
+  when AgentStatusReport
 
   expect {
     RuntimeHealthSnapshot.state == "agent-001"

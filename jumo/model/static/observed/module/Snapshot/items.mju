@@ -1,4 +1,4 @@
-struct DiscoverySnapshotContract {
+struct DiscoverySnapshot {
   schema_version
   unique snapshot_id
   revision
@@ -45,7 +45,7 @@ struct DiscoveredTarget {
   state
 }
 
-struct CandidateCollectionTarget {
+struct CollectionCandidate {
   unique candidate_id
   target_ref
   collection_kind

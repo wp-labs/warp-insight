@@ -107,7 +107,7 @@ bind WistAgentdOnlineRegistrationInterface {
     route POST "/api/v1/agent/credentials:renew"
     auth bearer
     actor_identity Agentd.id from credential.agent_id
-    status AgentCredentialBundle 200
+    status CredentialBundle 200
   }
 
   entry PollControlCommands {

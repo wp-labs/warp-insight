@@ -1,4 +1,4 @@
-struct AgentConfigContract {
+struct AgentConfig {
   unique schema_version
   agent
   control_plane

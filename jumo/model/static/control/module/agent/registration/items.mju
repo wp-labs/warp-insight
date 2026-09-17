@@ -17,7 +17,7 @@ flow AgentdRegistrationFlow {
   trigger SubmitEnrollmentRequest
 
   creates AgentIdentity
-  creates AgentCredentialBundle
+  creates CredentialBundle
   creates AgentEnrollmentTokenValidation
   creates AgentInitialConfig
   creates AgentPolicyBinding
@@ -50,7 +50,7 @@ flow AgentdRegistrationFlow {
   }
 
   step IssueAgentCredential {
-    create AgentCredentialBundle {
+    create CredentialBundle {
       credential_id = "credential-issued"
       agent_id = "agent-issued"
       instance_id = "instance-issued"
@@ -105,7 +105,7 @@ verify AgentdRegistrationVerified for flow AgentdRegistrationFlow {
 
   expect {
     AgentIdentity.agent_id == "agent-issued"
-    AgentCredentialBundle.credential_id == "credential-issued"
+    CredentialBundle.credential_id == "credential-issued"
     AgentEnrollmentResult.status == "accepted"
   }
 }

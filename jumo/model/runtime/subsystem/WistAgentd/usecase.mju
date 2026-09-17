@@ -24,10 +24,10 @@ usecase PeriodicallyReportSelfStatus {
   }
 
   actor Control.Agentd
-  trigger Reporting.AgentHello
+  trigger Reporting.AgentStatusReport
   outcome Reporting.RuntimeHealthSnapshot
-  flow Reporting.AgentHelloFlow
-  verify Reporting.AgentHelloVerified
+  flow Reporting.AgentStatusReportFlow
+  verify Reporting.AgentStatusReportVerified
 }
 
 // 采集日志

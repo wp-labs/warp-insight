@@ -1,4 +1,4 @@
-struct ActionPlanContract {
+struct ActionPlan {
   api_version
   kind
   plan_meta
@@ -59,7 +59,7 @@ struct ActionPlanStep {
   op
 }
 
-struct ActionResultContract {
+struct ActionResult {
   api_version
   kind
   action_id
@@ -113,7 +113,7 @@ struct ExecutionResourceUsage {
   stderr_bytes
 }
 
-struct CapabilityReportContract {
+struct CapabilityReport {
   schema_version
   agent_id
   instance_id

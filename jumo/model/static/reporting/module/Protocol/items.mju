@@ -1,4 +1,4 @@
-message<command> AgentHello {
+message<command> AgentStatusReport {
   agent_id: String
   instance_id: String
   version: String

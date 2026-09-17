@@ -3,7 +3,7 @@
 message<command> SubmitEnrollmentRequest {
   token: String
   credential_request: String
-  host_profile: AgentHostProfile
+  host_profile: HostProfile
   capability_summary: String
   requested_at: DateTime
 }
@@ -39,14 +39,14 @@ interface WistAgentdOnlineRegistrationInterface {
 
   entry SubmitAgentStatus {
     actor Agentd
-    input Reporting.AgentHello
+    input Reporting.AgentStatusReport
     output Reporting.AgentStatusAccepted
-    calls Reporting.AgentHelloFlow
+    calls Reporting.AgentStatusReportFlow
   }
 
   entry RenewAgentCredential {
     actor Agentd
-    output AgentCredentialBundle
+    output CredentialBundle
   }
 
   entry PollControlCommands {
@@ -86,9 +86,9 @@ flow RenewAgentCredentialFlow {
   actor Agentd
   trigger RenewAgentCredential
 
-  depends AgentIdentity, AgentCredentialBundle, AgentControlAuthProfile
+  depends AgentIdentity, CredentialBundle, AgentControlAuthProfile
 
-  creates AgentCredentialBundle
+  creates CredentialBundle
 
   step<stop> IssueRenewedCredential {
   }
