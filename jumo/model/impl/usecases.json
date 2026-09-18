@@ -2,9 +2,9 @@
   "schema_version": 1,
   "usecases": [
     {
-      "name": "System.WarpInsightCenter.CreateGatewayInstance",
+      "name": "System.WistCenter.CreateGatewayInstance",
       "status": "Partial",
-      "progress": 85,
+      "progress": 95,
       "flow": "Control.AdminCreateGatewayInstanceFlow",
       "entries": [
         {
@@ -50,14 +50,14 @@
         }
       ],
       "gaps": [
-        "运行期凭据轮换端点（RenewGatewayCredential / credentials:renew）待实现",
-        "无显式供应完成信号（Running 由首次 status 上报隐式触发）"
+        "无显式供应完成信号：Running 由首次 status 上报隐式触发（store.rs / pg_store.rs 的首次上报分支）"
       ]
     },
     {
-      "name": "System.WarpInsightCenter.GetInitialConfig",
+      "name": "System.WistCenter.GetInitialConfig",
       "status": "Complete",
       "progress": 100,
+      "flow": "Control.GetGatewayInitialConfigFlow",
       "entries": [
         {
           "name": "GetInitialConfig",
@@ -72,7 +72,7 @@
       ]
     },
     {
-      "name": "System.WarpInsightCenter.ReceiveGatewayStatusReport",
+      "name": "System.WistCenter.ReceiveGatewayStatusReport",
       "status": "Complete",
       "progress": 100,
       "entries": [
@@ -89,7 +89,7 @@
       ]
     },
     {
-      "name": "System.WarpInsightCenter.ViewGatewayStatus",
+      "name": "System.WistCenter.ViewGatewayStatus",
       "status": "Complete",
       "progress": 100,
       "entries": [
@@ -111,7 +111,7 @@
       ]
     },
     {
-      "name": "System.WarpInsightCenter.BindGatewayCustomer",
+      "name": "System.WistCenter.BindGatewayCustomer",
       "status": "Complete",
       "progress": 100,
       "entries": [
@@ -123,14 +123,67 @@
       ]
     },
     {
-      "name": "System.WarpInsightCenter.RenewGatewayCredential",
-      "status": "Partial",
-      "progress": 0,
+      "name": "System.WistCenter.RenewGatewayCredential",
+      "status": "Complete",
+      "progress": 100,
+      "flow": "Control.RenewGatewayCredentialFlow",
       "entries": [
         {
           "name": "RenewGatewayCredential",
           "route": "POST /api/v1/gateway/credentials:renew",
           "handler": "gateway_ops.rs:renew_gateway_credential"
+        }
+      ]
+    },
+    {
+      "name": "System.WistCenter.PublishWistAgentd",
+      "status": "Complete",
+      "progress": 100,
+      "entries": [
+        {
+          "name": "AdminPublishWistAgentdRelease",
+          "route": "POST /api/v1/admin/releases/:component",
+          "handler": "admin_ops.rs:admin_publish_release",
+          "covers": ["PublishWistAgentd"]
+        }
+      ]
+    },
+    {
+      "name": "System.WistCenter.PublishWarpGateway",
+      "status": "Complete",
+      "progress": 100,
+      "entries": [
+        {
+          "name": "AdminPublishWarpGatewayRelease",
+          "route": "POST /api/v1/admin/releases/:component",
+          "handler": "admin_ops.rs:admin_publish_release",
+          "covers": ["PublishWarpGateway"]
+        }
+      ]
+    },
+    {
+      "name": "System.WistCenter.CreateUpgradePlan",
+      "status": "Complete",
+      "progress": 100,
+      "entries": [
+        {
+          "name": "AdminCreateUpgradePlan",
+          "route": "POST /api/v1/admin/upgrade-plans",
+          "handler": "admin_ops.rs:admin_create_upgrade_plan",
+          "covers": ["CreateUpgradePlan"]
+        }
+      ]
+    },
+    {
+      "name": "System.WistCenter.ApproveUpgradePlan",
+      "status": "Complete",
+      "progress": 100,
+      "entries": [
+        {
+          "name": "AdminApproveUpgradePlan",
+          "route": "POST /api/v1/admin/upgrade-plans/approve",
+          "handler": "admin_ops.rs:admin_approve_upgrade_plan",
+          "covers": ["ApproveUpgradePlan"]
         }
       ]
     }
