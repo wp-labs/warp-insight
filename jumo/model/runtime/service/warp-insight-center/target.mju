@@ -3,7 +3,8 @@
 
 target<bin,http> warp-insight-center {
   modules Control.InsightCenterApp.WistCenter
-  modules Control.Gateway.Supervision
+  modules Control.Gateway.Supervision, Control.Gateway.Security
   modules Control.InsightCenter.PlatformRelease, Control.Gateway.Identity, Control.Gateway.Management
   modules Control.InsightCenterApp.AdminFacingInterface, Control.GatewayApp.FacingInterface
+  modules Control.GatewayApp.Application
 }
