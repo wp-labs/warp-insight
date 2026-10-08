@@ -433,9 +433,19 @@ if bundle["control_endpoint"].rstrip("/") != base_url:
 
 field = "arm_linux_install_code" if arch.startswith("arm") else "x86_linux_install_code"
 command = install_code[field]
-install_url = bundle.get("install_script_url", "")
+# 安装包按**平台**托管：bundle.platforms 每平台一份（agentd 是平台专用制品）。
+platform = (
+    "aarch64-unknown-linux-musl" if arch.startswith("arm") else "x86_64-unknown-linux-musl"
+)
+platforms = bundle.get("platforms") or []
+entry = next((p for p in platforms if p.get("platform") == platform), None)
+if entry is None:
+    raise SystemExit(
+        f"bootstrap_bundle.platforms is missing platform {platform}: {platforms}"
+    )
+install_url = entry.get("install_script_url", "")
 if not install_url:
-    raise SystemExit("bootstrap_bundle.install_script_url is required")
+    raise SystemExit("bootstrap_bundle.platforms[].install_script_url is required")
 signature_url = f"{install_url}.sig"
 required_command_fragments = [
     f'curl -fsSLk "{install_url}" -o "$D/s"',
@@ -459,12 +469,18 @@ if not isinstance(token, str) or not token:
     raise SystemExit("install_code.bootstrap_enrollment_token is required")
 if token in command or "WARP_INSIGHT_ENROLLMENT_TOKEN=" in command:
     raise SystemExit(f"install command must not contain bootstrap token: {command}")
-if "?token=" in install_url or "?token=" in bundle.get("install_script_url", ""):
+if "?token=" in install_url:
     raise SystemExit(f"install URL must not contain token query: {install_url}")
-if "?token=" in bundle.get("agent_package_url", ""):
-    raise SystemExit(f"package URL must not contain token query: {bundle.get('agent_package_url')}")
-if bundle.get("agent_package_url") != f"{base_url}/api/v1/agent/packages/current":
-    raise SystemExit(f"unexpected package URL: {bundle.get('agent_package_url')}")
+package_url = entry.get("agent_package_url", "")
+if "?token=" in package_url:
+    raise SystemExit(f"package URL must not contain token query: {package_url}")
+expected_package_url = (
+    f"{base_url}/api/v1/agent/packages/current?platform={platform}"
+)
+if package_url != expected_package_url:
+    raise SystemExit(
+        f"unexpected package URL: {package_url} (expected {expected_package_url})"
+    )
 if field_name == "url":
     print(install_url)
 elif field_name == "token":
